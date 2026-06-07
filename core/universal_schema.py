@@ -1,25 +1,16 @@
-class UniversalStrategy:
+from core.component_executor import execute_component
 
-    def __init__(self):
 
-        self.components = []
+def build_signals_from_schema(
+    df,
+    schema
+):
 
-    def add_component(
-        self,
-        category,
-        component,
-        params=None
-    ):
+    for component in schema["components"]:
 
-        self.components.append({
+        df = execute_component(
+            df,
+            component
+        )
 
-            "category": category,
-            "component": component,
-            "params": params or {}
-        })
-
-    def to_dict(self):
-
-        return {
-            "components": self.components
-        }
+    return df
