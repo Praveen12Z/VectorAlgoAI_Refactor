@@ -31,7 +31,12 @@ from components.optimizer_panel import render_optimizer_panel
 from components.executive_summary_panel import (
     render_executive_summary
 )
+from core.strategy_mutation_engine import generate_mutations
+from core.mutation_evaluator import evaluate_mutations
 
+from components.mutation_panel import (
+    render_mutation_panel
+)
 
 
 DEFAULT_STRATEGY_YAML = """\
@@ -356,7 +361,18 @@ def run_mvp_dashboard():
         optimizer,
         market_fit
     )
-      
+    mutations = generate_mutations(
+            cfg
+    )
+           mutations,
+           years
+    )
+
+    mutation_results = evaluate_mutations(
+    render_mutation_panel(
+         mutation_results
+    )
+
      
     gradecard = build_gradecard(metrics)
 
