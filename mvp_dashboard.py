@@ -339,8 +339,7 @@ def run_mvp_dashboard():
       cfg,
       years
     )
-    st.write("DEBUG MARKET FIT")
-    st.write(market_fit)
+     
     gradecard = build_gradecard(metrics)
 
     # --------------------------------------------------
