@@ -1,14 +1,13 @@
 # mvp_dashboard.py
 # VectorAlgoAI – Strategy Crash-Test MVP Dashboard
 # (Public MVP mode: website handles signup; saving/accounts disabled for now)
-
 import traceback
 from typing import Dict, Any
 
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-from components.optimizer_panel import render_optimizer_panel
+
 from core.data_loader import load_ohlcv
 from core.indicators import apply_all_indicators
 from core.strategy_config import parse_strategy_yaml, StrategyConfig
@@ -20,21 +19,15 @@ from core.strategy_doctor import build_strategy_doctor
 from core.root_cause_analyzer import analyze_root_cause
 from core.gradecard import build_gradecard
 from core.strategy_optimizer import optimize_strategy
+from core.market_fit_analyzer import analyze_market_fit
+
 from components.research_panel import render_research_panel
 from components.doctor_panel import render_doctor_panel
 from components.root_cause_panel import render_root_cause_panel
 from components.gradecard_panel import render_gradecard_panel
+from components.optimizer_panel import render_optimizer_panel
 from components.market_fit_panel import render_market_fit_panel
-# NOTE: These are reserved for future "accounts + saving" versions.
-# Keep imports commented to avoid deployment errors if modules are missing.
-# from core.report import build_report  # reserved for future use
-# from core.strategy_store import (
-#     load_user_strategies,
-#     save_user_strategy,
-#     delete_user_strategy,
-# )
-
-
+from components.optimizer_panel import render_optimizer_panel
 DEFAULT_STRATEGY_YAML = """\
 name: "NAS100 Momentum v5 – Pullback System"
 market: "NAS100"
