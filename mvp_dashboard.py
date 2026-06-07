@@ -418,9 +418,6 @@ def run_mvp_dashboard():
     render_mutation_panel(
         mutation_results
     )
-    render_mutation_panel(
-        mutation_results
-    )
     render_research_panel(
         cfg,
         data_start,
