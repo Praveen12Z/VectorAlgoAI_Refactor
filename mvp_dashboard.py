@@ -20,7 +20,8 @@ from core.risk_report import build_risk_report
 from core.strategy_doctor import build_strategy_doctor
 from core.root_cause_analyzer import analyze_root_cause
 from core.gradecard import build_gradecard
-
+from core.market_fit_analyzer import analyze_market_fit
+from components.market_fit_panel import render_market_fit_panel
 from components.research_panel import render_research_panel
 from components.doctor_panel import render_doctor_panel
 from components.root_cause_panel import render_root_cause_panel
@@ -342,6 +343,10 @@ def run_mvp_dashboard():
     gradecard = build_gradecard(metrics)
     render_optimizer_panel(
          optimizer
+    )
+    market_fit = analyze_market_fit(
+       cfg,
+       years
     )
 
     render_research_panel(cfg, data_start, data_end, data_bars, research, verdict, risk, metrics)
