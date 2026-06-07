@@ -8,8 +8,7 @@ from typing import Dict, Any
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-from core.strategy_optimizer import optimize_strategy
-from components.optimizer_panel import render_optimizer_panel
+
 from core.data_loader import load_ohlcv
 from core.indicators import apply_all_indicators
 from core.strategy_config import parse_strategy_yaml, StrategyConfig
@@ -20,8 +19,7 @@ from core.risk_report import build_risk_report
 from core.strategy_doctor import build_strategy_doctor
 from core.root_cause_analyzer import analyze_root_cause
 from core.gradecard import build_gradecard
-from core.market_fit_analyzer import analyze_market_fit
-from components.market_fit_panel import render_market_fit_panel
+
 from components.research_panel import render_research_panel
 from components.doctor_panel import render_doctor_panel
 from components.root_cause_panel import render_root_cause_panel
@@ -337,30 +335,53 @@ def run_mvp_dashboard():
     research = calculate_research_score(metrics)
     verdict = get_capital_verdict(metrics)
     risk = build_risk_report(metrics)
+
     doctor = build_strategy_doctor(metrics)
     root_cause = analyze_root_cause(metrics)
+
     optimizer = optimize_strategy(metrics)
+
     market_fit = analyze_market_fit(
-       cfg,
-       years
-    )
-      
-    gradecard = build_gradecard(metrics)
-    render_optimizer_panel(
-         optimizer
-    )
-   render_market_fit_panel(
-     market_fit
-   )
-    market_fit = analyze_market_fit(
-       cfg,
-       years
+        cfg,
+        years
     )
 
-    render_research_panel(cfg, data_start, data_end, data_bars, research, verdict, risk, metrics)
-    render_doctor_panel(doctor)
-    render_root_cause_panel(root_cause)
-    render_gradecard_panel(gradecard)
+    gradecard = build_gradecard(metrics)
+
+    # --------------------------------------------------
+    # PANELS
+    # --------------------------------------------------
+
+    render_optimizer_panel(
+        optimizer
+    )
+
+    render_market_fit_panel(
+        market_fit
+    )
+
+    render_research_panel(
+    cfg,
+    data_start,
+    data_end,
+    data_bars,
+    research,
+    verdict,
+    risk,
+    metrics
+    )
+
+    render_doctor_panel(
+        doctor
+    )
+
+    render_root_cause_panel(
+        root_cause
+    )
+
+    render_gradecard_panel(
+        gradecard
+    )
 
     st.markdown("---")
     st.subheader("📈 Strategy Evidence")
