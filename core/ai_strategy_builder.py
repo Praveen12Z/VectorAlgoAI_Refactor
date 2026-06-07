@@ -1,153 +1,65 @@
-# core/ai_strategy_builder.py
+# components/ai_strategy_builder_panel.py
 
-from core.universal_schema import UniversalStrategy
+import streamlit as st
+
+from core.ai_strategy_builder import build_strategy_from_text
+from core.schema_to_yaml_compiler import compile_schema_to_yaml
 
 
-def build_strategy_from_text(text: str) -> dict:
-    """
-    AI Strategy Builder V1.
-    Rule-based natural language parser for now.
-    Later this will be GPT-powered.
-    """
+def render_ai_strategy_builder_panel():
 
-    schema = UniversalStrategy()
-    txt = (text or "").lower()
+    st.subheader("🧠 AI Strategy Builder")
 
-    # -----------------------------
-    # TREND COMPONENTS
-    # -----------------------------
-    if "ema" in txt or "moving average" in txt or "trend" in txt:
-        schema.add_component(
-            category="trend",
-            component="ema_trend",
-            params={
-                "fast": 50,
-                "slow": 200
-            }
+    market = st.selectbox(
+        "Market",
+        ["XAUUSD", "NAS100", "US30", "BTCUSD", "ETHUSD", "EURUSD", "GBPUSD"],
+        index=0,
+        key="ai_builder_market",
+    )
+
+    timeframe = st.selectbox(
+        "Timeframe",
+        ["15m", "1h", "4h", "1d"],
+        index=1,
+        key="ai_builder_timeframe",
+    )
+
+    strategy_text = st.text_area(
+        "Describe your strategy in plain English",
+        placeholder=(
+            "Example: Buy Gold when trend is bullish, price pulls back to support, "
+            "RSI confirms momentum, avoid FOMC, target 3R."
+        ),
+        height=160,
+        key="ai_strategy_text",
+    )
+
+    if st.button("Build Strategy YAML", use_container_width=True):
+
+        if not strategy_text.strip():
+            st.warning("Please describe your strategy first.")
+            return None
+
+        schema = build_strategy_from_text(strategy_text)
+
+        generated_yaml = compile_schema_to_yaml(
+            schema,
+            market=market,
+            timeframe=timeframe,
         )
 
-    if "trendline" in txt:
-        schema.add_component(
-            category="trend",
-            component="trendline",
-            params={}
-        )
+        st.success("Universal Strategy Schema generated.")
+        st.json(schema)
 
-    # -----------------------------
-    # ENTRY COMPONENTS
-    # -----------------------------
-    if "pullback" in txt or "retest" in txt:
-        schema.add_component(
-            category="entry",
-            component="pullback_entry",
-            params={}
-        )
+        st.success("YAML strategy generated.")
 
-    if "breakout" in txt or "break" in txt:
-        schema.add_component(
-            category="entry",
-            component="breakout",
-            params={}
-        )
+        st.code(generated_yaml, language="yaml")
 
-    if "support" in txt or "resistance" in txt:
-        schema.add_component(
-            category="entry",
-            component="support_resistance",
-            params={}
-        )
+        st.session_state["strategy_yaml"] = generated_yaml
+        st.session_state["current_strategy_name"] = "AI Generated Universal Strategy"
 
-    # -----------------------------
-    # CONFIRMATION COMPONENTS
-    # -----------------------------
-    if "rsi" in txt:
-        schema.add_component(
-            category="confirmation",
-            component="rsi_filter",
-            params={
-                "threshold": 55
-            }
-        )
+        st.info("Generated YAML has been loaded into the Strategy YAML box below.")
 
-    if "volume" in txt:
-        schema.add_component(
-            category="confirmation",
-            component="volume_filter",
-            params={}
-        )
+        return schema
 
-    if "atr" in txt or "volatility" in txt:
-        schema.add_component(
-            category="confirmation",
-            component="atr_filter",
-            params={}
-        )
-
-    # -----------------------------
-    # RISK COMPONENTS
-    # -----------------------------
-    if "atr stop" in txt or "stop loss" in txt or "sl" in txt:
-        schema.add_component(
-            category="risk",
-            component="atr_stop",
-            params={
-                "multiple": 2.0
-            }
-        )
-
-    if "target" in txt or "take profit" in txt or "rr" in txt or "risk reward" in txt:
-        schema.add_component(
-            category="risk",
-            component="rr_target",
-            params={
-                "rr": 3.0
-            }
-        )
-
-    # -----------------------------
-    # SESSION COMPONENTS
-    # -----------------------------
-    if "london" in txt or "new york" in txt or "ny session" in txt:
-        schema.add_component(
-            category="session",
-            component="session_filter",
-            params={}
-        )
-
-    # -----------------------------
-    # NEWS / MACRO COMPONENTS
-    # -----------------------------
-    if "fomc" in txt or "nfp" in txt or "cpi" in txt or "news" in txt:
-        schema.add_component(
-            category="news",
-            component="news_filter",
-            params={
-                "avoid_high_impact": True
-            }
-        )
-
-    # -----------------------------
-    # SMC / ICT COMPONENTS
-    # -----------------------------
-    if "liquidity" in txt or "sweep" in txt:
-        schema.add_component(
-            category="smc",
-            component="liquidity_sweep",
-            params={}
-        )
-
-    if "order block" in txt or "orderblock" in txt:
-        schema.add_component(
-            category="smc",
-            component="order_block",
-            params={}
-        )
-
-    if "fvg" in txt or "fair value gap" in txt:
-        schema.add_component(
-            category="smc",
-            component="fair_value_gap",
-            params={}
-        )
-
-    return schema.to_dict()
+    return None
