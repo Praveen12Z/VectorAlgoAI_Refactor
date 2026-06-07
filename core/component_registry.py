@@ -31,3 +31,26 @@ COMPONENT_REGISTRY = {
     },
 
 }
+
+
+"support_resistance"
+
+"breakout"
+
+"trendline"
+
+"atr_filter"
+
+"volume_filter"
+
+"session_filter"
+
+"news_filter"
+
+"liquidity_sweep"
+
+"order_block"
+
+"fair_value_gap"
+
+
