@@ -8,7 +8,7 @@ from typing import Dict, Any
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-
+from components.optimizer_panel import render_optimizer_panel
 from core.data_loader import load_ohlcv
 from core.indicators import apply_all_indicators
 from core.strategy_config import parse_strategy_yaml, StrategyConfig
