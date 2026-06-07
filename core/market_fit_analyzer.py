@@ -1,5 +1,7 @@
 # core/market_fit_analyzer.py
 
+from copy import deepcopy
+
 from core.data_loader import load_ohlcv
 from core.indicators import apply_all_indicators
 from core.backtester_adapter import run_backtest_v2
@@ -10,6 +12,7 @@ MARKETS = [
     "EURUSD",
     "GBPUSD",
     "USDJPY",
+    "AUDUSD",
     "NAS100",
     "US30",
     "BTCUSD",
@@ -25,11 +28,12 @@ def analyze_market_fit(cfg, years=2):
 
         try:
 
-            cfg.market = market
+            local_cfg = deepcopy(cfg)
+            local_cfg.market = market
 
             df = load_ohlcv(
                 market,
-                cfg.timeframe,
+                local_cfg.timeframe,
                 years
             )
 
@@ -38,31 +42,38 @@ def analyze_market_fit(cfg, years=2):
 
             df = apply_all_indicators(
                 df,
-                cfg
+                local_cfg
             )
 
-            metrics, _, _, _ = run_backtest_v2(
-                df,
-                cfg
+            metrics, trades_df, equity_curve, df_feat = (
+                run_backtest_v2(
+                    df,
+                    local_cfg
+                )
             )
 
             results.append(
                 {
                     "market": market,
-                    "profit_factor": metrics.get(
-                        "profit_factor", 0
+                    "profit_factor": round(
+                        metrics.get("profit_factor", 0),
+                        2
                     ),
-                    "return_pct": metrics.get(
-                        "total_return_pct", 0
+                    "return_pct": round(
+                        metrics.get("total_return_pct", 0),
+                        2
                     ),
-                    "trades": metrics.get(
-                        "num_trades", 0
+                    "trades": int(
+                        metrics.get("num_trades", 0)
                     ),
                 }
             )
 
-        except Exception:
-            continue
+        except Exception as e:
+
+            print(
+                f"Market Fit Error {market}: {e}"
+            )
 
     results.sort(
         key=lambda x: x["profit_factor"],
