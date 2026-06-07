@@ -1,6 +1,7 @@
 import pandas as pd
 import streamlit as st
 
+
 def render_market_fit_panel(results):
 
     st.subheader(
@@ -8,9 +9,11 @@ def render_market_fit_panel(results):
     )
 
     if not results:
+
         st.warning(
             "No market fit data available."
         )
+
         return
 
     df = pd.DataFrame(results)
@@ -23,7 +26,7 @@ def render_market_fit_panel(results):
     best = results[0]
 
     st.success(
-        f"Best Market: "
+        f"🥇 Best Market: "
         f"{best['market']} "
-        f"(PF {best['profit_factor']:.2f})"
+        f"(PF {best['profit_factor']})"
     )
