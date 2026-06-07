@@ -46,6 +46,12 @@ from components.evolution_lab_panel import (
 from core.strategy_mutation_engine import generate_mutations
 from core.mutation_evaluator import evaluate_mutations
 from components.mutation_panel import render_mutation_panel
+from components.ai_strategy_builder_panel import render_ai_strategy_builder_panel
+
+
+
+
+
 DEFAULT_STRATEGY_YAML = """\
 name: "NAS100 Momentum v5 – Pullback System"
 market: "NAS100"
@@ -238,6 +244,7 @@ def run_mvp_dashboard():
     # IMPORTANT: st.set_page_config() should live in app.py (entrypoint)
     st.title("🧪 VectorAlgoAI – Strategy Crash-Test Lab (MVP)")
     st.caption("Early Access MVP • Research Score · Strategy Doctor · Root Cause · Institutional Gradecard")
+    render_ai_strategy_builder_panel()
 
     with st.sidebar:
         st.header("⚙️ Backtest Settings")
