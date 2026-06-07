@@ -345,7 +345,8 @@ def run_mvp_dashboard():
         cfg,
         years
     )
-
+    st.write("DEBUG MARKET FIT")
+    st.write(market_fit)
     gradecard = build_gradecard(metrics)
 
     # --------------------------------------------------
@@ -361,14 +362,14 @@ def run_mvp_dashboard():
     )
 
     render_research_panel(
-    cfg,
-    data_start,
-    data_end,
-    data_bars,
-    research,
-    verdict,
-    risk,
-    metrics
+        cfg,
+        data_start,
+        data_end,
+        data_bars,
+        research,
+        verdict,
+        risk,
+        metrics
     )
 
     render_doctor_panel(
