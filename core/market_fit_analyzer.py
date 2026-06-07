@@ -9,10 +9,10 @@ from core.backtester_adapter import run_backtest_v2
 
 MARKETS = [
     "XAUUSD",
-    "EURUSD",
-    "GBPUSD",
+    #"EURUSD",
+    #"GBPUSD",
     "USDJPY",
-    "AUDUSD",
+   # "AUDUSD",
     "NAS100",
     "US30",
     "BTCUSD",
