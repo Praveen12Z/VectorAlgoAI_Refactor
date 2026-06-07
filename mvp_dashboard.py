@@ -336,7 +336,8 @@ def run_mvp_dashboard():
 
     # =====================================================
     # RESEARCH LAYER
-    # =====================================================
+# =====================================================
+
     research = calculate_research_score(metrics)
     verdict = get_capital_verdict(metrics)
     risk = build_risk_report(metrics)
@@ -349,9 +350,26 @@ def run_mvp_dashboard():
     gradecard = build_gradecard(metrics)
 
     market_fit = analyze_market_fit(
-       cfg,
-       years
+        cfg,
+        years
     )
+
+# --------------------------------------
+# Mutation Engine
+# --------------------------------------
+
+    mutations = generate_mutations(
+        cfg
+    )
+
+    mutation_results = evaluate_mutations(
+        mutations,
+        years
+    )
+
+# --------------------------------------
+# Executive Summary
+# --------------------------------------
 
     render_executive_summary(
         research,
@@ -361,24 +379,10 @@ def run_mvp_dashboard():
         optimizer,
         market_fit
     )
-    mutations = generate_mutations(
-            cfg
-    )
-           mutations,
-           years
-    )
 
-    mutation_results = evaluate_mutations(
-    render_mutation_panel(
-         mutation_results
-    )
-
-     
-    gradecard = build_gradecard(metrics)
-
-    # --------------------------------------------------
-    # PANELS
-    # --------------------------------------------------
+# --------------------------------------
+# Panels
+# --------------------------------------
 
     render_optimizer_panel(
         optimizer
@@ -386,6 +390,10 @@ def run_mvp_dashboard():
 
     render_market_fit_panel(
         market_fit
+    )
+
+    render_mutation_panel(
+        mutation_results
     )
 
     render_research_panel(
@@ -413,8 +421,8 @@ def run_mvp_dashboard():
 
     st.markdown("---")
     st.subheader("📈 Strategy Evidence")
-    fig = go.Figure()
 
+    fig = go.Figure()
     fig.add_trace(
         go.Candlestick(
             x=df_feat.index,
