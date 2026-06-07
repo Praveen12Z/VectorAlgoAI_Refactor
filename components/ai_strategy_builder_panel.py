@@ -1,34 +1,47 @@
-# components/ai_strategy_builder_panel.py
-
 import streamlit as st
+
 from core.ai_strategy_builder import build_strategy_from_text
+from core.schema_to_yaml_compiler import compile_schema_to_yaml
 
 
 def render_ai_strategy_builder_panel():
 
     st.subheader("🧠 AI Strategy Builder")
 
-    strategy_text = st.text_area(
-        "Describe your strategy in plain English",
-        placeholder=(
-            "Example: Buy Gold when trend is bullish, price pulls back to support, "
-            "RSI confirms momentum, avoid FOMC, target 3R."
-        ),
-        height=160,
+    market = st.selectbox(
+        "Market",
+        ["XAUUSD", "NAS100", "US30", "BTCUSD", "ETHUSD"],
+        index=0
     )
 
-    if st.button("Build Universal Strategy", use_container_width=True):
+    timeframe = st.selectbox(
+        "Timeframe",
+        ["15m", "1h", "4h", "1d"],
+        index=1
+    )
 
-        if not strategy_text.strip():
-            st.warning("Please describe your strategy first.")
-            return None
+    strategy_text = st.text_area(
+        "Describe your strategy in plain English",
+        height=150
+    )
 
-        schema = build_strategy_from_text(strategy_text)
+    if st.button("Build Strategy YAML"):
 
-        st.success("Universal Strategy Schema generated.")
+        schema = build_strategy_from_text(
+            strategy_text
+        )
 
         st.json(schema)
 
-        return schema
+        generated_yaml = compile_schema_to_yaml(
+            schema,
+            market,
+            timeframe
+        )
 
-    return None
+        st.code(
+            generated_yaml,
+            language="yaml"
+        )
+
+        st.session_state["strategy_yaml"] = generated_yaml
