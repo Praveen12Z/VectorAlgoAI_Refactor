@@ -28,6 +28,12 @@ from components.gradecard_panel import render_gradecard_panel
 from components.optimizer_panel import render_optimizer_panel
 from components.market_fit_panel import render_market_fit_panel
 from components.optimizer_panel import render_optimizer_panel
+from components.executive_summary_panel import (
+    render_executive_summary
+)
+
+
+
 DEFAULT_STRATEGY_YAML = """\
 name: "NAS100 Momentum v5 – Pullback System"
 market: "NAS100"
@@ -339,6 +345,15 @@ def run_mvp_dashboard():
       cfg,
       years
     )
+    render_executive_summary(
+       research,
+       verdict,
+       doctor,
+       gradecard,
+       optimizer,
+       market_fit_results,
+    )
+      
      
     gradecard = build_gradecard(metrics)
 
