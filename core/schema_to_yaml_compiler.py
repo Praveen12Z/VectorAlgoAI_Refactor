@@ -87,10 +87,13 @@ def compile_schema_to_yaml(schema: dict, market="XAUUSD", timeframe="1h") -> str
         "timeframe": timeframe,
         "indicators": indicators,
         "entry": {
-            "long": entry_long
+             "long": entry_long,
+             "short": []
         },
+
         "exit": {
-            "long": exit_long
+            "long": exit_long,
+            "short": []
         },
         "risk": {
             "capital": 10000,
