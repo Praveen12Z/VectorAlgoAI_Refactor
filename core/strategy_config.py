@@ -153,10 +153,13 @@ def parse_strategy_yaml(text: str) -> StrategyConfig:
     # EXIT RULES (ATR preferred, fallback to comparisons)
     # ---------------------------------------------
     exit_long_cmp = parse_comparison_rules(data["exit"]["long"])
-    exit_short_cmp = parse_comparison_rules(data["exit"]["short"])
-
+    exit_short_cmp = parse_comparison_rules(
+        data["exit"].get("short", [])
+    )
     exit_long_atr = parse_atr_rules(data["exit"]["long"])
-    exit_short_atr = parse_atr_rules(data["exit"]["short"])
+    exit_short_atr = parse_atr_rules(
+        data["exit"].get("short", [])
+    )
 
     # If ATR rules exist, we use those as primary exit spec.
     # PRO engine reads these directly; rule_engine handles only comparison groups.
