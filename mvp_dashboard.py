@@ -341,17 +341,20 @@ def run_mvp_dashboard():
 
     optimizer = optimize_strategy(metrics)
 
+    gradecard = build_gradecard(metrics)
+
     market_fit = analyze_market_fit(
-      cfg,
-      years
+       cfg,
+       years
     )
+
     render_executive_summary(
-       research,
-       verdict,
-       doctor,
-       gradecard,
-       optimizer,
-       market_fit_results,
+        research,
+        verdict,
+        doctor,
+        gradecard,
+        optimizer,
+        market_fit
     )
       
      
