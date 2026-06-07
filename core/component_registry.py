@@ -1,56 +1,76 @@
 COMPONENT_REGISTRY = {
 
+    # TREND
+
     "ema_trend": {
-        "type": "trend",
-        "description": "EMA trend filter"
+        "type": "trend"
     },
 
-    "rsi_filter": {
-        "type": "confirmation",
-        "description": "RSI momentum filter"
+    "trendline": {
+        "type": "trend"
     },
+
+    # ENTRY
 
     "pullback_entry": {
-        "type": "entry",
-        "description": "Pullback setup"
+        "type": "entry"
     },
 
-    "breakout_entry": {
-        "type": "entry",
-        "description": "Breakout setup"
+    "breakout": {
+        "type": "entry"
     },
+
+    "support_resistance": {
+        "type": "entry"
+    },
+
+    # CONFIRMATION
+
+    "rsi_filter": {
+        "type": "confirmation"
+    },
+
+    "atr_filter": {
+        "type": "confirmation"
+    },
+
+    "volume_filter": {
+        "type": "confirmation"
+    },
+
+    # RISK
 
     "atr_stop": {
-        "type": "risk",
-        "description": "ATR stop loss"
+        "type": "risk"
     },
 
     "rr_target": {
-        "type": "risk",
-        "description": "Reward/Risk target"
+        "type": "risk"
     },
 
+    # SESSION
+
+    "session_filter": {
+        "type": "session"
+    },
+
+    # NEWS
+
+    "news_filter": {
+        "type": "news"
+    },
+
+    # SMC / ICT
+
+    "liquidity_sweep": {
+        "type": "smc"
+    },
+
+    "order_block": {
+        "type": "smc"
+    },
+
+    "fair_value_gap": {
+        "type": "smc"
+    }
 }
-
-
-"support_resistance"
-
-"breakout"
-
-"trendline"
-
-"atr_filter"
-
-"volume_filter"
-
-"session_filter"
-
-"news_filter"
-
-"liquidity_sweep"
-
-"order_block"
-
-"fair_value_gap"
-
-
