@@ -37,6 +37,11 @@ from core.mutation_evaluator import evaluate_mutations
 from components.mutation_panel import (
     render_mutation_panel
 )
+from core.evolution_lab import run_evolution_lab
+
+from components.evolution_lab_panel import (
+    render_evolution_lab
+)
 
 
 DEFAULT_STRATEGY_YAML = """\
@@ -366,7 +371,13 @@ def run_mvp_dashboard():
         mutations,
         years
     )
-
+    evolution_results = run_evolution_lab(
+        mutations,
+        years
+    )
+    render_evolution_lab(
+        evolution_results
+    )
 # --------------------------------------
 # Executive Summary
 # --------------------------------------
