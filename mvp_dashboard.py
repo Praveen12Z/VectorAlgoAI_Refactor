@@ -8,7 +8,8 @@ from typing import Dict, Any
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-
+from core.strategy_optimizer import optimize_strategy
+from components.optimizer_panel import render_optimizer_panel
 from core.data_loader import load_ohlcv
 from core.indicators import apply_all_indicators
 from core.strategy_config import parse_strategy_yaml, StrategyConfig
@@ -337,7 +338,11 @@ def run_mvp_dashboard():
     risk = build_risk_report(metrics)
     doctor = build_strategy_doctor(metrics)
     root_cause = analyze_root_cause(metrics)
+    optimizer = optimize_strategy(metrics)
     gradecard = build_gradecard(metrics)
+    render_optimizer_panel(
+         optimizer
+    )
 
     render_research_panel(cfg, data_start, data_end, data_bars, research, verdict, risk, metrics)
     render_doctor_panel(doctor)
