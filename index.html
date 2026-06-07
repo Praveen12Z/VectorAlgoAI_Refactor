@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>VectorAlgoAI — AI Quant Research Lab for Independent Traders</title>
+<meta name="description" content="VectorAlgoAI is an AI quant research lab for independent traders. Research, backtest, stress-test, and understand strategy risk before deploying capital."/>
+<meta property="og:title" content="VectorAlgoAI — AI Quant Research Lab"/>
+<meta property="og:description" content="Research, backtest, stress-test, and understand strategy risk before deploying capital."/>
+<meta property="og:type" content="website"/>
+<meta property="og:url" content="https://www.vectoralgoai.com/"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<style>
+:root {
+  --bg:#050712;
+  --bg2:#080b18;
+  --panel:rgba(255,255,255,.065);
+  --panel2:rgba(255,255,255,.095);
+  --border:rgba(255,255,255,.14);
+  --text:rgba(255,255,255,.94);
+  --muted:rgba(255,255,255,.68);
+  --soft:rgba(255,255,255,.78);
+  --brand:#4f7cff;
+  --brand2:#9aa8ff;
+  --cyan:#37d6ff;
+  --green:#22c55e;
+  --amber:#f59e0b;
+  --red:#ff6b6b;
+  --shadow:0 26px 90px rgba(0,0,0,.46);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  color:var(--text);
+  background:
+    radial-gradient(1000px 620px at 18% 5%,rgba(79,124,255,.28),transparent 60%),
+    radial-gradient(900px 620px at 90% 10%,rgba(55,214,255,.16),transparent 56%),
+    radial-gradient(950px 750px at 50% 115%,rgba(154,168,255,.16),transparent 64%),
+    linear-gradient(180deg,var(--bg),var(--bg2));
+  line-height:1.62;
+}
+a{color:inherit}
+.container{max-width:1200px;margin:0 auto;padding:0 22px}
+.nav{
+  position:sticky;top:0;z-index:50;
+  backdrop-filter:blur(16px);
+  background:rgba(5,7,18,.72);
+  border-bottom:1px solid rgba(255,255,255,.09);
+}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;padding:14px 0;gap:16px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;min-width:max-content}
+.logo-mark{
+  width:34px;height:34px;border-radius:11px;display:grid;place-items:center;
+  background:linear-gradient(135deg,var(--brand),var(--cyan));
+  box-shadow:0 0 28px rgba(55,214,255,.25);
+  color:#061024;font-weight:950;
+}
+.brand strong{font-size:16px;letter-spacing:.2px}
+.nav-links{display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:center}
+.nav-links a{text-decoration:none;color:var(--muted);font-weight:760;font-size:13px;padding:9px 10px;border-radius:999px}
+.nav-links a:hover{color:var(--text);background:rgba(255,255,255,.07)}
+.pill{
+  display:inline-flex;align-items:center;gap:9px;
+  background:rgba(255,255,255,.075);
+  border:1px solid rgba(255,255,255,.13);
+  padding:10px 13px;border-radius:999px;color:var(--text);
+  font-weight:870;font-size:13px;text-decoration:none;
+}
+.pill:hover{border-color:rgba(55,214,255,.45)}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:10px;
+  padding:13px 17px;border-radius:13px;border:1px solid rgba(255,255,255,.14);
+  text-decoration:none;font-weight:920;letter-spacing:.15px;font-size:14px;cursor:pointer;
+  transition:transform .12s ease,border-color .12s ease,box-shadow .12s ease;
+}
+.btn:hover{transform:translateY(-1px)}
+.btn-primary{
+  background:linear-gradient(135deg,rgba(79,124,255,.98),rgba(55,214,255,.88));
+  border-color:rgba(55,214,255,.36);color:#071026;
+  box-shadow:0 22px 62px rgba(79,124,255,.22);
+}
+.btn-secondary{background:rgba(255,255,255,.065);color:var(--text)}
+.btn-secondary:hover{border-color:rgba(255,255,255,.24)}
+.hero{padding:74px 0 34px}
+.hero-grid{display:grid;grid-template-columns:1.10fr .90fr;gap:22px;align-items:stretch}
+.panel{
+  background:linear-gradient(180deg,rgba(255,255,255,.078),rgba(255,255,255,.044));
+  border:1px solid var(--border);
+  border-radius:24px;padding:23px;box-shadow:var(--shadow);
+}
+.kicker{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.badge{
+  display:inline-flex;align-items:center;gap:8px;padding:9px 12px;border-radius:999px;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.11);
+  color:rgba(255,255,255,.82);font-weight:880;font-size:12px;
+}
+.badge.hot{border-color:rgba(55,214,255,.30);background:rgba(55,214,255,.08)}
+h1{margin:0 0 14px;font-size:60px;line-height:1.02;letter-spacing:-1.2px}
+.gradient{background:linear-gradient(90deg,var(--brand2),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sub{margin:0 0 20px;color:var(--muted);font-size:18px;max-width:68ch}
+.cta-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:14px}
+.metrics-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:18px}
+.metric-box{border:1px solid rgba(255,255,255,.11);background:rgba(0,0,0,.18);border-radius:15px;padding:13px}
+.metric-box strong{display:block;font-size:19px}
+.metric-box span{display:block;color:var(--muted);font-size:12px;font-weight:800}
+.mono{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+  color:rgba(255,255,255,.86);font-size:12px;line-height:1.55;white-space:pre-wrap;
+  background:rgba(0,0,0,.24);border:1px solid rgba(255,255,255,.10);
+  padding:13px;border-radius:16px;margin-top:14px;
+}
+.lab-card{display:grid;gap:12px;margin-top:14px}
+.mini-card{padding:15px;border-radius:18px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.055)}
+.mini-top{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:7px}
+.mini-top strong{font-size:15px}
+.tag{font-size:11px;font-weight:950;color:#071026;background:linear-gradient(135deg,var(--brand2),var(--cyan));padding:5px 8px;border-radius:999px}
+.mini-card span{color:var(--muted);font-size:13px}
+.countdown-wrap{
+  margin-top:16px;border-radius:18px;padding:15px;border:1px solid rgba(55,214,255,.20);
+  background:radial-gradient(650px 220px at 10% 10%,rgba(79,124,255,.30),transparent 56%),
+             radial-gradient(650px 220px at 95% 20%,rgba(55,214,255,.22),transparent 56%),
+             rgba(0,0,0,.16);
+}
+.countdown-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.countdown-label{font-weight:950;font-size:13px;color:rgba(255,255,255,.92);display:flex;align-items:center;gap:8px}
+.spark{width:8px;height:8px;border-radius:999px;background:linear-gradient(135deg,var(--brand),var(--cyan));box-shadow:0 0 16px rgba(55,214,255,.45)}
+.launch-date{font-size:12px;color:rgba(255,255,255,.76);font-weight:850}
+.countdown-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.cd-box{border-radius:14px;padding:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.055);text-align:center}
+.cd-num{font-size:28px;font-weight:950;letter-spacing:-.5px;background:linear-gradient(90deg,rgba(154,168,255,1),rgba(55,214,255,1));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.cd-lab{font-size:11px;color:rgba(255,255,255,.70);font-weight:850;letter-spacing:.4px;text-transform:uppercase}
+section{padding:40px 0}
+.section-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-bottom:16px}
+.section-head h2{margin:0;font-size:29px;letter-spacing:-.35px}
+.section-head p{margin:0;color:var(--muted);font-size:14px;max-width:74ch}
+.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:19px;padding:18px}
+.card strong{display:block;margin-bottom:7px;font-size:15px}
+.card span,.card p{color:var(--muted);font-size:14px;margin:0}
+.card ul{margin:10px 0 0;padding-left:18px;color:var(--muted);font-size:14px}
+.card li{margin:6px 0}
+.badge-score{display:inline-flex;margin-top:12px;padding:7px 9px;border-radius:999px;background:rgba(34,197,94,.10);border:1px solid rgba(34,197,94,.23);color:rgba(255,255,255,.86);font-size:12px;font-weight:900}
+.badge-score.warning{background:rgba(245,158,11,.11);border-color:rgba(245,158,11,.25)}
+.badge-score.danger{background:rgba(255,107,107,.10);border-color:rgba(255,107,107,.24)}
+.comparison{overflow:hidden}
+.table{display:grid;grid-template-columns:1fr 1fr 1fr;border:1px solid rgba(255,255,255,.11);border-radius:18px;overflow:hidden}
+.cell{padding:14px;border-bottom:1px solid rgba(255,255,255,.10);border-right:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.04);font-size:14px;color:var(--muted)}
+.cell:nth-child(3n){border-right:none}
+.cell.head{font-weight:950;color:white;background:rgba(255,255,255,.075)}
+.cell.good{color:rgba(255,255,255,.90);background:rgba(55,214,255,.07)}
+.signup-grid,.contact-grid{display:grid;grid-template-columns:1.08fr .92fr;gap:14px}
+form{display:grid;gap:12px}
+input,textarea,select{width:100%;padding:13px 12px;border-radius:13px;border:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.22);color:var(--text);font-size:14px;outline:none}
+select option{background:#101523;color:white}
+textarea{min-height:120px;resize:vertical}
+.success{display:none;margin-top:14px;padding:14px;border-radius:14px;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.35);color:rgba(255,255,255,.92);font-weight:900}
+.widget-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+.widget-frame{border-radius:18px;overflow:hidden;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);box-shadow:var(--shadow)}
+.widget-title{padding:13px 15px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,.10);color:rgba(255,255,255,.88);font-weight:950;font-size:13px}
+.pricing-card.featured{border-color:rgba(55,214,255,.35);background:linear-gradient(180deg,rgba(55,214,255,.09),rgba(255,255,255,.055))}
+.price{font-size:34px;font-weight:950;letter-spacing:-.5px;margin:7px 0;color:white}
+.small{font-size:12px;color:var(--muted)}
+.about-copy{font-size:14px;color:var(--muted)}
+footer{padding:28px 0 40px;border-top:1px solid rgba(255,255,255,.09);color:var(--muted);font-size:13px}
+.footer-grid{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;align-items:flex-start}
+.footer-grid a{color:rgba(255,255,255,.82);text-decoration:none}
+.footer-grid a:hover{text-decoration:underline}
+.social{margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;font-weight:850}
+.social a{padding:8px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);text-decoration:none;color:rgba(255,255,255,.86);font-size:12px}
+.social a:hover{border-color:rgba(55,214,255,.38)}
+@media (max-width:980px){
+  .hero-grid,.grid-2,.signup-grid,.contact-grid,.widget-grid{grid-template-columns:1fr}
+  h1{font-size:42px}
+  .grid-3{grid-template-columns:1fr}
+  .nav-links{display:none}
+  .metrics-strip{grid-template-columns:1fr}
+  .countdown-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .table{grid-template-columns:1fr}
+  .cell{border-right:none}
+}
+</style>
+</head>
+<body>
+<div class="nav">
+  <div class="container nav-inner">
+    <a class="brand" href="#top"><span class="logo-mark">V</span><strong>VectorAlgoAI</strong></a>
+    <div class="nav-links">
+      <a href="#platform">Platform</a>
+      <a href="#research">Research</a>
+      <a href="#comparison">Positioning</a>
+      <a href="#signup">Early Access</a>
+      <a href="#market">Market Context</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#about">About</a>
+    </div>
+    <a class="pill" href="https://vectoralgoai.streamlit.app/" target="_blank" rel="noopener">💹 Open MVP</a>
+  </div>
+</div>
+
+<main id="top" class="container">
+<section class="hero">
+  <div class="hero-grid">
+    <div class="panel">
+      <div class="kicker">
+        <div class="badge hot">AI Quant Research Lab</div>
+        <div class="badge">No-Code Strategy Research</div>
+        <div class="badge">For Independent Traders</div>
+      </div>
+      <h1>Research your edge <span class="gradient">before risking the account.</span></h1>
+      <p class="sub">VectorAlgoAI helps independent traders turn strategy ideas into structured research: backtests, risk diagnostics, trade inspection, and blunt AI review before capital is deployed.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="https://vectoralgoai.streamlit.app/" target="_blank" rel="noopener">🚀 Launch Research MVP</a>
+        <a class="btn btn-secondary" href="#signup">Join Early Access</a>
+        <a class="btn btn-secondary" href="#platform">See Platform</a>
+      </div>
+      <div class="metrics-strip">
+        <div class="metric-box"><strong>Backtest</strong><span>YAML logic → result</span></div>
+        <div class="metric-box"><strong>Diagnose</strong><span>PF, DD, RR, exposure</span></div>
+        <div class="metric-box"><strong>Decide</strong><span>Ship / iterate / kill</span></div>
+      </div>
+
+      <div class="countdown-wrap">
+        <div class="countdown-top">
+          <div class="countdown-label"><span class="spark"></span> Full platform launch countdown</div>
+          <div class="launch-date">Launch: December 31, 2026</div>
+        </div>
+        <div class="countdown-grid">
+          <div class="cd-box"><div id="cd-days" class="cd-num">--</div><div class="cd-lab">Days</div></div>
+          <div class="cd-box"><div id="cd-hours" class="cd-num">--</div><div class="cd-lab">Hours</div></div>
+          <div class="cd-box"><div id="cd-mins" class="cd-num">--</div><div class="cd-lab">Minutes</div></div>
+          <div class="cd-box"><div id="cd-secs" class="cd-num">--</div><div class="cd-lab">Seconds</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Built like a research workflow, not a signal page</h3>
+     
+      <div class="lab-card">
+        <div class="mini-card">
+          <div class="mini-top"><strong>1. Define hypothesis</strong><span class="tag">Input</span></div>
+          <span>Strategy logic, market, timeframe, indicators, entry/exit rules, and risk.</span>
+        </div>
+        <div class="mini-card">
+          <div class="mini-top"><strong>2. Run crash-test</strong><span class="tag">Engine</span></div>
+          <span>Backtest, trade inspector, equity curve, strategy grade, YAML and CSV exports.</span>
+        </div>
+        <div class="mini-card">
+          <div class="mini-top"><strong>3. Get PM-style verdict</strong><span class="tag">Decision</span></div>
+          <span>A direct review that explains what is weak, what to fix, and what not to deploy.</span>
+        </div>
+      </div>
+      <div class="mono">Current MVP:
+YAML → Backtest → Trade Inspector → Metrics → AI Review
+
+Next research modules:
+Regime analysis · robustness testing · walk-forward validation · strategy DNA</div>
+    </div>
+  </div>
+</section>
+
+<section id="platform">
+  <div class="section-head">
+ 
+  </div>
+  <div class="grid-3">
+    <div class="card"><strong>Strategy Logic</strong><span>Convert fuzzy trading ideas into explicit rules that can be tested and reviewed.</span><span class="badge-score">Hypothesis</span></div>
+    <div class="card"><strong>Risk Structure</strong><span>Measure drawdown, reward/risk profile, win/loss asymmetry, and exposure quality.</span><span class="badge-score warning">Risk</span></div>
+    <div class="card"><strong>Decision Quality</strong><span>Get a clear verdict: improve, reject, or prepare for controlled forward testing.</span><span class="badge-score danger">Verdict</span></div>
+  </div>
+</section>
+
+<section id="research">
+  <div class="section-head">
+    <h2>From retail backtesting to quant-style research</h2>
+    <p>The goal is to help traders understand why a strategy works, where it fails, and when not to trade it.</p>
+  </div>
+  <div class="grid-3">
+    <div class="card"><strong>Edge Source</strong><span>Identify whether returns come from trend, volatility, pullback behavior, or random timing.</span></div>
+    <div class="card"><strong>Failure Mode</strong><span>Expose the market condition that damages the strategy: chop, news, spreads, overtrading, or low sample size.</span></div>
+    <div class="card"><strong>Research Roadmap</strong><span>Move beyond MVP into regime analysis, walk-forward validation, stress testing, and strategy DNA.</span></div>
+  </div>
+</section>
+
+<section id="comparison" class="comparison">
+  <div class="section-head">
+    <h2>Where VectorAlgoAI fits</h2>
+     
+  </div>
+  <div class="table">
+    <div class="cell head">Category</div><div class="cell head">Market standard</div><div class="cell head">VectorAlgoAI wedge</div>
+    <div class="cell">Charts & community</div><div class="cell">Powerful market visualization and social discovery.</div><div class="cell good">Research-first strategy validation for independent traders.</div>
+    <div class="cell">Algorithmic infrastructure</div><div class="cell">Full quant stack for developers and systematic teams.</div><div class="cell good">No-code/low-code validation before committing to infrastructure.</div>
+    <div class="cell">AI strategy builders</div><div class="cell">Generate, backtest, and sometimes execute strategies.</div><div class="cell good">Blunt risk review: should this strategy deserve capital?</div>
+    <div class="cell">Technical analysis platforms</div><div class="cell">Scan, chart, alert, automate patterns and market research.</div><div class="cell good">Focus on strategy failure modes, robustness, and deployment decisions.</div>
+  </div>
+</section>
+
+<section id="signup">
+  <div class="section-head">
+    <h2>Early access signup</h2>
+    <p>Join the research lab list. We use your profile to prioritize the product around real trader workflows.</p>
+  </div>
+  <div class="signup-grid">
+    <div class="panel">
+      <form action="https://formspree.io/f/xykdgzkb" method="POST">
+        <input type="hidden" name="type" value="early_access_signup"/>
+        <input type="hidden" name="_subject" value="VectorAlgoAI — New Early Access Signup"/>
+        <input type="text" name="name" placeholder="Your name" required/>
+        <input type="email" name="email" placeholder="Your email" required/>
+        <select name="trader_profile" required>
+          <option value="" disabled selected>Your trader profile</option>
+          <option value="retail">Retail trader</option>
+          <option value="prop">Prop-firm trader</option>
+          <option value="systematic">Systematic / quant-style trader</option>
+          <option value="learning">Learning / beginner</option>
+          <option value="other">Other</option>
+        </select>
+        <select name="trading_experience" required>
+          <option value="" disabled selected>Trading experience</option>
+          <option value="0-1">0–1 year</option>
+          <option value="1-3">1–3 years</option>
+          <option value="3-5">3–5 years</option>
+          <option value="5-plus">5+ years</option>
+        </select>
+        <select name="interest" required>
+          <option value="" disabled selected>What do you want first?</option>
+          <option value="crash_test">Crash-Test Lab</option>
+          <option value="regime_analysis">Regime analysis</option>
+          <option value="walk_forward">Walk-forward testing</option>
+          <option value="prop_risk">Prop-style risk checks</option>
+          <option value="news_calendar">News + calendar context</option>
+        </select>
+        <textarea name="message" placeholder="Optional: what do you trade, timeframe, and biggest strategy problem?"></textarea>
+        <input type="hidden" name="_redirect" value="https://www.vectoralgoai.com/?signup=success#signup"/>
+        <input type="text" name="_gotcha" style="display:none"/>
+        <button class="btn btn-primary" type="submit">Join early access</button>
+      </form>
+      <div id="signup-success" class="success">✅ You’re on the list. We’ll email you with next steps.</div>
+      <div class="small" style="margin-top:10px">Prefer email? Write to <a href="mailto:info@vectoralgoai.com">info@vectoralgoai.com</a></div>
+    </div>
+    <div class="panel">
+      <h3>Early user path</h3>
+      <p style="margin-bottom:12px">The goal is not mass signups. The goal is high-signal trader feedback.</p>
+      <div class="card"><strong>Step 1 — Profile</strong><span>Tell us what you trade and how you currently validate strategies.</span></div>
+      <div class="card" style="margin-top:10px"><strong>Step 2 — MVP access</strong><span>Use the Strategy Crash-Test Lab and send structured feedback.</span></div>
+      <div class="card" style="margin-top:10px"><strong>Step 3 — €1 access</strong><span>Stripe checkout will be connected after the signup flow is stable.</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="market">
+  <div class="section-head">
+    <h2>Live market context</h2>
+    <p>Market news and economic events matter because strategy performance changes around regime shifts and volatility events.</p>
+  </div>
+  <div class="widget-grid">
+    <div class="widget-frame">
+      <div class="widget-title"><span>Market News</span><span style="color:var(--muted);font-weight:900">Live</span></div>
+      <div class="tradingview-widget-container" style="height:520px;width:100%">
+        <div class="tradingview-widget-container__widget" style="height:520px;width:100%"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-timeline.js" async>
+        {"feedMode":"all_symbols","isTransparent":true,"displayMode":"regular","width":"100%","height":520,"colorTheme":"dark","locale":"en"}
+        </script>
+      </div>
+    </div>
+    <div class="widget-frame">
+      <div class="widget-title"><span>Economic Calendar</span><span style="color:var(--muted);font-weight:900">Live</span></div>
+      <div class="tradingview-widget-container" style="height:520px;width:100%">
+        <div class="tradingview-widget-container__widget" style="height:520px;width:100%"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-events.js" async>
+        {"colorTheme":"dark","isTransparent":true,"width":"100%","height":520,"locale":"en","importanceFilter":"-1,0,1","currencyFilter":"USD,EUR,GBP,JPY,CHF,CAD,AUD,NZD"}
+        </script>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="pricing">
+  <div class="section-head">
+    <h2>Pricing</h2>
+    <p>Simple launch pricing. No fake checkout until payment is wired properly.</p>
+  </div>
+  <div class="grid-3">
+    <div class="card pricing-card featured">
+      <strong>Early Access</strong>
+      <div class="price">€1</div>
+      <span>Launch offer after Stripe activation. Join early access now.</span>
+      <ul>
+        <li>MVP Crash-Test Lab</li>
+        <li>YAML and CSV exports</li>
+        <li>Early research feature feedback</li>
+      </ul>
+      <div style="margin-top:14px"><a class="btn btn-primary" href="#signup">Join Early Access</a></div>
+    </div>
+    <div class="card pricing-card">
+      <strong>Pro Research</strong>
+      <div class="price">Coming</div>
+      <span>For traders who want deeper diagnostics.</span>
+      <ul><li>Regime analysis</li><li>Walk-forward validation</li><li>Robustness testing</li></ul>
+    </div>
+    <div class="card pricing-card">
+      <strong>Partner / Teams</strong>
+      <div class="price">Coming</div>
+      <span>For prop communities, educators, and trading teams.</span>
+      <ul><li>Team dashboards</li><li>Strategy review workflows</li><li>Custom onboarding</li></ul>
+    </div>
+  </div>
+</section>
+
+<section id="about">
+  <div class="section-head">
+    <h2>About VectorAlgoAI</h2>
+    <p>A strategy research platform built to make trading logic testable, explainable, and harder to fool.</p>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <strong>Company</strong>
+      <p class="about-copy">VectorAlgoAI is being built as an AI quant research lab for independent traders. The platform focuses on strategy validation, risk realism, and decision transparency — helping traders move from intuition to structured research before deploying capital.</p>
+      <p class="about-copy" style="margin-top:10px">The long-term goal is not to become another signal provider. The goal is to build research infrastructure that shows why a strategy works, when it fails, and whether it deserves risk.</p>
+    </div>
+    <div class="card">
+      <strong>Team</strong>
+      <p class="about-copy"><b>Praveen Kumar — Founder & Engineering</b><br/>Leads product architecture and research. Background in systematic trading and applied AI research, focused on strategy structure, risk realism, and explainable decision systems.</p>
+      <p class="about-copy" style="margin-top:10px"><b>Sandhya Moni — Product & Strategy</b><br/>Product Owner at Electrolux Professional. Leads product direction, execution discipline, user experience, and roadmap clarity.</p>
+      <p class="about-copy" style="margin-top:10px"><b>Mrugank Kharate — Growth & Community</b><br/>Leads content, community, and social presence with a focus on clear trader education and early user feedback.</p>
+    </div>
+  </div>
+</section>
+
+<section id="contact">
+  <div class="section-head">
+    <h2>Contact</h2>
+    <p>Early access, product feedback, partnerships, research collaboration, or content opportunities.</p>
+  </div>
+  <div class="contact-grid">
+    <div class="panel">
+      <form action="https://formspree.io/f/xykdgzkb" method="POST">
+        <input type="hidden" name="type" value="contact"/>
+        <input type="hidden" name="_subject" value="VectorAlgoAI — New Contact Message"/>
+        <input type="text" name="name" placeholder="Your name" required/>
+        <input type="email" name="email" placeholder="Your email" required/>
+        <textarea name="message" placeholder="Tell us what you want to build, test, or discuss…" required></textarea>
+        <input type="hidden" name="_redirect" value="https://www.vectoralgoai.com/?success=true#contact"/>
+        <input type="text" name="_gotcha" style="display:none"/>
+        <button class="btn btn-primary" type="submit">Send message</button>
+      </form>
+      <div id="success-message" class="success">✅ Message sent successfully. We’ll get back to you shortly.</div>
+    </div>
+    <div class="panel">
+      <h3>Quick links</h3>
+      <p style="margin-bottom:12px">Open the current MVP or reach the team directly.</p>
+      <a class="btn btn-secondary" href="https://vectoralgoai.streamlit.app/" target="_blank" rel="noopener">💹 Open MVP Dashboard</a>
+      <div style="height:12px"></div>
+      <div class="card"><strong>General</strong><span><a href="mailto:info@vectoralgoai.com">info@vectoralgoai.com</a></span></div>
+      <div class="card" style="margin-top:10px"><strong>Partnerships</strong><span><a href="mailto:contact@vectoralgoai.com">contact@vectoralgoai.com</a></span></div>
+      <div class="card" style="margin-top:10px"><strong>Founder</strong><span><a href="mailto:founder@vectoralgoai.com">founder@vectoralgoai.com</a></span></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-grid">
+    <div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><span class="logo-mark" style="width:28px;height:28px;border-radius:9px;font-size:13px">V</span><strong style="color:rgba(255,255,255,.90)">VectorAlgoAI</strong></div>
+      <div class="small">© 2026 VectorAlgoAI. AI quant research tools for independent traders.</div>
+      <div class="social">
+        <a href="https://twitter.com/vectoralgoai" target="_blank" rel="noopener">X / Twitter</a>
+        <a href="https://www.facebook.com/vectoralgoai" target="_blank" rel="noopener">Facebook</a>
+        <a href="https://www.instagram.com/vectoralgoai" target="_blank" rel="noopener">Instagram</a>
+        <a href="https://www.linkedin.com/company/vectoralgoai" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="https://www.youtube.com/@vectoralgoai" target="_blank" rel="noopener">YouTube</a>
+      </div>
+    </div>
+    <div>
+      <div class="small" style="margin-bottom:6px">Contact</div>
+      <div><a href="mailto:info@vectoralgoai.com">info@vectoralgoai.com</a></div>
+      <div><a href="mailto:contact@vectoralgoai.com">contact@vectoralgoai.com</a></div>
+    </div>
+  </div>
+</footer>
+</main>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+if (params.get("success") === "true") {
+  const msg = document.getElementById("success-message");
+  if (msg) msg.style.display = "block";
+}
+if (params.get("signup") === "success") {
+  const s = document.getElementById("signup-success");
+  if (s) s.style.display = "block";
+}
+const target = new Date("2026-06-07T00:00:00+02:00").getTime();
+function pad(n){return String(n).padStart(2,"0");}
+function tick(){
+  const now = Date.now();
+  let diff = Math.max(0, target - now);
+  const days = Math.floor(diff/(1000*60*60*24)); diff -= days*(1000*60*60*24);
+  const hours = Math.floor(diff/(1000*60*60)); diff -= hours*(1000*60*60);
+  const mins = Math.floor(diff/(1000*60)); diff -= mins*(1000*60);
+  const secs = Math.floor(diff/1000);
+  const d=document.getElementById("cd-days"),h=document.getElementById("cd-hours"),m=document.getElementById("cd-mins"),s=document.getElementById("cd-secs");
+  if(d)d.textContent=days; if(h)h.textContent=pad(hours); if(m)m.textContent=pad(mins); if(s)s.textContent=pad(secs);
+}
+tick(); setInterval(tick,1000);
+</script>
+</body>
+</html>
