@@ -343,8 +343,8 @@ def run_mvp_dashboard():
     optimizer = optimize_strategy(metrics)
 
     market_fit = analyze_market_fit(
-        cfg,
-        years
+      cfg,
+      years
     )
     st.write("DEBUG MARKET FIT")
     st.write(market_fit)
