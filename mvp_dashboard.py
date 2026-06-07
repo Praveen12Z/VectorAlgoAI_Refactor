@@ -340,10 +340,18 @@ def run_mvp_dashboard():
     doctor = build_strategy_doctor(metrics)
     root_cause = analyze_root_cause(metrics)
     optimizer = optimize_strategy(metrics)
+    market_fit = analyze_market_fit(
+       cfg,
+       years
+    )
+      
     gradecard = build_gradecard(metrics)
     render_optimizer_panel(
          optimizer
     )
+   render_market_fit_panel(
+     market_fit
+   )
     market_fit = analyze_market_fit(
        cfg,
        years
