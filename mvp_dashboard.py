@@ -19,11 +19,12 @@ from core.risk_report import build_risk_report
 from core.strategy_doctor import build_strategy_doctor
 from core.root_cause_analyzer import analyze_root_cause
 from core.gradecard import build_gradecard
-
+from core.strategy_optimizer import optimize_strategy
 from components.research_panel import render_research_panel
 from components.doctor_panel import render_doctor_panel
 from components.root_cause_panel import render_root_cause_panel
 from components.gradecard_panel import render_gradecard_panel
+from components.market_fit_panel import render_market_fit_panel
 # NOTE: These are reserved for future "accounts + saving" versions.
 # Keep imports commented to avoid deployment errors if modules are missing.
 # from core.report import build_report  # reserved for future use
