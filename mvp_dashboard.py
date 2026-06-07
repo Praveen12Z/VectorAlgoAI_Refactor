@@ -43,7 +43,9 @@ from components.evolution_lab_panel import (
     render_evolution_lab
 )
 
-
+from core.strategy_mutation_engine import generate_mutations
+from core.mutation_evaluator import evaluate_mutations
+from components.mutation_panel import render_mutation_panel
 DEFAULT_STRATEGY_YAML = """\
 name: "NAS100 Momentum v5 – Pullback System"
 market: "NAS100"
@@ -358,7 +360,16 @@ def run_mvp_dashboard():
         cfg,
         years
     )
+    mutations = generate_mutations(
+        cfg,
+        optimizer,
+        root_cause
+    )
 
+    mutation_results = evaluate_mutations(
+        mutations,
+        years
+    )
 # --------------------------------------
 # Mutation Engine
 # --------------------------------------
@@ -402,11 +413,14 @@ def run_mvp_dashboard():
     render_market_fit_panel(
         market_fit
     )
+    
 
     render_mutation_panel(
         mutation_results
     )
-
+    render_mutation_panel(
+        mutation_results
+    )
     render_research_panel(
         cfg,
         data_start,
