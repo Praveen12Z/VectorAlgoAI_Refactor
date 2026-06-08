@@ -1,6 +1,8 @@
 # core/indicators.py
 import pandas as pd
-
+from core.support_resistance import (
+    add_support_resistance
+)
 # -------------------------------------------------------------
 # Helper
 # -------------------------------------------------------------
@@ -132,3 +134,5 @@ def apply_all_indicators(df: pd.DataFrame, cfg: StrategyConfig) -> pd.DataFrame:
             }
         )
     return apply_indicators(df, indicator_dicts)
+    df = add_support_resistance(df)
+    
