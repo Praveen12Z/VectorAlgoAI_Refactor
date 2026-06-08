@@ -1,5 +1,10 @@
 # core/indicators.py
 import pandas as pd
+from core.support_resistance import add_support_resistance
+
+df = add_support_resistance(df)from core.support_resistance import add_support_resistance
+
+df = add_support_resistance(df)
 from core.support_resistance import (
     add_support_resistance
 )
