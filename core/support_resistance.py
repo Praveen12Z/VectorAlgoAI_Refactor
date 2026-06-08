@@ -1,32 +1,13 @@
 import pandas as pd
 
 
-def detect_support(df, lookback=20):
+def add_support_resistance(df, lookback=20, tolerance=0.002):
+    df = df.copy()
 
-    support = (
-        df["low"]
-        .rolling(lookback)
-        .min()
-    )
+    df["support"] = df["low"].rolling(lookback).min()
+    df["resistance"] = df["high"].rolling(lookback).max()
 
-    return support
-
-
-def detect_resistance(df, lookback=20):
-
-    resistance = (
-        df["high"]
-        .rolling(lookback)
-        .max()
-    )
-
-    return resistance
-
-
-def add_support_resistance(df):
-
-    df["support"] = detect_support(df)
-
-    df["resistance"] = detect_resistance(df)
+    df["support_zone"] = df["support"] * (1 + tolerance)
+    df["resistance_zone"] = df["resistance"] * (1 - tolerance)
 
     return df
