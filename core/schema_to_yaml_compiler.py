@@ -1,21 +1,7 @@
-# core/schema_to_yaml_compiler.py
-
 import yaml
 
 
 def compile_schema_to_yaml(schema: dict, market="XAUUSD", timeframe="1h") -> str:
-    """
-    Converts Universal Strategy Schema into current YAML strategy format.
-    V1 supports:
-    - ema_trend
-    - rsi_filter
-    - pullback_entry
-    - support_resistance placeholder
-    - rr_target
-    - atr_stop
-    - news_filter placeholder
-    - liquidity_sweep placeholder
-    """
 
     components = schema.get("components", [])
 
@@ -25,8 +11,9 @@ def compile_schema_to_yaml(schema: dict, market="XAUUSD", timeframe="1h") -> str
 
     has_ema = any(c.get("component") == "ema_trend" for c in components)
     has_rsi = any(c.get("component") == "rsi_filter" for c in components)
-    has_atr = any(c.get("component") in ["atr_stop", "rr_target"] for c in components)
+    has_atr = any(c.get("component") in ["atr_stop", "rr_target", "atr_filter"] for c in components)
     has_pullback = any(c.get("component") == "pullback_entry" for c in components)
+    has_support_resistance = any(c.get("component") == "support_resistance" for c in components)
 
     if has_ema:
         indicators.extend([
@@ -43,6 +30,11 @@ def compile_schema_to_yaml(schema: dict, market="XAUUSD", timeframe="1h") -> str
     if has_pullback:
         entry_long.append(
             {"left": "close", "op": "<", "right": "ema20"}
+        )
+
+    if has_support_resistance:
+        entry_long.append(
+            {"left": "close", "op": "<=", "right": "support_zone"}
         )
 
     if has_rsi:
@@ -66,16 +58,15 @@ def compile_schema_to_yaml(schema: dict, market="XAUUSD", timeframe="1h") -> str
 
     if not indicators:
         indicators.append(
-            {"name": "rsi14", "type": "rsi", "period": 14, "source": "close"}
-        )
-        entry_long.append(
-            {"left": "rsi14", "op": ">", "right": 50}
+            {"name": "atr14", "type": "atr", "period": 14}
         )
 
     if not exit_long:
-        indicators.append(
-            {"name": "atr14", "type": "atr", "period": 14}
-        )
+        if not any(ind.get("name") == "atr14" for ind in indicators):
+            indicators.append(
+                {"name": "atr14", "type": "atr", "period": 14}
+            )
+
         exit_long.extend([
             {"type": "atr_sl", "atr_col": "atr14", "multiple": 2.0},
             {"type": "atr_tp", "atr_col": "atr14", "multiple": 3.0},
@@ -87,10 +78,9 @@ def compile_schema_to_yaml(schema: dict, market="XAUUSD", timeframe="1h") -> str
         "timeframe": timeframe,
         "indicators": indicators,
         "entry": {
-             "long": entry_long,
-             "short": []
+            "long": entry_long,
+            "short": []
         },
-
         "exit": {
             "long": exit_long,
             "short": []
