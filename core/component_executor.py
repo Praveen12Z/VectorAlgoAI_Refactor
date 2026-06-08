@@ -1,3 +1,20 @@
+def support_long_signal(df):
+
+    return (
+        df["close"]
+        <=
+        df["support"] * 1.002
+    )
+
+
+def resistance_short_signal(df):
+
+    return (
+        df["close"]
+        >=
+        df["resistance"] * 0.998
+    )
+
 def execute_component(
     df,
     component
