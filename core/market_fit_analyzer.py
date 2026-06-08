@@ -9,10 +9,10 @@ from core.backtester_adapter import run_backtest_v2
 
 MARKETS = [
     "XAUUSD",
-    #"EURUSD",
-    #"GBPUSD",
+    # "EURUSD",
+    # "GBPUSD",
     "USDJPY",
-   # "AUDUSD",
+    # "AUDUSD",
     "NAS100",
     "US30",
     "BTCUSD",
@@ -52,19 +52,47 @@ def analyze_market_fit(cfg, years=2):
                 )
             )
 
+            pf = metrics.get(
+                "profit_factor",
+                0
+            )
+
+            trades = int(
+                metrics.get(
+                    "num_trades",
+                    0
+                )
+            )
+
+            # ---------------------------------
+            # Ignore statistically useless runs
+            # ---------------------------------
+            if trades < 20:
+                continue
+
+            confidence_score = (
+                pf *
+                min(trades / 30, 1.0)
+            )
+
             results.append(
                 {
                     "market": market,
                     "profit_factor": round(
-                        metrics.get("profit_factor", 0),
+                        pf,
                         2
                     ),
                     "return_pct": round(
-                        metrics.get("total_return_pct", 0),
+                        metrics.get(
+                            "total_return_pct",
+                            0
+                        ),
                         2
                     ),
-                    "trades": int(
-                        metrics.get("num_trades", 0)
+                    "trades": trades,
+                    "confidence_score": round(
+                        confidence_score,
+                        2
                     ),
                 }
             )
@@ -76,7 +104,9 @@ def analyze_market_fit(cfg, years=2):
             )
 
     results.sort(
-        key=lambda x: x["profit_factor"],
+        key=lambda x: x[
+            "confidence_score"
+        ],
         reverse=True
     )
 
