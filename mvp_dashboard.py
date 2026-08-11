@@ -450,10 +450,10 @@ def run_mvp_dashboard():
             name="Price",
             increasing_line_width=2,
             decreasing_line_width=2,
-            increasing_line_color="#26a69a",
-            decreasing_line_color="#ef5350",
-            increasing_fillcolor="rgba(38,166,154,0.65)",
-            decreasing_fillcolor="rgba(239,83,80,0.65)",
+            increasing_line_color="#0f9f9a",
+            decreasing_line_color="#d05268",
+            increasing_fillcolor="rgba(15,159,154,0.62)",
+            decreasing_fillcolor="rgba(208,82,104,0.62)",
         )
     )
 
@@ -477,28 +477,28 @@ def run_mvp_dashboard():
         if not win_long.empty:
             fig.add_trace(go.Scatter(x=win_long["entry_time"], y=win_long["entry_price"], mode="markers",
                                      marker_symbol="triangle-up", marker_size=entry_size,
-                                     marker_color="rgba(34,197,94,0.9)", name="Long Entry (Win)"))
+                                     marker_color="rgba(15,159,154,0.92)", name="Long Entry (Win)"))
         if not loss_long.empty:
             fig.add_trace(go.Scatter(x=loss_long["entry_time"], y=loss_long["entry_price"], mode="markers",
                                      marker_symbol="triangle-up", marker_size=entry_size,
-                                     marker_color="rgba(248,113,113,0.95)", name="Long Entry (Loss)"))
+                                     marker_color="rgba(208,82,104,0.95)", name="Long Entry (Loss)"))
         if not win_short.empty:
             fig.add_trace(go.Scatter(x=win_short["entry_time"], y=win_short["entry_price"], mode="markers",
                                      marker_symbol="triangle-down", marker_size=entry_size,
-                                     marker_color="rgba(34,197,94,0.9)", name="Short Entry (Win)"))
+                                     marker_color="rgba(15,159,154,0.92)", name="Short Entry (Win)"))
         if not loss_short.empty:
             fig.add_trace(go.Scatter(x=loss_short["entry_time"], y=loss_short["entry_price"], mode="markers",
                                      marker_symbol="triangle-down", marker_size=entry_size,
-                                     marker_color="rgba(248,113,113,0.95)", name="Short Entry (Loss)"))
+                                     marker_color="rgba(208,82,104,0.95)", name="Short Entry (Loss)"))
 
         if not wins.empty:
             fig.add_trace(go.Scatter(x=wins["exit_time"], y=wins["exit_price"], mode="markers",
                                      marker_symbol="x", marker_size=exit_size,
-                                     marker_color="rgba(34,197,94,0.9)", name="Exit (Win)"))
+                                     marker_color="rgba(15,159,154,0.92)", name="Exit (Win)"))
         if not losses.empty:
             fig.add_trace(go.Scatter(x=losses["exit_time"], y=losses["exit_price"], mode="markers",
                                      marker_symbol="x", marker_size=exit_size,
-                                     marker_color="rgba(248,113,113,0.95)", name="Exit (Loss)"))
+                                     marker_color="rgba(208,82,104,0.95)", name="Exit (Loss)"))
 
         if show_trade_lines and not closed.empty:
             closed_for_lines = closed.tail(10)
@@ -513,7 +513,7 @@ def run_mvp_dashboard():
                     x=[row["entry_time"], row["exit_time"]],
                     y=[row["entry_price"], row["exit_price"]],
                     mode="lines",
-                    line=dict(color="rgba(34,197,94,0.7)", width=1.5),
+                    line=dict(color="rgba(15,159,154,0.72)", width=1.5),
                     name="Winning Trade" if not added_win_legend else "",
                     showlegend=not added_win_legend,
                 ))
@@ -524,7 +524,7 @@ def run_mvp_dashboard():
                     x=[row["entry_time"], row["exit_time"]],
                     y=[row["entry_price"], row["exit_price"]],
                     mode="lines",
-                    line=dict(color="rgba(248,113,113,0.75)", width=1.5),
+                    line=dict(color="rgba(208,82,104,0.78)", width=1.5),
                     name="Losing Trade" if not added_loss_legend else "",
                     showlegend=not added_loss_legend,
                 ))
@@ -552,6 +552,12 @@ def run_mvp_dashboard():
         xaxis_rangeslider_visible=False,
         margin=dict(l=0, r=0, t=30, b=0),
         height=520,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="#fbfdff",
+        font=dict(color="#5c6f86"),
+        colorway=["#2563eb", "#0f9f9a", "#7c8ba1"],
+        xaxis=dict(gridcolor="#e9eff5", zerolinecolor="#dbe4ee"),
+        yaxis=dict(gridcolor="#e9eff5", zerolinecolor="#dbe4ee"),
     )
 
     st.plotly_chart(fig, use_container_width=True, config={"scrollZoom": True, "displaylogo": False})
