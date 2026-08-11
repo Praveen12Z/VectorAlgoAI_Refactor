@@ -1,109 +1,135 @@
-"""Presentation helpers for the VectorAlgoAI research workspace."""
+"""UI primitives for the VectorAlgoAI strategy research workspace."""
+from __future__ import annotations
+
+from html import escape
 import streamlit as st
 
 
 STAGES = (
-    ("thesis", "01", "Thesis"),
-    ("blueprint", "02", "Blueprint"),
-    ("evidence", "03", "Evidence"),
-    ("diagnosis", "04", "Diagnosis"),
-    ("readiness", "05", "Readiness"),
+    ("thesis", "01", "Thesis", "✦"),
+    ("blueprint", "02", "Blueprint", "◇"),
+    ("evidence", "03", "Evidence", "◫"),
+    ("diagnosis", "04", "Diagnosis", "⌁"),
+    ("readiness", "05", "Capital readiness", "↗"),
+)
+
+WORKSPACE_ITEMS = (
+    ("home", "⌂", "Research home"),
+    ("thesis", "＋", "New strategy"),
+    ("library", "▦", "Strategy library"),
 )
 
 
 def inject_workspace_styles() -> None:
-    """Keep the application visually calm: one accent colour, not a trading terminal."""
+    """Apply the quiet, permanent-shell product design."""
     st.markdown("""
     <style>
-      :root { --bg:#090d14; --surface:#101722; --surface-2:#141d2a; --line:#263243;
-              --text:#edf2f7; --muted:#8b98aa; --blue:#7fb0ff; --blue-bg:#142845; }
+      :root { --bg:#0a0e15; --sidebar:#0d121c; --surface:#121925; --surface-2:#171f2c;
+        --line:#273244; --line-soft:#1d2736; --text:#f2f5fa; --muted:#92a0b3;
+        --faint:#647287; --blue:#73a9ff; --blue-strong:#4388ef; --blue-bg:#172b4a; }
       .stApp { background:var(--bg); color:var(--text); }
-      [data-testid="stHeader"] { background:rgba(9,13,20,.94); border-bottom:1px solid rgba(38,50,67,.75); }
-      [data-testid="stSidebar"] { background:#0c111a; border-right:1px solid var(--line); }
-      [data-testid="stSidebar"] [data-testid="stSidebarContent"] { padding:1.1rem .8rem; }
-      .block-container { max-width:1240px; padding:2.1rem 2.25rem 4rem; }
+      [data-testid="stHeader"] { background:rgba(10,14,21,.94); border-bottom:1px solid var(--line-soft); }
+      [data-testid="stSidebar"] { background:var(--sidebar); border-right:1px solid var(--line-soft); min-width:226px; }
+      [data-testid="stSidebar"] [data-testid="stSidebarContent"] { padding:1.25rem .72rem 1rem; display:flex; flex-direction:column; min-height:100%; }
+      [data-testid="stSidebar"] .stButton { margin:.08rem 0; }
+      .block-container { max-width:1390px; padding:1.45rem 2.4rem 4rem; }
       h1,h2,h3 { color:var(--text); letter-spacing:-.035em; }
-      .va-brand { font-size:.95rem; font-weight:760; letter-spacing:-.025em; color:#f6f8fb; }
-      .va-brand b { color:var(--blue); font-weight:760; }
-      .va-brand-sub { color:var(--muted); font-size:.72rem; margin-top:.18rem; }
-      .va-side-label { color:#68778a; font-size:.67rem; font-weight:750; letter-spacing:.11em; text-transform:uppercase; margin:1.5rem 0 .48rem; }
-      .va-research-card { background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:.75rem; }
-      .va-research-name { color:var(--text); font-size:.82rem; font-weight:650; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-      .va-research-meta { color:var(--muted); font-size:.72rem; margin-top:.22rem; }
-      .va-eyebrow { color:var(--blue); font-size:.68rem; font-weight:750; letter-spacing:.12em; text-transform:uppercase; }
-      .va-title { font-size:2rem; font-weight:720; line-height:1.1; letter-spacing:-.05em; margin:.35rem 0 .45rem; }
-      .va-subtitle { color:var(--muted); font-size:.94rem; max-width:700px; line-height:1.55; margin:0 0 1.7rem; }
-      .va-rule { border:0; border-top:1px solid var(--line); margin:1.3rem 0 1.6rem; }
-      .va-card { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:1rem; min-height:104px; }
-      .va-card-title { color:var(--muted); font-size:.68rem; font-weight:750; letter-spacing:.09em; text-transform:uppercase; margin-bottom:.48rem; }
-      .va-card-value { color:var(--text); font-size:.92rem; line-height:1.45; font-weight:590; }
-      .va-section-title { color:var(--text); font-size:1.12rem; font-weight:700; margin:2.2rem 0 .22rem; letter-spacing:-.02em; }
-      .va-section-copy { color:var(--muted); font-size:.88rem; line-height:1.5; margin-bottom:1rem; }
-      .va-evidence-banner { background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--blue); border-radius:8px; padding:1rem 1.1rem; margin:.8rem 0 1.35rem; }
-      .va-evidence-kicker { color:var(--blue); font-size:.68rem; font-weight:750; letter-spacing:.1em; text-transform:uppercase; }
-      .va-evidence-title { color:var(--text); font-size:1rem; font-weight:690; margin:.24rem 0; }
-      .va-evidence-meta { color:var(--muted); font-size:.82rem; }
-      .va-status { display:inline-block; background:var(--blue-bg); border:1px solid #2c4b70; color:#c9ddff; padding:.24rem .54rem; border-radius:999px; font-size:.7rem; font-weight:700; }
-      div[data-testid="stMetric"] { background:var(--surface); border:1px solid var(--line); border-radius:9px; padding:.85rem .9rem; }
-      div[data-testid="stMetricLabel"] { color:var(--muted); font-size:.72rem; }
-      div[data-testid="stMetricValue"] { color:var(--text); font-size:1.28rem; }
-      .stButton > button { min-height:2.4rem; border-radius:7px; font-weight:650; border-color:#344357; background:transparent; color:#c7d1df; }
-      .stButton > button:hover { border-color:#6684ab; color:#f4f7fb; background:#121c29; }
-      .stButton > button[kind="primary"] { background:#2d67b5; border-color:#417bd0; color:white; }
-      .stButton > button[kind="primary"]:hover { background:#3976c8; }
-      [class*="st-key-header_stage_"] button { min-height:3.05rem; text-align:left; padding:.55rem .35rem; border:0; border-bottom:2px solid var(--line); border-radius:0; font-size:.76rem; background:transparent; color:var(--muted); box-shadow:none; }
-      [class*="st-key-header_stage_"] button[kind="primary"] { border-color:var(--blue); color:var(--text); }
-      [class*="st-key-sidebar_stage_"] button { border:0; text-align:left; min-height:2.15rem; padding:.3rem .55rem; font-size:.82rem; }
-      [data-testid="stTextArea"] textarea, [data-testid="stTextInput"] input, [data-testid="stSelectbox"] div[data-baseweb="select"] > div { background:#0d141e !important; border-color:#334154 !important; color:var(--text) !important; border-radius:7px !important; }
-      .stTabs [data-baseweb="tab-list"] { gap:1.2rem; border-bottom:1px solid var(--line); }
-      .stTabs [data-baseweb="tab"] { color:var(--muted); padding:.55rem .1rem; }
-      .stTabs [aria-selected="true"] { color:var(--text); border-bottom-color:var(--blue) !important; }
-      .stDataFrame { border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+      .va-brand-wrap { display:flex; align-items:center; gap:.68rem; padding:.16rem .55rem 1.25rem; }
+      .va-mark { width:27px; height:27px; display:grid; place-items:center; border:1px solid #416b9f; color:#b9d2ff; border-radius:8px; background:#11223a; font-size:.95rem; }
+      .va-brand { font-size:.92rem; font-weight:760; color:#f6f8fc; letter-spacing:-.025em; }
+      .va-brand-sub { color:var(--faint); font-size:.67rem; margin-top:.06rem; }
+      .va-side-label { color:var(--faint); font-size:.64rem; font-weight:760; letter-spacing:.12em; text-transform:uppercase; margin:1.35rem .58rem .43rem; }
+      .va-side-separator { border-top:1px solid var(--line-soft); margin:1.28rem .55rem 0; }
+      .va-research-card { background:#101722; border:1px solid var(--line-soft); border-radius:8px; padding:.68rem .75rem; margin:0 .5rem .35rem; }
+      .va-research-name { color:#dfe7f2; font-size:.76rem; font-weight:650; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .va-research-meta { color:var(--faint); font-size:.68rem; margin-top:.22rem; }
+      [class*="st-key-nav_"] button { border:0; background:transparent; text-align:left; box-shadow:none; color:#9aa8ba; min-height:2.3rem; padding:.38rem .58rem; font-size:.80rem; font-weight:560; border-radius:6px; }
+      [class*="st-key-nav_"] button:hover { background:#131c29; color:#e9f0fa; }
+      [class*="st-key-nav_"] button[kind="primary"] { background:var(--blue-bg); color:#e6f0ff; outline:1px solid #29496f; }
+      .va-topbar { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.15rem 0 1.3rem; border-bottom:1px solid var(--line-soft); }
+      .va-crumb { color:var(--muted); font-size:.78rem; } .va-crumb b { color:var(--text); font-weight:650; }
+      .va-top-status { color:#b9c7d9; background:#101925; border:1px solid #25374c; border-radius:999px; padding:.28rem .6rem; font-size:.68rem; white-space:nowrap; }
+      .va-top-status i { display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--blue); margin-right:.36rem; vertical-align:1px; }
+      .va-page-kicker { color:var(--blue); font-size:.67rem; font-weight:760; letter-spacing:.12em; text-transform:uppercase; margin-top:1.65rem; }
+      .va-title { font-size:1.8rem; font-weight:730; line-height:1.13; letter-spacing:-.048em; margin:.34rem 0 .35rem; }
+      .va-subtitle { color:var(--muted); font-size:.91rem; max-width:720px; line-height:1.55; margin:0 0 1.35rem; }
+      .va-workflow { display:flex; align-items:center; gap:0; margin:1.05rem 0 1.8rem; overflow-x:auto; }
+      .va-step { display:flex; align-items:center; color:var(--faint); font-size:.72rem; white-space:nowrap; }
+      .va-step-dot { display:grid; place-items:center; width:22px; height:22px; border:1px solid #344156; border-radius:50%; margin-right:.38rem; font-size:.62rem; font-weight:700; }
+      .va-step.active { color:#e6efff; } .va-step.active .va-step-dot { border-color:var(--blue); background:var(--blue-bg); color:#cfe1ff; }
+      .va-step.done { color:#aebfd4; } .va-step.done .va-step-dot { border-color:#496f9e; color:#afd0ff; }
+      .va-step-line { width:34px; height:1px; background:#2b3647; margin:0 .58rem; }
+      .va-step-line.done { background:#496f9e; }
+      [class*="st-key-workflow_"] button { min-height:2.25rem; padding:.35rem .15rem; border:0; border-bottom:2px solid #2b3647; border-radius:0; background:transparent; color:var(--faint); font-size:.70rem; text-align:left; box-shadow:none; }
+      [class*="st-key-workflow_"] button:hover { background:transparent; color:#dce8f7; border-color:#577ba7; }
+      [class*="st-key-workflow_"] button[kind="primary"] { background:transparent; color:#e9f1fd; border-color:var(--blue); }
+      .va-card { background:var(--surface); border:1px solid var(--line-soft); border-radius:9px; padding:1rem; min-height:104px; }
+      .va-card-title { color:var(--faint); font-size:.66rem; font-weight:760; letter-spacing:.1em; text-transform:uppercase; margin-bottom:.48rem; }
+      .va-card-value { color:#e8edf5; font-size:.88rem; line-height:1.5; font-weight:560; }
+      .va-section-title { color:var(--text); font-size:1.06rem; font-weight:700; margin:2.1rem 0 .22rem; letter-spacing:-.02em; }
+      .va-section-copy { color:var(--muted); font-size:.86rem; line-height:1.5; margin-bottom:1rem; }
+      .va-evidence-banner { background:#101925; border:1px solid #25374c; border-left:3px solid var(--blue-strong); border-radius:8px; padding:1rem 1.1rem; margin:.8rem 0 1.35rem; }
+      .va-evidence-kicker { color:var(--blue); font-size:.66rem; font-weight:760; letter-spacing:.1em; text-transform:uppercase; }
+      .va-evidence-title { color:var(--text); font-size:.98rem; font-weight:690; margin:.24rem 0; } .va-evidence-meta { color:var(--muted); font-size:.8rem; }
+      .va-status { display:inline-block; background:var(--blue-bg); border:1px solid #2d4e75; color:#cbdfff; padding:.23rem .52rem; border-radius:999px; font-size:.68rem; font-weight:700; }
+      div[data-testid="stMetric"] { background:var(--surface); border:1px solid var(--line-soft); border-radius:9px; padding:.82rem .88rem; }
+      div[data-testid="stMetricLabel"] { color:var(--muted); font-size:.7rem; } div[data-testid="stMetricValue"] { color:var(--text); font-size:1.22rem; }
+      .stButton > button { min-height:2.35rem; border-radius:7px; font-weight:650; border-color:#334256; background:transparent; color:#c9d3df; }
+      .stButton > button:hover { border-color:#6383aa; color:#f6f8fb; background:#141e2b; }
+      .stButton > button[kind="primary"] { background:#2f6dbd; border-color:#4381d2; color:white; }.stButton > button[kind="primary"]:hover { background:#3978ca; }
+      [data-testid="stTextArea"] textarea, [data-testid="stTextInput"] input, [data-testid="stSelectbox"] div[data-baseweb="select"] > div { background:#0e151f !important; border-color:#334154 !important; color:var(--text) !important; border-radius:7px !important; }
+      .stTabs [data-baseweb="tab-list"] { gap:1.2rem; border-bottom:1px solid var(--line); }.stTabs [data-baseweb="tab"] { color:var(--muted); padding:.55rem .1rem; }.stTabs [aria-selected="true"] { color:var(--text); border-bottom-color:var(--blue) !important; }
+      .stDataFrame { border:1px solid var(--line-soft); border-radius:8px; overflow:hidden; }
     </style>
     """, unsafe_allow_html=True)
 
 
+def _set_stage(stage: str) -> None:
+    st.session_state["active_workspace_stage"] = stage
+    st.session_state["active_workspace_view"] = stage
+
+
 def render_workspace_header(active_stage: str = "thesis") -> None:
-    st.markdown('<div class="va-eyebrow">VectorAlgoAI · strategy research</div>', unsafe_allow_html=True)
-    st.markdown('<div class="va-title">Build evidence before you risk capital.</div>', unsafe_allow_html=True)
-    st.markdown('<div class="va-subtitle">Make the trading logic explicit, test it honestly, then decide the next research action.</div>', unsafe_allow_html=True)
-    columns = st.columns(5, gap="small")
-    for column, (stage, number, label) in zip(columns, STAGES):
+    name = escape(st.session_state.get("current_strategy_name") or "Untitled research")
+    state = "Evidence available" if st.session_state.get("bt_result") else ("Blueprint ready" if st.session_state.get("blueprint_schema") else "Draft")
+    stage_label = next((label for key, _, label, _ in STAGES if key == active_stage), "Research")
+    st.markdown(f'<div class="va-topbar"><div class="va-crumb">Research / <b>{name}</b> / {stage_label}</div><div class="va-top-status"><i></i>{state}</div></div>', unsafe_allow_html=True)
+    workflow = st.columns(len(STAGES), gap="small")
+    for column, (key, number, label, _) in zip(workflow, STAGES):
         with column:
-            if st.button(f"{number}  {label}", key=f"header_stage_{stage}", use_container_width=True,
-                         type="primary" if stage == active_stage else "secondary"):
-                st.session_state["active_workspace_stage"] = stage
+            if st.button(f"{number}  {label}", key=f"workflow_{key}", use_container_width=True,
+                         type="primary" if key == active_stage else "secondary"):
+                _set_stage(key)
                 st.rerun()
-    st.markdown('<hr class="va-rule">', unsafe_allow_html=True)
 
 
 def render_workspace_sidebar() -> tuple[int, bool, bool]:
     years, show_trade_lines, show_rr_labels = 2, False, False
     with st.sidebar:
-        st.markdown('<div class="va-brand">Vector<b>AlgoAI</b></div><div class="va-brand-sub">Research workspace</div>', unsafe_allow_html=True)
-        name = st.session_state.get("current_strategy_name") or "Untitled research"
-        state = "Evidence available" if st.session_state.get("bt_result") else ("Blueprint ready" if st.session_state.get("blueprint_schema") else "Draft")
-        st.markdown('<div class="va-side-label">Current research</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="va-research-card"><div class="va-research-name">{name}</div><div class="va-research-meta">{state}</div></div>', unsafe_allow_html=True)
-        st.markdown('<div class="va-side-label">Research steps</div>', unsafe_allow_html=True)
+        st.markdown('<div class="va-brand-wrap"><div class="va-mark">◈</div><div><div class="va-brand">VectorAlgoAI</div><div class="va-brand-sub">Strategy research workspace</div></div></div>', unsafe_allow_html=True)
         active = st.session_state.get("active_workspace_stage", "thesis")
-        for stage, number, label in STAGES:
-            if st.button(f"{number}  {label}", key=f"sidebar_stage_{stage}", use_container_width=True, type="primary" if stage == active else "secondary"):
-                st.session_state["active_workspace_stage"] = stage
+        st.markdown('<div class="va-side-label">Workspace</div>', unsafe_allow_html=True)
+        for destination, icon, label in WORKSPACE_ITEMS:
+            target = "thesis" if destination == "thesis" else destination
+            if st.button(f"{icon}   {label}", key=f"nav_workspace_{destination}", use_container_width=True, type="primary" if active == target else "secondary"):
+                _set_stage(target)
                 st.rerun()
+        st.markdown('<div class="va-side-separator"></div><div class="va-side-label">Current research</div>', unsafe_allow_html=True)
+        name = escape(st.session_state.get("current_strategy_name") or "Untitled research")
+        state = "Evidence available" if st.session_state.get("bt_result") else ("Blueprint ready" if st.session_state.get("blueprint_schema") else "Draft")
+        st.markdown(f'<div class="va-research-card"><div class="va-research-name">{name}</div><div class="va-research-meta">{state}</div></div>', unsafe_allow_html=True)
+        for stage, number, label, icon in STAGES:
+            if st.button(f"{icon}   {label}", key=f"nav_stage_{stage}", use_container_width=True, type="primary" if stage == active else "secondary"):
+                _set_stage(stage)
+                st.rerun()
+        st.markdown('<div class="va-side-separator"></div><div class="va-side-label">Account</div>', unsafe_allow_html=True)
+        if st.button("⚙   Settings", key="nav_settings", use_container_width=True, type="primary" if active == "settings" else "secondary"):
+            _set_stage("settings")
+            st.rerun()
         if active == "evidence":
             st.markdown('<div class="va-side-label">Evidence settings</div>', unsafe_allow_html=True)
             years = st.slider("History", 1, 15, 2, format="%d years")
             with st.expander("Chart options"):
                 show_trade_lines = st.checkbox("Trade paths")
                 show_rr_labels = st.checkbox("R labels")
-        else:
-            st.markdown('<div class="va-side-label">Guidance</div>', unsafe_allow_html=True)
-            hints = {
-                "thesis": "Describe the rules in your own words. You will approve the interpretation before testing.",
-                "blueprint": "A test only means something when every important assumption is clear.",
-                "diagnosis": "Find one structural weakness before changing any strategy rule.",
-                "readiness": "This is a risk decision based on evidence, never a performance promise.",
-            }
-            st.caption(hints.get(active, "Run evidence after approving the blueprint."))
     return years, show_trade_lines, show_rr_labels
