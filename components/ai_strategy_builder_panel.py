@@ -52,6 +52,8 @@ def _render_thesis_editor():
         # Blueprint between the Thesis and Evidence stages.
         st.session_state["blueprint_yaml"] = generated_yaml
         st.session_state["strategy_yaml"] = generated_yaml
+        st.session_state.pop("evidence_yaml_editor", None)
+        st.session_state.pop("approved_strategy_yaml", None)
         st.session_state["blueprint_schema"] = schema
         st.session_state["blueprint_approved"] = False
         st.session_state["active_workspace_stage"] = "blueprint"
@@ -116,6 +118,12 @@ def _render_blueprint():
         action, detail = st.columns([1, 2])
         with action:
             if st.button("Approve blueprint", type="primary", use_container_width=True, disabled=bool(issues)):
+                # Freeze the reviewed contract. Evidence must consume this exact
+                # value instead of relying on a widget-backed session key.
+                st.session_state["blueprint_yaml"] = current_yaml
+                st.session_state["approved_strategy_yaml"] = current_yaml
+                st.session_state["strategy_yaml"] = current_yaml
+                st.session_state.pop("evidence_yaml_editor", None)
                 st.session_state["blueprint_approved"] = True
                 st.session_state["active_workspace_stage"] = "evidence"
                 st.rerun()
