@@ -20,18 +20,20 @@ def _render_thesis_editor():
     st.markdown('<div class="va-page-kicker">Strategy Brief</div><div class="va-title">Turn your trading idea into testable rules</div><div class="va-subtitle">Describe the edge as you trade it. VectorAlgoAI will expose every assumption before testing.</div>', unsafe_allow_html=True)
     editor, context = st.columns([1.55, .7], gap="medium")
     with editor:
-        st.markdown('<div class="va-composer"><div class="va-composer-head"><span class="va-ai-orb">✦</span><div><div class="va-panel-title">Describe your strategy</div><div class="va-panel-copy">Use plain English. Include setup, confirmation, risk and exit when possible.</div></div></div></div>', unsafe_allow_html=True)
-        strategy_text = st.text_area(
-            "Strategy idea",
-            height=230,
-            key="ai_text",
-            placeholder="Example: Trade NAS100 long when price retests a confirmed 1H support zone after a breakout. Require a bullish rejection candle on 5m. Avoid high-impact news. Risk 0.5% and target 2R."
-        )
+        with st.container(border=True):
+            st.markdown('<div class="va-panel-accent-blue"></div><div class="va-composer"><div class="va-composer-head"><span class="va-ai-orb">✦</span><div><div class="va-panel-badge">AI STRATEGY INTERPRETER</div><div class="va-panel-title">Describe your strategy</div><div class="va-panel-copy">Use plain English. Include setup, confirmation, risk and exit when possible.</div></div></div></div>', unsafe_allow_html=True)
+            strategy_text = st.text_area(
+                "Strategy idea",
+                height=230,
+                key="ai_text",
+                placeholder="Example: Trade NAS100 long when price retests a confirmed 1H support zone after a breakout. Require a bullish rejection candle on 5m. Avoid high-impact news. Risk 0.5% and target 2R."
+            )
     with context:
-        st.markdown('<div class="va-card"><div class="va-panel-title">Research setup</div><div class="va-panel-copy">Applied to the first evidence run</div><div style="height:.8rem"></div>', unsafe_allow_html=True)
-        market = st.selectbox("Market", ["NAS100", "XAUUSD", "US30", "BTCUSD", "ETHUSD"], key="ai_market")
-        timeframe = st.selectbox("Primary timeframe", ["15m", "1h", "4h", "1d"], index=1, key="ai_timeframe")
-        st.markdown('<div class="va-chip">✓ Realistic costs</div><div class="va-chip">✓ Hold-out validation</div><div class="va-panel-copy" style="margin-top:.9rem">Research-safe by default. Results stay separate from future validation.</div></div>', unsafe_allow_html=True)
+        with st.container(border=True):
+            st.markdown('<div class="va-panel-accent-teal"></div><div class="va-panel-title">Research setup</div><div class="va-panel-copy">Applied to the first evidence run</div><div style="height:.8rem"></div>', unsafe_allow_html=True)
+            market = st.selectbox("Market", ["NAS100", "XAUUSD", "US30", "BTCUSD", "ETHUSD"], key="ai_market")
+            timeframe = st.selectbox("Primary timeframe", ["15m", "1h", "4h", "1d"], index=1, key="ai_timeframe")
+            st.markdown('<div class="va-chip">✓ Realistic costs</div><div class="va-chip">✓ Hold-out validation</div><div class="va-panel-copy" style="margin-top:.9rem">Research-safe by default. Results stay separate from future validation.</div>', unsafe_allow_html=True)
 
     if st.button(
         "Build Rule Blueprint  →", use_container_width=True, type="primary"
@@ -97,7 +99,8 @@ def _render_blueprint():
     cols = st.columns(3)
     for index, (label, value) in enumerate(items):
         with cols[index % 3]:
-            st.markdown(f'<div class="va-card"><div class="va-card-title">{label}</div><div class="va-card-value">{value}</div></div>', unsafe_allow_html=True)
+            tone = ("blue", "teal", "amber")[index % 3]
+            st.markdown(f'<div class="va-card va-card-{tone}"><div class="va-card-title">{label}</div><div class="va-card-value">{value}</div></div>', unsafe_allow_html=True)
 
     if not grouped:
         st.warning("The thesis is still too broad to produce explicit rules. Add the market context, entry trigger, confirmation and risk/exit conditions.")
