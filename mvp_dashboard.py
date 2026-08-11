@@ -47,6 +47,7 @@ from core.strategy_mutation_engine import generate_mutations
 from core.mutation_evaluator import evaluate_mutations
 from components.mutation_panel import render_mutation_panel
 from components.ai_strategy_builder_panel import render_ai_strategy_builder_panel
+from components.workspace_ui import inject_workspace_styles, render_workspace_header
 
 
 
@@ -241,17 +242,17 @@ Fix the structure, rebuild the risk/reward, and only then think about deploying 
 
 
 def run_mvp_dashboard():
-    # IMPORTANT: st.set_page_config() should live in app.py (entrypoint)
-    st.title("🧪 VectorAlgoAI – Strategy Crash-Test Lab (MVP)")
-    st.caption("Early Access MVP • Research Score · Strategy Doctor · Root Cause · Institutional Gradecard")
+    inject_workspace_styles()
+    render_workspace_header()
     render_ai_strategy_builder_panel()
 
     with st.sidebar:
-        st.header("⚙️ Backtest Settings")
+        st.header("Research setup")
+        st.caption("These settings define the evidence window, not the strategy logic.")
         years = st.slider("Years of history", 1, 15, 2)
         show_trade_lines = st.checkbox("Show trade path lines (last 10 closed trades)", value=False)
         show_rr_labels = st.checkbox("Show RR labels (last 10 closed trades)", value=False)
-        st.info("Tip: Edit the strategy YAML, choose history length, then click Run Crash-Test.")
+        st.info("Review the blueprint, select the evidence window, then run the test.")
 
     if "strategy_yaml" not in st.session_state:
         st.session_state["strategy_yaml"] = DEFAULT_STRATEGY_YAML
@@ -262,10 +263,12 @@ def run_mvp_dashboard():
 
     user_strategies = []  # saving disabled in public MVP
 
+    st.markdown("---")
     col1, col2 = st.columns([1, 2])
 
     with col1:
-        st.subheader("📜 Strategy Logic (YAML - Advanced Mode)")
+        st.subheader("Advanced configuration")
+        st.caption("For researchers who want to inspect or edit the machine-readable rules.")
 
         saved_names = ["(none)"] + [s.get("name", "") for s in user_strategies]
         selected_name = st.selectbox("Saved strategies", options=saved_names, index=0)
@@ -296,13 +299,17 @@ def run_mvp_dashboard():
             placeholder="e.g. NAS100 Pullback v5",
         )
 
-        st.text_area("", height=400, key="strategy_yaml")
+        with st.expander("Open YAML strategy configuration"):
+            st.text_area("", height=400, key="strategy_yaml")
 
         if st.button("💾 Save / Update Strategy", use_container_width=True):
             st.info("Saving is disabled in this MVP. Export your YAML locally for now.")
 
     with col2:
-        run_clicked = st.button("🔴 Run Crash-Test", use_container_width=True)
+        st.markdown("### 03 — Generate evidence")
+        if not st.session_state.get("blueprint_approved"):
+            st.info("Approve a Blueprint above to confirm the rules before running a test.")
+        run_clicked = st.button("Run evidence test", use_container_width=True, type="primary", disabled=not st.session_state.get("blueprint_approved", False))
 
         if run_clicked:
             try:
