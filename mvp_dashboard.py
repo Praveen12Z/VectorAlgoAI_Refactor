@@ -167,14 +167,43 @@ def _render_evidence_intro(bt: Dict[str, Any] | None) -> None:
     """Keep the evidence screen calm: state first, detailed proof second."""
     if bt is None:
         title = "No evidence generated yet"
-        copy = "Your approved research contract is ready. Select the historical window in the sidebar, then run the test."
+        copy = (
+            "Your approved research contract is ready. Select the historical "
+            "window in the sidebar, then run the test."
+        )
+    elif bt.get("error"):
+        title = "Evidence test needs attention"
+        copy = (
+            "The test did not complete. Review the message below, adjust the "
+            "research contract if needed, then run it again."
+        )
+    elif bt.get("contract_issues"):
+        title = "Research contract needs completion"
+        copy = (
+            "Complete the missing executable rules in the Blueprint before "
+            "generating historical evidence."
+        )
     else:
-        start, end, bars = bt["data_range"]
-        title = "Historical evidence generated"
-        copy = f"{start} to {end} · {bars:,} bars analysed. This is historical evidence, not a performance forecast."
+        data_range = bt.get("data_range")
+
+        if data_range and len(data_range) == 3:
+            start, end, bars = data_range
+            title = "Historical evidence generated"
+            copy = (
+                f"{start} to {end} · {bars:,} bars analysed. "
+                "This is historical evidence, not a performance forecast."
+            )
+        else:
+            title = "Evidence ready to review"
+            copy = (
+                "Historical results are available. Run the test again to refresh "
+                "the research record with the selected data window."
+            )
+
     st.markdown(
         f'<div class="va-evidence-banner"><div class="va-evidence-kicker">Research record</div>'
-        f'<div class="va-evidence-title">{title}</div><div class="va-evidence-meta">{copy}</div></div>',
+        f'<div class="va-evidence-title">{title}</div>'
+        f'<div class="va-evidence-meta">{copy}</div></div>',
         unsafe_allow_html=True,
     )
 
