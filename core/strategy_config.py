@@ -119,6 +119,9 @@ def parse_strategy_yaml(text: str) -> StrategyConfig:
     Parse YAML -> StrategyConfig for the PRO backtester.
     Keeps original YAML dict in cfg.raw for advanced features.
     """
+    # A blank editor (or a YAML document containing only ``null``) used to
+    # reach the parser as None and then crash later at ``data.get(...)``.
+    # Treat this as an incomplete research contract instead.
     if not isinstance(text, str) or not text.strip():
         raise ValueError(
             "The Blueprint has no machine-readable rules yet. Return to Blueprint, "
@@ -146,6 +149,15 @@ def parse_strategy_yaml(text: str) -> StrategyConfig:
             "The Blueprint is incomplete (missing "
             + ", ".join(missing_sections)
             + "). Return to Blueprint and complete the executable rules."
+        )
+
+    entry = data["entry"]
+    if not isinstance(entry.get("long"), list) or not isinstance(entry.get("short"), list):
+        raise ValueError("Blueprint entry rules must be lists for long and short trades.")
+    if not entry["long"] and not entry["short"]:
+        raise ValueError(
+            "The Blueprint has no executable entry rule. Return to Thesis, make the "
+            "entry trigger explicit, regenerate the Blueprint, then approve it."
         )
 
     # ---------------------------------------------
