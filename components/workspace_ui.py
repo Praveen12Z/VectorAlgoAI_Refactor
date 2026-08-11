@@ -30,12 +30,12 @@ def inject_workspace_styles() -> None:
       .stApp { background:var(--bg); color:var(--text); }
       /* Keep Streamlit's host controls available, but do not let their header
          create a second, empty product header above the workspace. */
-      [data-testid="stHeader"] { background:rgba(10,14,21,.82); border-bottom:1px solid var(--line-soft); height:2.15rem; min-height:2.15rem; }
-      [data-testid="stHeader"] [data-testid="stToolbar"] { height:2.15rem; }
+      [data-testid="stHeader"] { background:rgba(10,14,21,.82); border-bottom:1px solid var(--line-soft); height:1.8rem !important; min-height:1.8rem !important; }
+      [data-testid="stHeader"] [data-testid="stToolbar"] { height:1.8rem !important; min-height:1.8rem !important; }
       [data-testid="stSidebar"] { background:var(--sidebar); border-right:1px solid var(--line-soft); min-width:226px; }
       [data-testid="stSidebar"] [data-testid="stSidebarContent"] { padding:1.25rem .72rem 1rem; display:flex; flex-direction:column; min-height:100%; }
       [data-testid="stSidebar"] .stButton { margin:.08rem 0; }
-      .block-container { max-width:1390px; padding:.5rem 2.4rem 4rem; }
+      [data-testid="stMainBlockContainer"], .block-container { max-width:1390px; padding:.08rem 2.4rem 4rem !important; }
       h1,h2,h3 { color:var(--text); letter-spacing:-.035em; }
       .va-brand-wrap { display:flex; align-items:center; gap:.68rem; padding:.16rem .55rem 1.25rem; }
       .va-mark { width:27px; height:27px; display:grid; place-items:center; border:1px solid #416b9f; color:#b9d2ff; border-radius:8px; background:#11223a; font-size:.95rem; }
@@ -46,13 +46,13 @@ def inject_workspace_styles() -> None:
       .va-research-card { background:#101722; border:1px solid var(--line-soft); border-radius:8px; padding:.68rem .75rem; margin:0 .5rem .35rem; }
       .va-research-name { color:#dfe7f2; font-size:.76rem; font-weight:650; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
       .va-research-meta { color:var(--faint); font-size:.68rem; margin-top:.22rem; }
-      [class*="st-key-nav_"] button { border:0; background:transparent; text-align:left; box-shadow:none; color:#9aa8ba; min-height:2.8rem; padding:.42rem .62rem; font-size:.80rem; font-weight:590; border-radius:8px; }
+      [class*="st-key-nav_"] button { border:0; background:transparent; text-align:left; box-shadow:none; color:#9aa8ba; min-height:3.05rem; padding:.38rem .58rem; font-size:.80rem; font-weight:590; border-radius:8px; }
       [class*="st-key-nav_"] button::first-letter { color:#b7d3ff; }
       [class*="st-key-nav_"] button:hover { background:#131c29; color:#e9f0fa; }
       [class*="st-key-nav_"] button[kind="primary"] { background:var(--blue-bg); color:#eef5ff; outline:1px solid #294f7b; }
       /* A consistent icon tile makes the permanent navigation scannable,
          without turning it into a colourful trading dashboard. */
-      [class*="st-key-nav_"] button::before { display:inline-grid; place-items:center; width:1.65rem; height:1.65rem; margin-right:.68rem; border:1px solid #385a80; border-radius:7px; color:#c8dcff; background:#101f31; font-size:.91rem; line-height:1; vertical-align:-.2rem; box-shadow:inset 0 0 0 1px rgba(115,169,255,.035); }
+      [class*="st-key-nav_"] button::before { display:inline-grid !important; place-items:center; flex:0 0 2rem; width:2rem !important; height:2rem !important; margin-right:.72rem; border:1px solid #4775aa; border-radius:8px; color:#d8e7ff; background:#11243a; font-size:1.12rem !important; font-weight:700; line-height:1; vertical-align:-.25rem; box-shadow:inset 0 0 0 1px rgba(115,169,255,.06); }
       .st-key-nav_workspace_home button::before { content:"⌂"; }
       .st-key-nav_workspace_thesis button::before { content:"+"; }
       .st-key-nav_workspace_library button::before { content:"▦"; }
@@ -63,9 +63,9 @@ def inject_workspace_styles() -> None:
       .st-key-nav_stage_readiness button::before { content:"↗"; }
       .st-key-nav_settings button::before { content:"⚙"; }
       [class*="st-key-nav_"] button[kind="primary"]::before { background:#1c3c65; border-color:#5386bf; color:#e4f0ff; }
-      .va-topbar { display:flex; align-items:center; justify-content:space-between; gap:1rem; min-height:2.2rem; padding:0 0 .4rem; border-bottom:1px solid var(--line-soft); }
+      .va-topbar { display:flex; align-items:center; justify-content:space-between; gap:1rem; min-height:1.5rem; padding:0 0 .18rem; border-bottom:1px solid var(--line-soft); }
       .va-crumb { color:var(--muted); font-size:.78rem; } .va-crumb b { color:var(--text); font-weight:650; }
-      .va-top-status { color:#b9c7d9; background:#101925; border:1px solid #25374c; border-radius:999px; padding:.28rem .6rem; font-size:.68rem; white-space:nowrap; }
+      .va-top-status { color:#b9c7d9; background:#101925; border:1px solid #25374c; border-radius:999px; padding:.14rem .5rem; font-size:.64rem; white-space:nowrap; }
       .va-top-status i { display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--blue); margin-right:.36rem; vertical-align:1px; }
       .va-page-kicker { color:var(--blue); font-size:.67rem; font-weight:760; letter-spacing:.12em; text-transform:uppercase; margin-top:1.25rem; }
       .va-title { font-size:1.8rem; font-weight:730; line-height:1.13; letter-spacing:-.048em; margin:.34rem 0 .35rem; }
@@ -77,11 +77,11 @@ def inject_workspace_styles() -> None:
       .va-step.done { color:#aebfd4; } .va-step.done .va-step-dot { border-color:#496f9e; color:#afd0ff; }
       .va-step-line { width:34px; height:1px; background:#2b3647; margin:0 .58rem; }
       .va-step-line.done { background:#496f9e; }
-      .va-workflow-row { margin:0 0 .55rem; }
-      [class*="st-key-workflow_"] { margin-top:-.1rem; }
-      [class*="st-key-workflow_"] button { min-height:1.72rem; padding:.08rem .18rem; border:0; border-bottom:2px solid #2b3647; border-radius:0; background:transparent; color:var(--faint); font-size:.67rem; text-align:center; box-shadow:none; }
-      [class*="st-key-workflow_"] button:hover { background:transparent; color:#dce8f7; border-color:#577ba7; }
-      [class*="st-key-workflow_"] button[kind="primary"] { background:transparent; color:#e9f1fd; border-color:var(--blue); }
+      .va-workflow-row { margin:0 0 .1rem; height:0; }
+      [class*="st-key-workflow_"] { margin-top:-.18rem !important; }
+      [class*="st-key-workflow_"] button { min-height:1.55rem !important; height:1.55rem !important; padding:0 .18rem !important; border:0 !important; border-bottom:2px solid #2b3647 !important; border-radius:0 !important; background:transparent !important; color:var(--faint) !important; font-size:.67rem !important; text-align:center; box-shadow:none !important; }
+      [class*="st-key-workflow_"] button:hover { background:transparent !important; color:#dce8f7 !important; border-bottom-color:#577ba7 !important; }
+      [class*="st-key-workflow_"] button[kind="primary"] { background:transparent !important; color:#e9f1fd !important; border-bottom-color:var(--blue) !important; }
       .va-card { background:var(--surface); border:1px solid var(--line-soft); border-radius:9px; padding:1rem; min-height:104px; }
       .va-card-title { color:var(--faint); font-size:.66rem; font-weight:760; letter-spacing:.1em; text-transform:uppercase; margin-bottom:.48rem; }
       .va-card-value { color:#e8edf5; font-size:.88rem; line-height:1.5; font-weight:560; }
