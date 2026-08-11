@@ -1,48 +1,109 @@
-"""Shared presentation helpers for the VectorAlgoAI research workspace."""
+"""Presentation helpers for the VectorAlgoAI research workspace."""
 import streamlit as st
 
 
+STAGES = (
+    ("thesis", "01", "Thesis"),
+    ("blueprint", "02", "Blueprint"),
+    ("evidence", "03", "Evidence"),
+    ("diagnosis", "04", "Diagnosis"),
+    ("readiness", "05", "Readiness"),
+)
+
+
 def inject_workspace_styles() -> None:
-    st.markdown(
-        """
-        <style>
-        :root { --ink:#edf2f7; --muted:#94a3b8; --panel:#111b2d; --line:#263653;
-                --blue:#66a9ff; --teal:#41d5bc; --amber:#f5bf54; --rose:#fb7185; }
-        .stApp { background: #08111f; color: var(--ink); }
-        [data-testid="stHeader"] { background: rgba(8,17,31,.88); }
-        [data-testid="stSidebar"] { background: #0c1728; border-right: 1px solid var(--line); }
-        .block-container { max-width: 1420px; padding-top: 2.1rem; padding-bottom: 4rem; }
-        h1, h2, h3 { letter-spacing: -.025em; }
-        .va-eyebrow { color: var(--blue); font-size:.76rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; }
-        .va-title { font-size:2rem; font-weight:700; letter-spacing:-.045em; margin:.1rem 0 .35rem; }
-        .va-subtitle { color:var(--muted); font-size:1rem; margin:0 0 1.25rem; }
-        .va-card { background:linear-gradient(145deg, rgba(20,33,55,.96), rgba(12,23,40,.96));
-          border:1px solid var(--line); border-radius:14px; padding:1.1rem 1.2rem; min-height:108px; }
-        .va-card-title { color:var(--muted); text-transform:uppercase; letter-spacing:.085em; font-size:.7rem; font-weight:700; margin-bottom:.45rem; }
-        .va-card-value { font-size:1.05rem; font-weight:650; color:var(--ink); line-height:1.38; }
-        .va-step { border-bottom: 2px solid #263653; color:#71809a; padding:.45rem 0 .65rem; font-size:.8rem; font-weight:650; }
-        .va-step.active { border-color:var(--blue); color:#e8f1ff; }
-        .va-step.done { border-color:var(--teal); color:#b9f5e9; }
-        .va-status { display:inline-block; padding:.22rem .55rem; border-radius:999px; font-size:.72rem; font-weight:700; }
-        .va-status.blue { color:#bcd8ff; background:#17345f; } .va-status.teal { color:#baf5e8; background:#123b39; }
-        .va-status.amber { color:#ffe3a8; background:#493917; }
-        div[data-testid="stMetric"] { background:rgba(17,27,45,.88); border:1px solid var(--line); padding:.85rem; border-radius:12px; }
-        .stButton > button { border-radius:9px; font-weight:650; min-height:2.55rem; }
-        .stButton > button[kind="primary"] { background:#2674d9; border-color:#3c8bf0; }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
+    """Keep the application visually calm: one accent colour, not a trading terminal."""
+    st.markdown("""
+    <style>
+      :root { --bg:#090d14; --surface:#101722; --surface-2:#141d2a; --line:#263243;
+              --text:#edf2f7; --muted:#8b98aa; --blue:#7fb0ff; --blue-bg:#142845; }
+      .stApp { background:var(--bg); color:var(--text); }
+      [data-testid="stHeader"] { background:rgba(9,13,20,.94); border-bottom:1px solid rgba(38,50,67,.75); }
+      [data-testid="stSidebar"] { background:#0c111a; border-right:1px solid var(--line); }
+      [data-testid="stSidebar"] [data-testid="stSidebarContent"] { padding:1.1rem .8rem; }
+      .block-container { max-width:1240px; padding:2.1rem 2.25rem 4rem; }
+      h1,h2,h3 { color:var(--text); letter-spacing:-.035em; }
+      .va-brand { font-size:.95rem; font-weight:760; letter-spacing:-.025em; color:#f6f8fb; }
+      .va-brand b { color:var(--blue); font-weight:760; }
+      .va-brand-sub { color:var(--muted); font-size:.72rem; margin-top:.18rem; }
+      .va-side-label { color:#68778a; font-size:.67rem; font-weight:750; letter-spacing:.11em; text-transform:uppercase; margin:1.5rem 0 .48rem; }
+      .va-research-card { background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:.75rem; }
+      .va-research-name { color:var(--text); font-size:.82rem; font-weight:650; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .va-research-meta { color:var(--muted); font-size:.72rem; margin-top:.22rem; }
+      .va-eyebrow { color:var(--blue); font-size:.68rem; font-weight:750; letter-spacing:.12em; text-transform:uppercase; }
+      .va-title { font-size:2rem; font-weight:720; line-height:1.1; letter-spacing:-.05em; margin:.35rem 0 .45rem; }
+      .va-subtitle { color:var(--muted); font-size:.94rem; max-width:700px; line-height:1.55; margin:0 0 1.7rem; }
+      .va-rule { border:0; border-top:1px solid var(--line); margin:1.3rem 0 1.6rem; }
+      .va-card { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:1rem; min-height:104px; }
+      .va-card-title { color:var(--muted); font-size:.68rem; font-weight:750; letter-spacing:.09em; text-transform:uppercase; margin-bottom:.48rem; }
+      .va-card-value { color:var(--text); font-size:.92rem; line-height:1.45; font-weight:590; }
+      .va-section-title { color:var(--text); font-size:1.12rem; font-weight:700; margin:2.2rem 0 .22rem; letter-spacing:-.02em; }
+      .va-section-copy { color:var(--muted); font-size:.88rem; line-height:1.5; margin-bottom:1rem; }
+      .va-evidence-banner { background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--blue); border-radius:8px; padding:1rem 1.1rem; margin:.8rem 0 1.35rem; }
+      .va-evidence-kicker { color:var(--blue); font-size:.68rem; font-weight:750; letter-spacing:.1em; text-transform:uppercase; }
+      .va-evidence-title { color:var(--text); font-size:1rem; font-weight:690; margin:.24rem 0; }
+      .va-evidence-meta { color:var(--muted); font-size:.82rem; }
+      .va-status { display:inline-block; background:var(--blue-bg); border:1px solid #2c4b70; color:#c9ddff; padding:.24rem .54rem; border-radius:999px; font-size:.7rem; font-weight:700; }
+      div[data-testid="stMetric"] { background:var(--surface); border:1px solid var(--line); border-radius:9px; padding:.85rem .9rem; }
+      div[data-testid="stMetricLabel"] { color:var(--muted); font-size:.72rem; }
+      div[data-testid="stMetricValue"] { color:var(--text); font-size:1.28rem; }
+      .stButton > button { min-height:2.4rem; border-radius:7px; font-weight:650; border-color:#344357; background:transparent; color:#c7d1df; }
+      .stButton > button:hover { border-color:#6684ab; color:#f4f7fb; background:#121c29; }
+      .stButton > button[kind="primary"] { background:#2d67b5; border-color:#417bd0; color:white; }
+      .stButton > button[kind="primary"]:hover { background:#3976c8; }
+      [class*="st-key-header_stage_"] button { min-height:3.05rem; text-align:left; padding:.55rem .35rem; border:0; border-bottom:2px solid var(--line); border-radius:0; font-size:.76rem; background:transparent; color:var(--muted); box-shadow:none; }
+      [class*="st-key-header_stage_"] button[kind="primary"] { border-color:var(--blue); color:var(--text); }
+      [class*="st-key-sidebar_stage_"] button { border:0; text-align:left; min-height:2.15rem; padding:.3rem .55rem; font-size:.82rem; }
+      [data-testid="stTextArea"] textarea, [data-testid="stTextInput"] input, [data-testid="stSelectbox"] div[data-baseweb="select"] > div { background:#0d141e !important; border-color:#334154 !important; color:var(--text) !important; border-radius:7px !important; }
+      .stTabs [data-baseweb="tab-list"] { gap:1.2rem; border-bottom:1px solid var(--line); }
+      .stTabs [data-baseweb="tab"] { color:var(--muted); padding:.55rem .1rem; }
+      .stTabs [aria-selected="true"] { color:var(--text); border-bottom-color:var(--blue) !important; }
+      .stDataFrame { border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+    </style>
+    """, unsafe_allow_html=True)
 
 
-def render_workspace_header() -> None:
-    st.markdown('<div class="va-eyebrow">VectorAlgoAI / Research workspace</div>', unsafe_allow_html=True)
-    st.markdown('<div class="va-title">Strategy Research</div>', unsafe_allow_html=True)
-    st.markdown('<div class="va-subtitle">Turn a trading thesis into explicit rules, evidence and a disciplined capital-readiness decision.</div>', unsafe_allow_html=True)
-    labels = [("01", "Thesis"), ("02", "Blueprint"), ("03", "Evidence"), ("04", "Diagnosis"), ("05", "Capital readiness")]
-    cols = st.columns(5)
-    approved = st.session_state.get("blueprint_approved", False)
-    for i, (number, label) in enumerate(labels):
-        state = "active" if i == 1 else ("done" if i == 0 and approved else "")
-        with cols[i]:
-            st.markdown(f'<div class="va-step {state}">{number} &nbsp;{label}</div>', unsafe_allow_html=True)
+def render_workspace_header(active_stage: str = "thesis") -> None:
+    st.markdown('<div class="va-eyebrow">VectorAlgoAI · strategy research</div>', unsafe_allow_html=True)
+    st.markdown('<div class="va-title">Build evidence before you risk capital.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="va-subtitle">Make the trading logic explicit, test it honestly, then decide the next research action.</div>', unsafe_allow_html=True)
+    columns = st.columns(5, gap="small")
+    for column, (stage, number, label) in zip(columns, STAGES):
+        with column:
+            if st.button(f"{number}  {label}", key=f"header_stage_{stage}", use_container_width=True,
+                         type="primary" if stage == active_stage else "secondary"):
+                st.session_state["active_workspace_stage"] = stage
+                st.rerun()
+    st.markdown('<hr class="va-rule">', unsafe_allow_html=True)
+
+
+def render_workspace_sidebar() -> tuple[int, bool, bool]:
+    years, show_trade_lines, show_rr_labels = 2, False, False
+    with st.sidebar:
+        st.markdown('<div class="va-brand">Vector<b>AlgoAI</b></div><div class="va-brand-sub">Research workspace</div>', unsafe_allow_html=True)
+        name = st.session_state.get("current_strategy_name") or "Untitled research"
+        state = "Evidence available" if st.session_state.get("bt_result") else ("Blueprint ready" if st.session_state.get("blueprint_schema") else "Draft")
+        st.markdown('<div class="va-side-label">Current research</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="va-research-card"><div class="va-research-name">{name}</div><div class="va-research-meta">{state}</div></div>', unsafe_allow_html=True)
+        st.markdown('<div class="va-side-label">Research steps</div>', unsafe_allow_html=True)
+        active = st.session_state.get("active_workspace_stage", "thesis")
+        for stage, number, label in STAGES:
+            if st.button(f"{number}  {label}", key=f"sidebar_stage_{stage}", use_container_width=True, type="primary" if stage == active else "secondary"):
+                st.session_state["active_workspace_stage"] = stage
+                st.rerun()
+        if active == "evidence":
+            st.markdown('<div class="va-side-label">Evidence settings</div>', unsafe_allow_html=True)
+            years = st.slider("History", 1, 15, 2, format="%d years")
+            with st.expander("Chart options"):
+                show_trade_lines = st.checkbox("Trade paths")
+                show_rr_labels = st.checkbox("R labels")
+        else:
+            st.markdown('<div class="va-side-label">Guidance</div>', unsafe_allow_html=True)
+            hints = {
+                "thesis": "Describe the rules in your own words. You will approve the interpretation before testing.",
+                "blueprint": "A test only means something when every important assumption is clear.",
+                "diagnosis": "Find one structural weakness before changing any strategy rule.",
+                "readiness": "This is a risk decision based on evidence, never a performance promise.",
+            }
+            st.caption(hints.get(active, "Run evidence after approving the blueprint."))
+    return years, show_trade_lines, show_rr_labels
