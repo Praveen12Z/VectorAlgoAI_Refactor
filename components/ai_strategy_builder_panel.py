@@ -1,7 +1,9 @@
 import streamlit as st
+import yaml
 
 from core.ai_strategy_builder import build_strategy_from_text
 from core.schema_to_yaml_compiler import compile_schema_to_yaml
+from core.research_contract import strategy_contract_issues
 
 
 def render_ai_strategy_builder_panel(active_stage: str = "thesis"):
@@ -82,10 +84,15 @@ def _render_blueprint():
     if not grouped:
         st.warning("The thesis is still too broad to produce explicit rules. Add the market context, entry trigger, confirmation and risk/exit conditions.")
     else:
+        issues = strategy_contract_issues(yaml.safe_load(st.session_state.get("strategy_yaml", "")) or {})
+        if issues:
+            st.warning("This research contract is not ready to run yet.")
+            for issue in issues:
+                st.caption(f"• {issue}")
         st.markdown('<span class="va-status">Review required</span> &nbsp; <span style="color:#94a3b8;font-size:.86rem">Confirm that the interpretation matches how you actually trade.</span>', unsafe_allow_html=True)
         action, detail = st.columns([1, 2])
         with action:
-            if st.button("Approve blueprint", type="primary", use_container_width=True):
+            if st.button("Approve blueprint", type="primary", use_container_width=True, disabled=bool(issues)):
                 st.session_state["blueprint_approved"] = True
                 st.session_state["active_workspace_stage"] = "evidence"
                 st.rerun()
