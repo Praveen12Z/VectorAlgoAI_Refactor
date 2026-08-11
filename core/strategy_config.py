@@ -119,7 +119,22 @@ def parse_strategy_yaml(text: str) -> StrategyConfig:
     Parse YAML -> StrategyConfig for the PRO backtester.
     Keeps original YAML dict in cfg.raw for advanced features.
     """
+    if not isinstance(text, str) or not text.strip():
+    raise ValueError(
+        "The Blueprint has no machine-readable rules yet. Return to Blueprint, "
+        "regenerate the research contract, then approve it before running evidence."
+    )
+
+try:
     data = yaml.safe_load(text)
+except yaml.YAMLError as exc:
+    raise ValueError(f"The Blueprint YAML is invalid: {exc}") from exc
+
+if not isinstance(data, dict):
+    raise ValueError(
+        "The Blueprint must contain a YAML strategy object. Return to Blueprint, "
+        "regenerate the research contract, then approve it before running evidence."
+    )
 
     # ---------------------------------------------
     # INDICATORS
