@@ -120,21 +120,33 @@ def parse_strategy_yaml(text: str) -> StrategyConfig:
     Keeps original YAML dict in cfg.raw for advanced features.
     """
     if not isinstance(text, str) or not text.strip():
-    raise ValueError(
-        "The Blueprint has no machine-readable rules yet. Return to Blueprint, "
-        "regenerate the research contract, then approve it before running evidence."
-    )
+        raise ValueError(
+            "The Blueprint has no machine-readable rules yet. Return to Blueprint, "
+            "regenerate the research contract, then approve it before running Evidence."
+        )
 
-try:
-    data = yaml.safe_load(text)
-except yaml.YAMLError as exc:
-    raise ValueError(f"The Blueprint YAML is invalid: {exc}") from exc
+    try:
+        data = yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        raise ValueError(f"The Blueprint YAML is invalid: {exc}") from exc
 
-if not isinstance(data, dict):
-    raise ValueError(
-        "The Blueprint must contain a YAML strategy object. Return to Blueprint, "
-        "regenerate the research contract, then approve it before running evidence."
-    )
+    if not isinstance(data, dict):
+        raise ValueError(
+            "The Blueprint must contain a YAML strategy object. Return to Blueprint, "
+            "regenerate the research contract, then approve it before running Evidence."
+        )
+
+    required_sections = ("entry", "exit", "risk")
+    missing_sections = [
+        section for section in required_sections
+        if not isinstance(data.get(section), dict)
+    ]
+    if missing_sections:
+        raise ValueError(
+            "The Blueprint is incomplete (missing "
+            + ", ".join(missing_sections)
+            + "). Return to Blueprint and complete the executable rules."
+        )
 
     # ---------------------------------------------
     # INDICATORS
