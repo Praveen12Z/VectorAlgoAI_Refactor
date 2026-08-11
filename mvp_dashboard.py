@@ -47,6 +47,11 @@ from core.strategy_mutation_engine import generate_mutations
 from core.mutation_evaluator import evaluate_mutations
 from components.mutation_panel import render_mutation_panel
 from components.ai_strategy_builder_panel import render_ai_strategy_builder_panel
+from components.workspace_ui import (
+    inject_workspace_styles,
+    render_workspace_header,
+    render_workspace_sidebar,
+)
 
 
 
@@ -158,6 +163,58 @@ risk:
 """
 
 
+def _render_evidence_intro(bt: Dict[str, Any] | None) -> None:
+    """Keep the evidence screen calm: state first, detailed proof second."""
+    if bt is None:
+        title = "No evidence generated yet"
+        copy = "Your approved research contract is ready. Select the historical window in the sidebar, then run the test."
+    elif bt.get("error"):
+        title = "Evidence test needs attention"
+        copy = "The test did not complete. Review the message below, adjust the research contract if needed, then run it again."
+    elif bt.get("contract_issues"):
+        title = "Research contract needs completion"
+        copy = "Complete the missing executable rules in the Blueprint before generating historical evidence."
+    else:
+        data_range = bt.get("data_range")
+        if data_range and len(data_range) == 3:
+            start, end, bars = data_range
+            title = "Historical evidence generated"
+            copy = f"{start} to {end} · {bars:,} bars analysed. This is historical evidence, not a performance forecast."
+        else:
+            # Cached results from earlier app versions may not include the
+            # display-only range metadata. They must never crash the Evidence page.
+            title = "Evidence ready to review"
+            copy = "Historical results are available. Run the test again to refresh the research record with the selected data window."
+    st.markdown(
+        f'<div class="va-evidence-banner"><div class="va-evidence-kicker">Research record</div>'
+        f'<div class="va-evidence-title">{title}</div><div class="va-evidence-meta">{copy}</div></div>',
+        unsafe_allow_html=True,
+    )
+
+
+def _render_workspace_landing(view: str) -> None:
+    """Focused product pages for the permanent workspace navigation."""
+    if view == "home":
+        st.markdown('<div class="va-page-kicker">Research home</div><div class="va-title">Your strategy research, in one place.</div><div class="va-subtitle">Start a new thesis or continue the current research record. Every result stays connected to the logic that produced it.</div>', unsafe_allow_html=True)
+        one, two, three = st.columns(3)
+        with one:
+            st.markdown('<div class="va-card va-card-blue"><div class="va-card-title">Current research</div><div class="va-card-value">Draft strategy<br><span style="color:#718197;font-size:.8rem">Define a strategy brief to begin.</span></div></div>', unsafe_allow_html=True)
+        with two:
+            st.markdown('<div class="va-card va-card-teal"><div class="va-card-title">Evidence records</div><div class="va-card-value">0 tests<br><span style="color:#718197;font-size:.8rem">Historical evidence appears here.</span></div></div>', unsafe_allow_html=True)
+        with three:
+            st.markdown('<div class="va-card va-card-amber"><div class="va-card-title">Capital status</div><div class="va-card-value">Not assessed<br><span style="color:#718197;font-size:.8rem">Requires approved evidence.</span></div></div>', unsafe_allow_html=True)
+        st.markdown('<div class="va-section-title">Begin with the trading thesis</div><div class="va-section-copy">Describe the market context, entry, confirmation, exit and risk rules. VectorAlgoAI converts it into an explicit research contract for you to approve.</div>', unsafe_allow_html=True)
+        if st.button("Create a strategy", type="primary"):
+            st.session_state["active_workspace_stage"] = "thesis"
+            st.rerun()
+    elif view == "library":
+        st.markdown('<div class="va-page-kicker">Strategy library</div><div class="va-title">Research records, not signal lists.</div><div class="va-subtitle">Saved strategies and their evidence will live here. The first record is created when you approve your thesis.</div>', unsafe_allow_html=True)
+        st.info("No saved strategy records yet. Start a New strategy to create the first research record.")
+    else:
+        st.markdown('<div class="va-page-kicker">Settings</div><div class="va-title">Workspace settings</div><div class="va-subtitle">Account and research defaults will be configured here as the MVP grows.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="va-card"><div class="va-card-title">Current default</div><div class="va-card-value">NAS100 · 1h research timeframe</div></div>', unsafe_allow_html=True)
+
+
 def build_ruthless_ai_commentary(metrics: Dict[str, Any], trades_df: pd.DataFrame) -> str:
     grade = metrics.get("grade", "-")
     total_ret = float(metrics.get("total_return_pct", 0.0))
@@ -178,23 +235,20 @@ def build_ruthless_ai_commentary(metrics: Dict[str, Any], trades_df: pd.DataFram
 
     if pf >= 1.05 and total_ret > 0:
         verdict = (
-            "This strategy is *barely* on the right side of zero, but it wouldn’t impress a serious PM yet. "
-            "The edge is fragile and could vanish with a small regime shift."
+            "The result is positive on this sample, but the edge remains fragile and needs validation across other market conditions."
         )
     elif 0.9 <= pf < 1.05:
         verdict = (
-            "This wouldn’t survive a single allocation meeting. The edge is not just weak — it’s **non-existent**. "
-            "PF around 1 is the market’s way of telling you it’s taking your money for sport."
+            "The result is close to breakeven. The available evidence does not yet support a claim of a reliable edge."
         )
     else:
         verdict = (
-            "This is not a drawdown, this is **structural failure**. "
-            "The system is handing over PnL to the market on a consistent basis."
+            "The current rule set is losing on this historical sample and requires redesign before further validation."
         )
 
     issues = []
     if pf < 1.0:
-        issues.append("Strategy **loses money** (PF < 1). The market is charging you to participate.")
+        issues.append("The strategy loses on this sample (PF < 1).")
     elif pf < 1.1:
         issues.append("Profit factor is barely above 1 — any extra friction (slippage, spreads, fees) will erase it.")
     if win_rate < 45:
@@ -212,8 +266,8 @@ def build_ruthless_ai_commentary(metrics: Dict[str, Any], trades_df: pd.DataFram
     issues_md = "\n\n".join([f"• {txt}" for txt in issues])
 
     actions = [
-        "Tighten stops relative to volatility (e.g. reduce ATR multiples) so losers get cut faster.",
-        "Stretch take-profit levels slightly — stop asking the market for crumbs.",
+        "Test stop placement relative to volatility, without changing multiple variables at once.",
+        "Test take-profit placement as a controlled experiment, not an assumption.",
         "Introduce a **regime filter** (trend vs chop, low vs high volatility) and *refuse to trade* in the wrong regime.",
         "Add additional confluence at entry instead of firing signals at every EMA touch.",
     ]
@@ -223,114 +277,107 @@ def build_ruthless_ai_commentary(metrics: Dict[str, Any], trades_df: pd.DataFram
     actions_md = "\n\n".join([f"• {txt}" for txt in actions])
 
     return f"""
-💀 **Ruthless Quant PM Review**
+**Research commentary**
 
 {snapshot}
 
-The current configuration would **not** get capital at a professional desk. {verdict}
+Capital readiness is based on the evidence available today. {verdict}
 
 ### Key Issues Detected
 {issues_md}
 
-### Non-Negotiable Next Steps
+### Suggested research steps
 {actions_md}
 
-**Final verdict:** Right now this is closer to a *donor account* than a trading strategy.  
-Fix the structure, rebuild the risk/reward, and only then think about deploying real capital.
+**Current conclusion:** Do not increase capital exposure from this test alone. Complete the next validation step before changing the readiness decision.
 """
 
 
 def run_mvp_dashboard():
-    # IMPORTANT: st.set_page_config() should live in app.py (entrypoint)
-    st.title("🧪 VectorAlgoAI – Strategy Crash-Test Lab (MVP)")
-    st.caption("Early Access MVP • Research Score · Strategy Doctor · Root Cause · Institutional Gradecard")
-    render_ai_strategy_builder_panel()
-
-    with st.sidebar:
-        st.header("⚙️ Backtest Settings")
-        years = st.slider("Years of history", 1, 15, 2)
-        show_trade_lines = st.checkbox("Show trade path lines (last 10 closed trades)", value=False)
-        show_rr_labels = st.checkbox("Show RR labels (last 10 closed trades)", value=False)
-        st.info("Tip: Edit the strategy YAML, choose history length, then click Run Crash-Test.")
-
+    if "active_workspace_stage" not in st.session_state:
+        st.session_state["active_workspace_stage"] = "thesis"
     if "strategy_yaml" not in st.session_state:
         st.session_state["strategy_yaml"] = DEFAULT_STRATEGY_YAML
     if "current_strategy_name" not in st.session_state:
         st.session_state["current_strategy_name"] = ""
     if "bt_result" not in st.session_state:
         st.session_state["bt_result"] = None
+    if "active_workspace_view" not in st.session_state:
+        st.session_state["active_workspace_view"] = "thesis"
 
-    user_strategies = []  # saving disabled in public MVP
+    inject_workspace_styles()
+    years, show_trade_lines, show_rr_labels = render_workspace_sidebar()
+    active_stage = st.session_state.get("active_workspace_stage", "thesis")
+    render_workspace_header(active_stage)
 
-    col1, col2 = st.columns([1, 2])
+    if active_stage in {"home", "library", "settings"}:
+        _render_workspace_landing(active_stage)
+        return
 
-    with col1:
-        st.subheader("📜 Strategy Logic (YAML - Advanced Mode)")
+    if active_stage in {"thesis", "blueprint"}:
+        render_ai_strategy_builder_panel(active_stage)
+        return
 
-        saved_names = ["(none)"] + [s.get("name", "") for s in user_strategies]
-        selected_name = st.selectbox("Saved strategies", options=saved_names, index=0)
+    if active_stage not in {"evidence", "diagnosis", "readiness"}:
+        st.session_state["active_workspace_stage"] = "thesis"
+        st.rerun()
 
-        load_col, delete_col = st.columns(2)
-
-        with load_col:
-            if st.button("⬇️ Load Selected", use_container_width=True):
-                if selected_name != "(none)":
-                    match = next((s for s in user_strategies if s.get("name") == selected_name), None)
-                    if match is not None:
-                        st.session_state["strategy_yaml"] = match.get("yaml", "")
-                        st.session_state["current_strategy_name"] = match.get("name", "")
-                        st.success(f"Loaded strategy '{selected_name}'.")
-                        st.rerun()
-                    else:
-                        st.warning("Selected strategy not found.")
-                else:
-                    st.info("Select a saved strategy first.")
-
-        with delete_col:
-            # FIXED: remove invalid else block that caused IndentationError
-            st.info("Saving is disabled in this MVP. Full accounts + saved strategies arrive at launch.")
-
-        st.text_input(
-            "Strategy name (for exports)",
-            key="current_strategy_name",
-            placeholder="e.g. NAS100 Pullback v5",
+    run_clicked = False
+    if active_stage == "evidence":
+        st.markdown('<div class="va-page-kicker">Backtest Results</div><div class="va-title">Test the approved rules against history</div><div class="va-subtitle">Realistic costs included. Historical evidence remains separate from future validation.</div>', unsafe_allow_html=True)
+        _render_evidence_intro(st.session_state.get("bt_result"))
+        if not st.session_state.get("blueprint_approved"):
+            st.info("Approve the Rule Blueprint before running the backtest.")
+        run_clicked = st.button(
+            "Run Backtest", use_container_width=False, type="primary",
+            disabled=not st.session_state.get("blueprint_approved", False),
         )
 
-        st.text_area("", height=400, key="strategy_yaml")
+        approved_yaml = st.session_state.get("approved_strategy_yaml")
+        if not isinstance(approved_yaml, str) or not approved_yaml.strip():
+            approved_yaml = st.session_state.get("blueprint_yaml")
+        if isinstance(approved_yaml, str) and approved_yaml.strip():
+            # Initialize the editable Evidence copy once. A separate widget key
+            # prevents a stale blank text area from erasing the approved contract.
+            if not isinstance(st.session_state.get("evidence_yaml_editor"), str) or not st.session_state.get("evidence_yaml_editor", "").strip():
+                st.session_state["evidence_yaml_editor"] = approved_yaml
 
-        if st.button("💾 Save / Update Strategy", use_container_width=True):
-            st.info("Saving is disabled in this MVP. Export your YAML locally for now.")
+        with st.expander("Advanced configuration", expanded=False):
+            st.caption("Optional. Inspect or adjust the machine-readable rules before running the test.")
+            st.text_input("Strategy name (for exports)", key="current_strategy_name", placeholder="e.g. NAS100 Pullback v5")
+            st.text_area("YAML strategy configuration", height=330, key="evidence_yaml_editor")
 
-    with col2:
-        run_clicked = st.button("🔴 Run Crash-Test", use_container_width=True)
+    if run_clicked:
+        try:
+            evidence_yaml = st.session_state.get("evidence_yaml_editor")
+            if not isinstance(evidence_yaml, str) or not evidence_yaml.strip():
+                evidence_yaml = st.session_state.get("approved_strategy_yaml") or st.session_state.get("blueprint_yaml")
+            cfg: StrategyConfig = parse_strategy_yaml(evidence_yaml)
+            st.session_state["strategy_yaml"] = evidence_yaml
+            df_price = load_ohlcv(cfg.market, cfg.timeframe, years)
 
-        if run_clicked:
-            try:
-                cfg: StrategyConfig = parse_strategy_yaml(st.session_state["strategy_yaml"])
-                df_price = load_ohlcv(cfg.market, cfg.timeframe, years)
+            if df_price is None or df_price.empty:
+                st.session_state["bt_result"] = {"error": "No price data loaded."}
+            else:
+                df_feat = apply_all_indicators(df_price, cfg)
+                metrics, weaknesses, suggestions, trades_df = run_backtest_v2(df_feat, cfg)
 
-                if df_price is None or df_price.empty:
-                    st.session_state["bt_result"] = {"error": "No price data loaded."}
-                else:
-                    df_feat = apply_all_indicators(df_price, cfg)
-                    metrics, weaknesses, suggestions, trades_df = run_backtest_v2(df_feat, cfg)
+                st.session_state["bt_result"] = {
+                    "cfg": cfg,
+                    "df_feat": df_feat,
+                    "metrics": metrics,
+                    "weaknesses": weaknesses,
+                    "suggestions": suggestions,
+                    "trades_df": trades_df,
+                    "data_range": (df_price.index[0].date(), df_price.index[-1].date(), len(df_price)),
+                }
 
-                    st.session_state["bt_result"] = {
-                        "cfg": cfg,
-                        "df_feat": df_feat,
-                        "metrics": metrics,
-                        "weaknesses": weaknesses,
-                        "suggestions": suggestions,
-                        "trades_df": trades_df,
-                        "data_range": (df_price.index[0].date(), df_price.index[-1].date(), len(df_price)),
-                    }
-
-            except Exception as e:
-                st.session_state["bt_result"] = {"error": str(e), "traceback": traceback.format_exc()}
+        except Exception as e:
+            st.session_state["bt_result"] = {"error": str(e), "traceback": traceback.format_exc()}
 
     bt = st.session_state.get("bt_result")
     if bt is None:
-        st.info("Run a Crash-Test to see charts and analytics.")
+        st.info("Run an evidence test to unlock this research stage.")
         return
 
     if "error" in bt:
@@ -363,93 +410,34 @@ def run_mvp_dashboard():
 
     gradecard = build_gradecard(metrics)
 
-    market_fit = analyze_market_fit(
-        cfg,
-        years
-    )
-    mutations = generate_mutations(
-        cfg,
-        optimizer,
-        root_cause
-    )
+    if active_stage == "diagnosis":
+        st.markdown('<div class="va-page-kicker">Strategy Diagnosis</div><div class="va-title">Why this version failed</div><div class="va-subtitle">VectorAlgoAI separates observed weaknesses from suggested experiments.</div>', unsafe_allow_html=True)
+        market_fit = analyze_market_fit(cfg, years)
+        render_doctor_panel(doctor)
+        render_root_cause_panel(root_cause)
+        render_market_fit_panel(market_fit)
+        render_optimizer_panel(optimizer)
+        return
 
-    mutation_results = evaluate_mutations(
-        mutations,
-        years
-    )
-# --------------------------------------
-# Mutation Engine
-# --------------------------------------
+    if active_stage == "readiness":
+        st.markdown('<div class="va-page-kicker">Deployment Readiness</div><div class="va-title">Should this strategy receive capital?</div><div class="va-subtitle">Capital decisions are gated by evidence—not optimism.</div>', unsafe_allow_html=True)
+        market_fit = analyze_market_fit(cfg, years)
+        render_executive_summary(research, verdict, doctor, gradecard, optimizer, market_fit)
+        render_research_panel(cfg, data_start, data_end, data_bars, research, verdict, risk, metrics)
+        render_gradecard_panel(gradecard)
+        return
 
-    mutations = generate_mutations(
-        cfg
-    )
+    st.markdown('<div class="va-section-title">Baseline evidence</div>', unsafe_allow_html=True)
+    st.markdown('<div class="va-section-copy">This is the first historical result for the approved rules. It is evidence to examine—not a capital recommendation.</div>', unsafe_allow_html=True)
+    m1, m2, m3, m4, m5 = st.columns(5)
+    m1.metric("Total return", f"{metrics.get('total_return_pct', 0.0):.2f} %")
+    m2.metric("Profit factor", f"{metrics.get('profit_factor', 0.0):.2f}")
+    m3.metric("Win rate", f"{metrics.get('win_rate_pct', 0.0):.2f} %")
+    m4.metric("Max drawdown", f"{metrics.get('max_drawdown_pct', 0.0):.2f} %")
+    m5.metric("Trades", int(metrics.get("num_trades", 0)))
 
-    mutation_results = evaluate_mutations(
-        mutations,
-        years
-    )
-    evolution_results = run_evolution_lab(
-        mutations,
-        years
-    )
-    render_evolution_lab(
-        evolution_results
-    )
-# --------------------------------------
-# Executive Summary
-# --------------------------------------
-
-    render_executive_summary(
-        research,
-        verdict,
-        doctor,
-        gradecard,
-        optimizer,
-        market_fit
-    )
-
-# --------------------------------------
-# Panels
-# --------------------------------------
-
-    render_optimizer_panel(
-        optimizer
-    )
-
-    render_market_fit_panel(
-        market_fit
-    )
-    
-
-    render_mutation_panel(
-        mutation_results
-    )
-    render_research_panel(
-        cfg,
-        data_start,
-        data_end,
-        data_bars,
-        research,
-        verdict,
-        risk,
-        metrics
-    )
-
-    render_doctor_panel(
-        doctor
-    )
-
-    render_root_cause_panel(
-        root_cause
-    )
-
-    render_gradecard_panel(
-        gradecard
-    )
-
-    st.markdown("---")
-    st.subheader("📈 Strategy Evidence")
+    st.markdown('<div class="va-section-title">Trade inspection</div>', unsafe_allow_html=True)
+    st.markdown('<div class="va-section-copy">Inspect the executed trades against the price series. Enable trade paths or R labels only when you need them.</div>', unsafe_allow_html=True)
 
     fig = go.Figure()
     fig.add_trace(
@@ -462,10 +450,10 @@ def run_mvp_dashboard():
             name="Price",
             increasing_line_width=2,
             decreasing_line_width=2,
-            increasing_line_color="#26a69a",
-            decreasing_line_color="#ef5350",
-            increasing_fillcolor="rgba(38,166,154,0.65)",
-            decreasing_fillcolor="rgba(239,83,80,0.65)",
+            increasing_line_color="#0f9f9a",
+            decreasing_line_color="#d05268",
+            increasing_fillcolor="rgba(15,159,154,0.62)",
+            decreasing_fillcolor="rgba(208,82,104,0.62)",
         )
     )
 
@@ -489,28 +477,28 @@ def run_mvp_dashboard():
         if not win_long.empty:
             fig.add_trace(go.Scatter(x=win_long["entry_time"], y=win_long["entry_price"], mode="markers",
                                      marker_symbol="triangle-up", marker_size=entry_size,
-                                     marker_color="rgba(34,197,94,0.9)", name="Long Entry (Win)"))
+                                     marker_color="rgba(15,159,154,0.92)", name="Long Entry (Win)"))
         if not loss_long.empty:
             fig.add_trace(go.Scatter(x=loss_long["entry_time"], y=loss_long["entry_price"], mode="markers",
                                      marker_symbol="triangle-up", marker_size=entry_size,
-                                     marker_color="rgba(248,113,113,0.95)", name="Long Entry (Loss)"))
+                                     marker_color="rgba(208,82,104,0.95)", name="Long Entry (Loss)"))
         if not win_short.empty:
             fig.add_trace(go.Scatter(x=win_short["entry_time"], y=win_short["entry_price"], mode="markers",
                                      marker_symbol="triangle-down", marker_size=entry_size,
-                                     marker_color="rgba(34,197,94,0.9)", name="Short Entry (Win)"))
+                                     marker_color="rgba(15,159,154,0.92)", name="Short Entry (Win)"))
         if not loss_short.empty:
             fig.add_trace(go.Scatter(x=loss_short["entry_time"], y=loss_short["entry_price"], mode="markers",
                                      marker_symbol="triangle-down", marker_size=entry_size,
-                                     marker_color="rgba(248,113,113,0.95)", name="Short Entry (Loss)"))
+                                     marker_color="rgba(208,82,104,0.95)", name="Short Entry (Loss)"))
 
         if not wins.empty:
             fig.add_trace(go.Scatter(x=wins["exit_time"], y=wins["exit_price"], mode="markers",
                                      marker_symbol="x", marker_size=exit_size,
-                                     marker_color="rgba(34,197,94,0.9)", name="Exit (Win)"))
+                                     marker_color="rgba(15,159,154,0.92)", name="Exit (Win)"))
         if not losses.empty:
             fig.add_trace(go.Scatter(x=losses["exit_time"], y=losses["exit_price"], mode="markers",
                                      marker_symbol="x", marker_size=exit_size,
-                                     marker_color="rgba(248,113,113,0.95)", name="Exit (Loss)"))
+                                     marker_color="rgba(208,82,104,0.95)", name="Exit (Loss)"))
 
         if show_trade_lines and not closed.empty:
             closed_for_lines = closed.tail(10)
@@ -525,7 +513,7 @@ def run_mvp_dashboard():
                     x=[row["entry_time"], row["exit_time"]],
                     y=[row["entry_price"], row["exit_price"]],
                     mode="lines",
-                    line=dict(color="rgba(34,197,94,0.7)", width=1.5),
+                    line=dict(color="rgba(15,159,154,0.72)", width=1.5),
                     name="Winning Trade" if not added_win_legend else "",
                     showlegend=not added_win_legend,
                 ))
@@ -536,7 +524,7 @@ def run_mvp_dashboard():
                     x=[row["entry_time"], row["exit_time"]],
                     y=[row["entry_price"], row["exit_price"]],
                     mode="lines",
-                    line=dict(color="rgba(248,113,113,0.75)", width=1.5),
+                    line=dict(color="rgba(208,82,104,0.78)", width=1.5),
                     name="Losing Trade" if not added_loss_legend else "",
                     showlegend=not added_loss_legend,
                 ))
@@ -564,25 +552,23 @@ def run_mvp_dashboard():
         xaxis_rangeslider_visible=False,
         margin=dict(l=0, r=0, t=30, b=0),
         height=520,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="#fbfdff",
+        font=dict(color="#5c6f86"),
+        colorway=["#2563eb", "#0f9f9a", "#7c8ba1"],
+        xaxis=dict(gridcolor="#e9eff5", zerolinecolor="#dbe4ee"),
+        yaxis=dict(gridcolor="#e9eff5", zerolinecolor="#dbe4ee"),
     )
 
     st.plotly_chart(fig, use_container_width=True, config={"scrollZoom": True, "displaylogo": False})
 
-    st.subheader("📊 Performance Analytics")
-    m1, m2, m3, m4, m5 = st.columns(5)
-    m1.metric("Total Return", f"{metrics.get('total_return_pct', 0.0):.2f} %")
-    m2.metric("Profit Factor", f"{metrics.get('profit_factor', 0.0):.2f}")
-    m3.metric("Win Rate", f"{metrics.get('win_rate_pct', 0.0):.2f} %")
-    m4.metric("Max Drawdown", f"{metrics.get('max_drawdown_pct', 0.0):.2f} %")
-    m5.metric("Number of Trades", int(metrics.get("num_trades", 0)))
-
-    st.subheader("📉 Equity Curve")
+    st.markdown('<div class="va-section-title">Equity path</div>', unsafe_allow_html=True)
     if trades_df.empty or ("pnl" not in trades_df.columns):
         st.info("No equity curve available (no closed trades).")
     else:
         st.line_chart(trades_df["pnl"].cumsum())
 
-    st.subheader("🔬 Trade Evidence")
+    st.markdown('<div class="va-section-title">Trade record</div>', unsafe_allow_html=True)
     if trades_df.empty:
         st.warning("No trades generated by this strategy on the selected data.")
     else:
@@ -600,22 +586,22 @@ def run_mvp_dashboard():
         current_yaml = st.session_state.get("strategy_yaml", DEFAULT_STRATEGY_YAML)
         st.download_button("Download Strategy YAML", current_yaml.encode("utf-8"), f"{base_name}_{market_tag}.yaml", "text/yaml", use_container_width=True)
 
-    st.subheader("🔍 Strategy Weaknesses")
+    st.markdown('<div class="va-section-title">Observed weaknesses</div>', unsafe_allow_html=True)
     if not weaknesses:
         st.write("- No major weaknesses detected (on this sample).")
     else:
         for w in weaknesses:
             st.write(f"- {w}")
 
-    st.subheader("🧠 Suggestions for Improvement")
+    st.markdown('<div class="va-section-title">Research next steps</div>', unsafe_allow_html=True)
     if not suggestions:
         st.write("- No specific suggestions (try different parameters).")
     else:
         for s in suggestions:
             st.write(f"- {s}")
 
-    st.subheader("💡 AI Commentary – Strategy Insights")
-    st.markdown(build_ruthless_ai_commentary(metrics, trades_df))
+    with st.expander("Detailed strategy commentary", expanded=False):
+        st.markdown(build_ruthless_ai_commentary(metrics, trades_df))
 
 
 if __name__ == "__main__":
