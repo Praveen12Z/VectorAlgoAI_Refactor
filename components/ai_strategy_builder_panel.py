@@ -45,12 +45,12 @@ def _render_thesis_editor():
             strategy_text
         )
 
-        generated_yaml = compile_schema_to_yaml(
-            schema,
-            market=market,
-            timeframe=timeframe
-        )
+        generated_yaml = _compile_blueprint(schema, market, timeframe)
 
+        # Keep the generated contract separate from the editable Evidence widget.
+        # This prevents a stale/blank Streamlit widget value from replacing a new
+        # Blueprint between the Thesis and Evidence stages.
+        st.session_state["blueprint_yaml"] = generated_yaml
         st.session_state["strategy_yaml"] = generated_yaml
         st.session_state["blueprint_schema"] = schema
         st.session_state["blueprint_approved"] = False
@@ -65,6 +65,23 @@ def _render_blueprint():
     if not schema:
         st.info("There is no blueprint yet. Start by describing the strategy in the Thesis stage.")
         return
+
+    # Repair research sessions created before Blueprint YAML was persisted. The
+    # schema is the source of truth at this stage, so a blank YAML value must
+    # never be displayed or approved.
+    generated_yaml = st.session_state.get("blueprint_yaml")
+    if not isinstance(generated_yaml, str) or not generated_yaml.strip():
+        generated_yaml = _compile_blueprint(
+            schema,
+            st.session_state.get("ai_market", "NAS100"),
+            st.session_state.get("ai_timeframe", "1h"),
+        )
+        st.session_state["blueprint_yaml"] = generated_yaml
+
+    current_yaml = st.session_state.get("strategy_yaml")
+    if not isinstance(current_yaml, str) or not current_yaml.strip():
+        st.session_state["strategy_yaml"] = generated_yaml
+        current_yaml = generated_yaml
 
     components = schema.get("components", [])
     grouped = {}
@@ -84,11 +101,17 @@ def _render_blueprint():
     if not grouped:
         st.warning("The thesis is still too broad to produce explicit rules. Add the market context, entry trigger, confirmation and risk/exit conditions.")
     else:
-        issues = strategy_contract_issues(yaml.safe_load(st.session_state.get("strategy_yaml", "")) or {})
+        try:
+            parsed_yaml = yaml.safe_load(current_yaml) or {}
+            issues = strategy_contract_issues(parsed_yaml)
+        except yaml.YAMLError as exc:
+            issues = [f"Generated Blueprint YAML is invalid: {exc}"]
+
         if issues:
             st.warning("This research contract is not ready to run yet.")
             for issue in issues:
                 st.caption(f"• {issue}")
+
         st.markdown('<span class="va-status">Review required</span> &nbsp; <span style="color:#94a3b8;font-size:.86rem">Confirm that the interpretation matches how you actually trade.</span>', unsafe_allow_html=True)
         action, detail = st.columns([1, 2])
         with action:
@@ -98,4 +121,12 @@ def _render_blueprint():
                 st.rerun()
         with detail:
             with st.expander("Advanced: inspect generated research configuration"):
-                st.code(st.session_state.get("strategy_yaml", ""), language="yaml")
+                st.code(current_yaml, language="yaml")
+
+
+def _compile_blueprint(schema: dict, market: str, timeframe: str) -> str:
+    """Compile and verify the non-empty YAML required by the research workflow."""
+    generated_yaml = compile_schema_to_yaml(schema, market=market, timeframe=timeframe)
+    if not isinstance(generated_yaml, str) or not generated_yaml.strip():
+        raise ValueError("The Blueprint compiler did not produce machine-readable YAML.")
+    return generated_yaml
