@@ -324,13 +324,12 @@ def run_mvp_dashboard():
 
     run_clicked = False
     if active_stage == "evidence":
-        st.markdown("### 03 — Generate evidence")
-        st.caption("Run the approved research contract against the selected historical window. Results remain separate from future validation.")
+        st.markdown('<div class="va-page-kicker">Backtest Results</div><div class="va-title">Test the approved rules against history</div><div class="va-subtitle">Realistic costs included. Historical evidence remains separate from future validation.</div>', unsafe_allow_html=True)
         _render_evidence_intro(st.session_state.get("bt_result"))
         if not st.session_state.get("blueprint_approved"):
-            st.info("Approve the Blueprint before generating evidence.")
+            st.info("Approve the Rule Blueprint before running the backtest.")
         run_clicked = st.button(
-            "Run evidence test", use_container_width=False, type="primary",
+            "Run Backtest", use_container_width=False, type="primary",
             disabled=not st.session_state.get("blueprint_approved", False),
         )
 
@@ -412,8 +411,7 @@ def run_mvp_dashboard():
     gradecard = build_gradecard(metrics)
 
     if active_stage == "diagnosis":
-        st.markdown("### 04 — Diagnose the evidence")
-        st.caption("Find the structural weaknesses before changing rules or increasing risk.")
+        st.markdown('<div class="va-page-kicker">Strategy Diagnosis</div><div class="va-title">Why this version failed</div><div class="va-subtitle">VectorAlgoAI separates observed weaknesses from suggested experiments.</div>', unsafe_allow_html=True)
         market_fit = analyze_market_fit(cfg, years)
         render_doctor_panel(doctor)
         render_root_cause_panel(root_cause)
@@ -422,8 +420,7 @@ def run_mvp_dashboard():
         return
 
     if active_stage == "readiness":
-        st.markdown("### 05 — Capital readiness")
-        st.caption("A decision based on the available evidence and risk—not a promise of future returns.")
+        st.markdown('<div class="va-page-kicker">Deployment Readiness</div><div class="va-title">Should this strategy receive capital?</div><div class="va-subtitle">Capital decisions are gated by evidence—not optimism.</div>', unsafe_allow_html=True)
         market_fit = analyze_market_fit(cfg, years)
         render_executive_summary(research, verdict, doctor, gradecard, optimizer, market_fit)
         render_research_panel(cfg, data_start, data_end, data_bars, research, verdict, risk, metrics)
