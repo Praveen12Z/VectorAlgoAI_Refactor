@@ -179,6 +179,29 @@ def _render_evidence_intro(bt: Dict[str, Any] | None) -> None:
     )
 
 
+def _render_workspace_landing(view: str) -> None:
+    """Focused product pages for the permanent workspace navigation."""
+    if view == "home":
+        st.markdown('<div class="va-page-kicker">Research home</div><div class="va-title">Your strategy research, in one place.</div><div class="va-subtitle">Start a new thesis or continue the current research record. Every result stays connected to the logic that produced it.</div>', unsafe_allow_html=True)
+        one, two, three = st.columns(3)
+        with one:
+            st.markdown('<div class="va-card"><div class="va-card-title">Current research</div><div class="va-card-value">Draft strategy<br><span style="color:#92a0b3;font-size:.8rem">Define a thesis to begin.</span></div></div>', unsafe_allow_html=True)
+        with two:
+            st.markdown('<div class="va-card"><div class="va-card-title">Evidence records</div><div class="va-card-value">0 tests<br><span style="color:#92a0b3;font-size:.8rem">Historical evidence appears here.</span></div></div>', unsafe_allow_html=True)
+        with three:
+            st.markdown('<div class="va-card"><div class="va-card-title">Capital status</div><div class="va-card-value">Not assessed<br><span style="color:#92a0b3;font-size:.8rem">Requires approved evidence.</span></div></div>', unsafe_allow_html=True)
+        st.markdown('<div class="va-section-title">Begin with the trading thesis</div><div class="va-section-copy">Describe the market context, entry, confirmation, exit and risk rules. VectorAlgoAI converts it into an explicit research contract for you to approve.</div>', unsafe_allow_html=True)
+        if st.button("Create a strategy", type="primary"):
+            st.session_state["active_workspace_stage"] = "thesis"
+            st.rerun()
+    elif view == "library":
+        st.markdown('<div class="va-page-kicker">Strategy library</div><div class="va-title">Research records, not signal lists.</div><div class="va-subtitle">Saved strategies and their evidence will live here. The first record is created when you approve your thesis.</div>', unsafe_allow_html=True)
+        st.info("No saved strategy records yet. Start a New strategy to create the first research record.")
+    else:
+        st.markdown('<div class="va-page-kicker">Settings</div><div class="va-title">Workspace settings</div><div class="va-subtitle">Account and research defaults will be configured here as the MVP grows.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="va-card"><div class="va-card-title">Current default</div><div class="va-card-value">NAS100 · 1h research timeframe</div></div>', unsafe_allow_html=True)
+
+
 def build_ruthless_ai_commentary(metrics: Dict[str, Any], trades_df: pd.DataFrame) -> str:
     grade = metrics.get("grade", "-")
     total_ret = float(metrics.get("total_return_pct", 0.0))
@@ -266,11 +289,17 @@ def run_mvp_dashboard():
         st.session_state["current_strategy_name"] = ""
     if "bt_result" not in st.session_state:
         st.session_state["bt_result"] = None
+    if "active_workspace_view" not in st.session_state:
+        st.session_state["active_workspace_view"] = "thesis"
 
     inject_workspace_styles()
     years, show_trade_lines, show_rr_labels = render_workspace_sidebar()
     active_stage = st.session_state.get("active_workspace_stage", "thesis")
     render_workspace_header(active_stage)
+
+    if active_stage in {"home", "library", "settings"}:
+        _render_workspace_landing(active_stage)
+        return
 
     if active_stage in {"thesis", "blueprint"}:
         render_ai_strategy_builder_panel(active_stage)
