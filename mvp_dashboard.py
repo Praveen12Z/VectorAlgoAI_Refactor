@@ -198,11 +198,11 @@ def _render_workspace_landing(view: str) -> None:
         st.markdown('<div class="va-page-kicker">Research home</div><div class="va-title">Your strategy research, in one place.</div><div class="va-subtitle">Start a new thesis or continue the current research record. Every result stays connected to the logic that produced it.</div>', unsafe_allow_html=True)
         one, two, three = st.columns(3)
         with one:
-            st.markdown('<div class="va-card"><div class="va-card-title">Current research</div><div class="va-card-value">Draft strategy<br><span style="color:#92a0b3;font-size:.8rem">Define a thesis to begin.</span></div></div>', unsafe_allow_html=True)
+            st.markdown('<div class="va-card va-card-blue"><div class="va-card-title">Current research</div><div class="va-card-value">Draft strategy<br><span style="color:#718197;font-size:.8rem">Define a strategy brief to begin.</span></div></div>', unsafe_allow_html=True)
         with two:
-            st.markdown('<div class="va-card"><div class="va-card-title">Evidence records</div><div class="va-card-value">0 tests<br><span style="color:#92a0b3;font-size:.8rem">Historical evidence appears here.</span></div></div>', unsafe_allow_html=True)
+            st.markdown('<div class="va-card va-card-teal"><div class="va-card-title">Evidence records</div><div class="va-card-value">0 tests<br><span style="color:#718197;font-size:.8rem">Historical evidence appears here.</span></div></div>', unsafe_allow_html=True)
         with three:
-            st.markdown('<div class="va-card"><div class="va-card-title">Capital status</div><div class="va-card-value">Not assessed<br><span style="color:#92a0b3;font-size:.8rem">Requires approved evidence.</span></div></div>', unsafe_allow_html=True)
+            st.markdown('<div class="va-card va-card-amber"><div class="va-card-title">Capital status</div><div class="va-card-value">Not assessed<br><span style="color:#718197;font-size:.8rem">Requires approved evidence.</span></div></div>', unsafe_allow_html=True)
         st.markdown('<div class="va-section-title">Begin with the trading thesis</div><div class="va-section-copy">Describe the market context, entry, confirmation, exit and risk rules. VectorAlgoAI converts it into an explicit research contract for you to approve.</div>', unsafe_allow_html=True)
         if st.button("Create a strategy", type="primary"):
             st.session_state["active_workspace_stage"] = "thesis"
