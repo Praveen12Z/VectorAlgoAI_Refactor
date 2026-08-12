@@ -1,90 +1,118 @@
-# core/auth.py
-# Simple local auth for VectorAlgoAI (file-based, hashed passwords)
+"""Supabase authentication and subscription access for VectorAlgoAI."""
+from __future__ import annotations
 
-import os
-import json
-import hashlib
-from typing import Tuple, Dict
+from dataclasses import dataclass
+from typing import Any, Mapping, Optional
+from urllib.parse import quote
 
-USERS_DIR = "data"
-USERS_FILE = os.path.join(USERS_DIR, "users.json")
+import requests
 
-
-def _ensure_users_file():
-    os.makedirs(USERS_DIR, exist_ok=True)
-    if not os.path.exists(USERS_FILE):
-        with open(USERS_FILE, "w", encoding="utf-8") as f:
-            json.dump({}, f)
+ACTIVE_SUBSCRIPTION_STATUSES = frozenset({"active", "trialing"})
+REQUEST_TIMEOUT_SECONDS = 15
 
 
-def _load_users() -> Dict[str, dict]:
-    _ensure_users_file()
-    try:
-        with open(USERS_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            if not isinstance(data, dict):
-                return {}
-            return data
-    except Exception:
-        return {}
+class AccessConfigurationError(RuntimeError):
+    pass
 
 
-def _save_users(users: Dict[str, dict]) -> None:
-    os.makedirs(USERS_DIR, exist_ok=True)
-    with open(USERS_FILE, "w", encoding="utf-8") as f:
-        json.dump(users, f, indent=2)
+class AccessServiceError(RuntimeError):
+    pass
 
 
-def _hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode("utf-8")).hexdigest()
+@dataclass(frozen=True)
+class AuthSession:
+    access_token: str
+    refresh_token: str
+    user_id: str
+    email: str
+    expires_at: Optional[int] = None
+
+    @classmethod
+    def from_payload(cls, payload: Mapping[str, Any]) -> "AuthSession":
+        user = payload.get("user") or {}
+        return cls(str(payload["access_token"]), str(payload.get("refresh_token", "")),
+                   str(user["id"]), str(user.get("email", "")), payload.get("expires_at"))
 
 
-def register_user(email: str, password1: str, password2: str) -> Tuple[bool, str]:
-    """
-    Register a new user.
-    Returns (success: bool, message: str).
-    """
-    email = (email or "").strip().lower()
+@dataclass(frozen=True)
+class Subscription:
+    status: str = "none"
+    price_id: Optional[str] = None
+    current_period_end: Optional[str] = None
+    cancel_at_period_end: bool = False
 
-    if not email or "@" not in email:
-        return False, "Please enter a valid email."
-
-    if not password1 or not password2:
-        return False, "Password fields cannot be empty."
-
-    if password1 != password2:
-        return False, "Passwords do not match."
-
-    if len(password1) < 6:
-        return False, "Password must be at least 6 characters long."
-
-    users = _load_users()
-    if email in users:
-        return False, "An account with this email already exists."
-
-    users[email] = {
-        "password_hash": _hash_password(password1),
-        "role": "user",
-    }
-    _save_users(users)
-    return True, "Account created successfully. You can now log in."
+    @property
+    def grants_access(self) -> bool:
+        return self.status in ACTIVE_SUBSCRIPTION_STATUSES
 
 
-def authenticate_user(email: str, password: str) -> Tuple[bool, str]:
-    """
-    Authenticate user by email & password.
-    Returns (success: bool, message: str).
-    """
-    email = (email or "").strip().lower()
-    if not email or not password:
-        return False, "Please enter both email and password."
+class SupabaseAccessClient:
+    """Small REST client using only Supabase's public publishable key."""
 
-    users = _load_users()
-    if email not in users:
-        return False, "No account found with this email."
+    def __init__(self, url: str, anon_key: str, http: Any = requests):
+        self.url = (url or "").strip().rstrip("/")
+        self.anon_key = (anon_key or "").strip()
+        self.http = http
+        if not self.url or not self.anon_key:
+            raise AccessConfigurationError("Supabase URL and publishable key must be configured.")
 
-    stored_hash = users[email].get("password_hash")
-    if stored_hash != _hash_password(password):
-        return False, "Incorrect password."
+    @property
+    def public_headers(self) -> dict[str, str]:
+        return {"apikey": self.anon_key, "Content-Type": "application/json"}
 
-    return True, "Login successful."
+    def _request(self, method: str, endpoint: str, **kwargs: Any) -> Any:
+        kwargs.setdefault("timeout", REQUEST_TIMEOUT_SECONDS)
+        response = self.http.request(method, endpoint, **kwargs)
+        if response.status_code >= 400:
+            try:
+                body = response.json()
+                detail = body.get("msg") or body.get("message") or body.get("error_description")
+            except (ValueError, AttributeError):
+                detail = None
+            raise AccessServiceError(detail or "The access service is unavailable.")
+        return response
+
+    def sign_up(self, email: str, password: str) -> bool:
+        response = self._request("POST", f"{self.url}/auth/v1/signup",
+                                 headers=self.public_headers,
+                                 json={"email": email.strip().lower(), "password": password})
+        payload = response.json()
+        return bool(payload.get("session") or payload.get("access_token"))
+
+    def sign_in(self, email: str, password: str) -> AuthSession:
+        response = self._request("POST", f"{self.url}/auth/v1/token?grant_type=password",
+                                 headers=self.public_headers,
+                                 json={"email": email.strip().lower(), "password": password})
+        return AuthSession.from_payload(response.json())
+
+    def refresh(self, refresh_token: str) -> AuthSession:
+        response = self._request("POST", f"{self.url}/auth/v1/token?grant_type=refresh_token",
+                                 headers=self.public_headers, json={"refresh_token": refresh_token})
+        return AuthSession.from_payload(response.json())
+
+    def send_password_reset(self, email: str, redirect_to: str) -> None:
+        redirect = quote(redirect_to, safe=":/")
+        self._request("POST", f"{self.url}/auth/v1/recover?redirect_to={redirect}",
+                      headers=self.public_headers, json={"email": email.strip().lower()})
+
+    def subscription(self, session: AuthSession) -> Subscription:
+        response = self._request(
+            "GET", f"{self.url}/rest/v1/subscriptions",
+            headers={**self.public_headers, "Authorization": f"Bearer {session.access_token}"},
+            params={"select": "status,price_id,current_period_end,cancel_at_period_end",
+                    "user_id": f"eq.{session.user_id}", "limit": "1"})
+        rows = response.json()
+        if not rows:
+            return Subscription()
+        row = rows[0]
+        return Subscription(str(row.get("status") or "none").lower(), row.get("price_id"),
+                            row.get("current_period_end"), bool(row.get("cancel_at_period_end", False)))
+
+    def invoke(self, function_name: str, session: AuthSession) -> str:
+        response = self._request(
+            "POST", f"{self.url}/functions/v1/{function_name}",
+            headers={**self.public_headers, "Authorization": f"Bearer {session.access_token}"}, json={})
+        url = response.json().get("url")
+        if not url:
+            raise AccessServiceError("Billing did not return a secure redirect URL.")
+        return str(url)
