@@ -46,10 +46,11 @@ def inject_workspace_styles() -> None:
       [data-testid="stMainBlockContainer"], .block-container { max-width:1132px; padding:0 26px 4rem !important; }
       h1,h2,h3 { color:var(--text); letter-spacing:-.035em; }
       .va-brand-wrap { display:flex; align-items:center; gap:.6rem; padding:.15rem .5rem 1.65rem; }
-      .va-mark { width:29px; height:29px; display:grid; place-items:center; color:#fff; border-radius:8px; background:linear-gradient(135deg,var(--blue),var(--teal)); box-shadow:0 5px 14px rgba(37,99,235,.22); font-size:.9rem; }
-      .va-brand { font-size:.91rem; font-weight:720; color:var(--text); letter-spacing:-.025em; }
+      .va-mark { width:34px; height:34px; display:grid; place-items:center; color:#7f92f2; flex:0 0 34px; }
+      .va-mark svg { width:100%; height:100%; display:block; }
+      .va-brand { font-size:.88rem; font-weight:720; color:var(--text); letter-spacing:-.025em; }
       .va-brand b { color:var(--blue); font-weight:760; }
-      .va-brand-sub { display:none; }
+      .va-brand-sub { display:block; color:var(--faint); font-size:.5rem; font-style:italic; letter-spacing:.07em; margin-top:.12rem; }
       .va-side-label { color:var(--faint); font-size:.59rem; font-weight:720; letter-spacing:.1em; text-transform:uppercase; margin:1rem .58rem .36rem; }
       .va-side-separator { border-top:1px solid var(--line-soft); margin:1.28rem .55rem 0; }
       .va-research-card { background:#f8fafc; border:1px solid var(--line); border-radius:8px; padding:.68rem .75rem; margin:0 .5rem .35rem; }
@@ -168,7 +169,7 @@ def render_workspace_header(active_stage: str = "thesis") -> None:
 def render_workspace_sidebar() -> tuple[int, bool, bool]:
     years, show_trade_lines, show_rr_labels = 2, False, False
     with st.sidebar:
-        st.markdown('<div class="va-brand-wrap"><div class="va-mark">⌁</div><div><div class="va-brand">VectorAlgo<b>AI</b></div><div class="va-brand-sub">Strategy research workspace</div></div></div>', unsafe_allow_html=True)
+        st.markdown('<div class="va-brand-wrap"><div class="va-mark"><svg viewBox="0 0 72 72" fill="none" aria-hidden="true"><circle cx="14" cy="15" r="7" fill="currentColor"/><circle cx="28" cy="59" r="5" fill="currentColor"/><circle cx="46" cy="14" r="4" fill="currentColor"/><circle cx="9" cy="39" r="4" fill="currentColor"/><path d="M22 33 38 11" stroke="currentColor" stroke-width="9" stroke-linecap="round"/><path d="M35 42 48 24" stroke="currentColor" stroke-width="9" stroke-linecap="round"/><path d="M40 58 56 36" stroke="currentColor" stroke-width="9" stroke-linecap="round"/><path d="M55 29 66 14" stroke="currentColor" stroke-width="9" stroke-linecap="round"/></svg></div><div><div class="va-brand">Vector Algo<b>AI</b></div><div class="va-brand-sub">“Edge Over Ego.”</div></div></div>', unsafe_allow_html=True)
         active = st.session_state.get("active_workspace_stage", "thesis")
         st.markdown('<div class="va-side-label">Research</div>', unsafe_allow_html=True)
         for destination, icon, label in WORKSPACE_ITEMS:
