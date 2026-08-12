@@ -1,6 +1,7 @@
 # mvp_dashboard.py
 # VectorAlgoAI – Strategy Crash-Test MVP Dashboard
 # (Public MVP mode: website handles signup; saving/accounts disabled for now)
+import hmac
 import traceback
 from typing import Dict, Any
 
@@ -618,5 +619,45 @@ def run_mvp_dashboard():
     st.markdown(build_ruthless_ai_commentary(metrics, trades_df))
 
 
+def _configured_private_access_code() -> str:
+    """Return the server-side beta code, or an empty value to fail closed."""
+    try:
+        return str(st.secrets["access_gate"]["code"]).strip()
+    except (KeyError, TypeError, AttributeError):
+        return ""
+
+
+def _render_private_access_gate() -> None:
+    st.title("VectorAlgoAI Strategy Lab")
+    st.markdown(
+        "The working research platform is currently limited to approved "
+        "Founding Beta members."
+    )
+    st.caption("Founding Beta: €18.99/month")
+
+    configured_code = _configured_private_access_code()
+    if not configured_code:
+        st.warning(
+            "Strategy Lab access is temporarily unavailable. "
+            "Please contact the VectorAlgoAI team."
+        )
+        st.link_button("Return to VectorAlgoAI", "https://www.vectoralgoai.com/")
+        return
+
+    with st.form("private_access_gate"):
+        submitted_code = st.text_input("Private access code", type="password")
+        submitted = st.form_submit_button("Unlock Strategy Lab")
+
+    if submitted:
+        if hmac.compare_digest(submitted_code.strip(), configured_code):
+            st.session_state["strategy_lab_unlocked"] = True
+            st.rerun()
+        else:
+            st.error("That access code is not valid.")
+
+
 if __name__ == "__main__":
-    run_mvp_dashboard()
+    if st.session_state.get("strategy_lab_unlocked", False):
+        run_mvp_dashboard()
+    else:
+        _render_private_access_gate()
