@@ -29,23 +29,49 @@ def _logout() -> None:
 def _style() -> None:
     st.markdown("""
     <style>
-    [data-testid="stAppViewContainer"]{background:radial-gradient(circle at 15% 5%,#102a43 0,#07131f 42%,#050b12 100%)}
-    .block-container{max-width:780px;padding-top:7vh}.vai-gate{padding:2.2rem 2.4rem 1.3rem;border:1px solid rgba(45,212,191,.22);border-top:3px solid #2dd4bf;border-radius:20px;background:rgba(9,25,40,.94);box-shadow:0 24px 80px rgba(0,0,0,.35)}
-    .vai-kicker{color:#2dd4bf;font-size:.78rem;font-weight:750;letter-spacing:.14em}.vai-gate h1{color:#f4f8fb;margin:.7rem 0 .75rem}.vai-gate p{color:#a9bac9;line-height:1.65}.vai-price{color:#eafcff!important;font-weight:650}
-    
-    [data-baseweb="tab-list"]{gap:.25rem;border-bottom:1px solid rgba(148,163,184,.22)}
+    [data-testid="stAppViewContainer"]{background:radial-gradient(circle at 18% 4%,#151a33 0,#080b18 42%,#050712 100%)}
+    .block-container{max-width:500px;padding-top:4vh;padding-bottom:4rem}
+    .vai-brand-lockup{display:flex;align-items:center;justify-content:center;gap:.75rem;margin:0 auto 1rem;color:#f7f9ff}
+    .vai-logo-mark{width:54px;height:54px;color:#8ea0ff;flex:0 0 54px}
+    .vai-logo-mark svg{width:100%;height:100%;display:block}
+    .vai-wordmark{font-size:1.1rem;font-weight:750;line-height:1.15;letter-spacing:-.02em}
+    .vai-tagline{color:#9ba9bd;font-size:.67rem;font-style:italic;letter-spacing:.1em;margin-top:.22rem}
+    .vai-gate{padding:1.45rem 1.5rem 1.2rem;border:1px solid rgba(142,160,255,.24);border-top:3px solid #8ea0ff;border-radius:16px;background:rgba(10,14,31,.92);box-shadow:0 24px 80px rgba(0,0,0,.35);text-align:center}
+    .vai-kicker{color:#8ea0ff;font-size:.69rem;font-weight:750;letter-spacing:.14em}
+    .vai-gate h1{color:#f7f9ff;margin:.58rem 0 .35rem;font-size:1.85rem}
+    .vai-gate p{color:#aab6c8;line-height:1.55;margin:.2rem 0 .75rem}
+    .vai-price{display:inline-flex;color:#eef1ff!important;background:rgba(142,160,255,.1);border:1px solid rgba(142,160,255,.22);border-radius:999px;padding:.35rem .7rem;font-size:.76rem;font-weight:650}
+    [data-baseweb="tab-list"]{gap:.25rem;border-bottom:1px solid rgba(148,163,184,.22);margin-top:.85rem}
     [data-baseweb="tab-list"] button{color:#a9bfd3!important;font-weight:650}
-    [data-baseweb="tab-list"] button[aria-selected="true"]{color:#60a5fa!important}
+    [data-baseweb="tab-list"] button[aria-selected="true"]{color:#8ea0ff!important}
     [data-baseweb="tab-panel"]{padding-top:1rem}
-    [data-testid="stForm"]{border:1px solid rgba(148,163,184,.16);background:rgba(6,18,30,.45)}
+    [data-testid="stForm"]{border:1px solid rgba(148,163,184,.18);background:rgba(6,10,24,.55);border-radius:14px}
     [data-testid="stForm"] label p,[data-testid="stWidgetLabel"] p,.stCheckbox label p{color:#dce8f3!important}
     [data-testid="stTextInput"] input{background:#f8fafc!important;color:#0f172a!important;border:1px solid #cbd5e1!important}
     [data-testid="stTextInput"] input::placeholder{color:#64748b!important}
-    [data-testid="stFormSubmitButton"] button{background:#2563eb!important;color:#fff!important;border-color:#2563eb!important;font-weight:700}
-    [data-testid="stFormSubmitButton"] button:hover{background:#1d4ed8!important;border-color:#1d4ed8!important}
-    </style><section class="vai-gate"><div class="vai-kicker">VECTORALGOAI · FOUNDING BETA</div><h1>Build evidence. Trade with conviction.</h1><p>Create your account and activate a verified subscription to enter Strategy Lab.</p><p class="vai-price">€18.99/month · Founding price retained while continuously subscribed.</p></section>
+    [data-testid="stFormSubmitButton"] button{background:#4f68db!important;color:#fff!important;border-color:#4f68db!important;font-weight:700;border-radius:8px!important}
+    [data-testid="stFormSubmitButton"] button:hover{background:#4058c8!important;border-color:#4058c8!important}
+    </style>
+    <div class="vai-brand-lockup">
+      <div class="vai-logo-mark">
+        <svg viewBox="0 0 72 72" fill="none" aria-hidden="true">
+          <circle cx="14" cy="15" r="7" fill="currentColor"/><circle cx="28" cy="59" r="5" fill="currentColor"/>
+          <circle cx="46" cy="14" r="4" fill="currentColor"/><circle cx="9" cy="39" r="4" fill="currentColor"/>
+          <path d="M22 33 38 11" stroke="currentColor" stroke-width="9" stroke-linecap="round"/>
+          <path d="M35 42 48 24" stroke="currentColor" stroke-width="9" stroke-linecap="round"/>
+          <path d="M40 58 56 36" stroke="currentColor" stroke-width="9" stroke-linecap="round"/>
+          <path d="M55 29 66 14" stroke="currentColor" stroke-width="9" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div><div class="vai-wordmark">Vector AlgoAI</div><div class="vai-tagline">“Edge Over Ego.”</div></div>
+    </div>
+    <section class="vai-gate">
+      <div class="vai-kicker">SECURE MEMBER ACCESS</div>
+      <h1>Welcome to Strategy Lab</h1>
+      <p>Sign in or create your account to build evidence before execution.</p>
+      <span class="vai-price">Founding plan · €18.99/month</span>
+    </section>
     """, unsafe_allow_html=True)
-
 
 def _render_logged_out(client: SupabaseAccessClient) -> None:
     login_tab, signup_tab, reset_tab = st.tabs(["Sign in", "Create account", "Reset password"])
