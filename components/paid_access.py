@@ -32,6 +32,17 @@ def _style() -> None:
     [data-testid="stAppViewContainer"]{background:radial-gradient(circle at 15% 5%,#102a43 0,#07131f 42%,#050b12 100%)}
     .block-container{max-width:780px;padding-top:7vh}.vai-gate{padding:2.2rem 2.4rem 1.3rem;border:1px solid rgba(45,212,191,.22);border-top:3px solid #2dd4bf;border-radius:20px;background:rgba(9,25,40,.94);box-shadow:0 24px 80px rgba(0,0,0,.35)}
     .vai-kicker{color:#2dd4bf;font-size:.78rem;font-weight:750;letter-spacing:.14em}.vai-gate h1{color:#f4f8fb;margin:.7rem 0 .75rem}.vai-gate p{color:#a9bac9;line-height:1.65}.vai-price{color:#eafcff!important;font-weight:650}
+    
+    [data-baseweb="tab-list"]{gap:.25rem;border-bottom:1px solid rgba(148,163,184,.22)}
+    [data-baseweb="tab-list"] button{color:#a9bfd3!important;font-weight:650}
+    [data-baseweb="tab-list"] button[aria-selected="true"]{color:#60a5fa!important}
+    [data-baseweb="tab-panel"]{padding-top:1rem}
+    [data-testid="stForm"]{border:1px solid rgba(148,163,184,.16);background:rgba(6,18,30,.45)}
+    [data-testid="stForm"] label p,[data-testid="stWidgetLabel"] p,.stCheckbox label p{color:#dce8f3!important}
+    [data-testid="stTextInput"] input{background:#f8fafc!important;color:#0f172a!important;border:1px solid #cbd5e1!important}
+    [data-testid="stTextInput"] input::placeholder{color:#64748b!important}
+    [data-testid="stFormSubmitButton"] button{background:#2563eb!important;color:#fff!important;border-color:#2563eb!important;font-weight:700}
+    [data-testid="stFormSubmitButton"] button:hover{background:#1d4ed8!important;border-color:#1d4ed8!important}
     </style><section class="vai-gate"><div class="vai-kicker">VECTORALGOAI · FOUNDING BETA</div><h1>Build evidence. Trade with conviction.</h1><p>Create your account and activate a verified subscription to enter Strategy Lab.</p><p class="vai-price">€18.99/month · Founding price retained while continuously subscribed.</p></section>
     """, unsafe_allow_html=True)
 
