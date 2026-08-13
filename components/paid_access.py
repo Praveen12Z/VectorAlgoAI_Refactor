@@ -6,6 +6,7 @@ import streamlit as st
 from core.auth import AccessConfigurationError, AccessServiceError, AuthSession, SupabaseAccessClient
 
 APP_URL = "https://vectoralgoai.streamlit.app"
+OWNER_EMAIL = "yadavaveen898@gmail.com"
 
 
 def _client() -> SupabaseAccessClient:
@@ -249,7 +250,25 @@ def _render_logged_out(client: SupabaseAccessClient) -> None:
                     st.error(str(exc))
 
 
+def _is_owner(session: AuthSession) -> bool:
+    return session.email.strip().lower() == OWNER_EMAIL
+
+
+def _render_owner_account(session: AuthSession) -> None:
+    with st.sidebar:
+        with st.container(key="account_panel"):
+            with st.expander("Owner account", expanded=False):
+                st.caption(session.email)
+                st.caption("Vector AlgoAI · Owner access")
+                if st.button("Sign out", key="owner_sign_out", use_container_width=True):
+                    _logout()
+
+
 def _render_subscription(client: SupabaseAccessClient, session: AuthSession) -> bool:
+    if _is_owner(session):
+        _render_owner_account(session)
+        return True
+
     try:
         subscription = client.subscription(session)
     except AccessServiceError:
