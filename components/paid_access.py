@@ -205,18 +205,26 @@ def _render_confirmation_pending() -> bool:
         f"""
         <section class="vai-confirm">
           <div class="vai-confirm-icon">✉</div>
-          <h2>Confirm your email address</h2>
-          <p>We sent a confirmation link to</p>
+          <h2>Continue with your email</h2>
+          <p>Account instructions were requested for</p>
           <div class="vai-confirm-email">{safe_email}</div>
-          <p>Open the email and select <strong>Confirm email address</strong> to activate your Vector AlgoAI account.</p>
-          <p class="vai-confirm-note">Check your spam or promotions folder if it does not arrive within a few minutes.</p>
+          <p>If this is a new account, open the confirmation email and select <strong>Confirm email address</strong>.</p>
+          <p class="vai-confirm-note">Already registered? No duplicate account was created. Sign in or reset your password. Check spam or promotions if you are waiting for a confirmation email.</p>
         </section>
         """,
         unsafe_allow_html=True,
     )
-    if st.button("Back to sign in", key="confirmation_back_to_signin", use_container_width=True):
-        st.session_state.pop("signup_confirmation_email", None)
-        st.rerun()
+    sign_in_col, reset_col = st.columns(2)
+    with sign_in_col:
+        if st.button("Go to sign in", key="confirmation_back_to_signin", use_container_width=True):
+            st.session_state.pop("signup_confirmation_email", None)
+            st.session_state["show_password_reset"] = False
+            st.rerun()
+    with reset_col:
+        if st.button("Forgot password?", key="confirmation_open_reset", use_container_width=True):
+            st.session_state.pop("signup_confirmation_email", None)
+            st.session_state["show_password_reset"] = True
+            st.rerun()
     return True
 
 
