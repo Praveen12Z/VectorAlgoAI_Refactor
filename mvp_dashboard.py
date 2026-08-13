@@ -227,7 +227,7 @@ def _render_workspace_landing(view: str) -> None:
         primary, secondary = st.columns([1, 2.4])
         with primary:
             if st.button("＋  New strategy", type="primary", use_container_width=True):
-                st.session_state["active_workspace_stage"] = "home"
+                st.session_state["active_workspace_stage"] = "thesis"
                 st.rerun()
         with secondary:
             if has_evidence and st.button("Continue evidence review", use_container_width=True):
@@ -324,7 +324,7 @@ Capital readiness is based on the evidence available today. {verdict}
 
 def run_mvp_dashboard():
     if "active_workspace_stage" not in st.session_state:
-        st.session_state["active_workspace_stage"] = "thesis"
+        st.session_state["active_workspace_stage"] = "home"
     if "strategy_yaml" not in st.session_state:
         st.session_state["strategy_yaml"] = DEFAULT_STRATEGY_YAML
     if "current_strategy_name" not in st.session_state:
@@ -336,7 +336,7 @@ def run_mvp_dashboard():
 
     inject_workspace_styles()
     years, show_trade_lines, show_rr_labels = render_workspace_sidebar()
-    active_stage = st.session_state.get("active_workspace_stage", "thesis")
+    active_stage = st.session_state.get("active_workspace_stage", "home")
     render_workspace_header(active_stage)
 
     if active_stage in {"home", "library", "settings"}:
