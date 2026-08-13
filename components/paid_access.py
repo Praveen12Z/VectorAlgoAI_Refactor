@@ -105,7 +105,7 @@ def _render_new_password(client: SupabaseAccessClient) -> bool:
 
     if "recovery_session" not in st.session_state:
         if not token_hash:
-            st.error("This password-reset link is incomplete. Request a new link.")
+            st.error("This password-reset link is incomplete. Please request a new link.")
             return True
         try:
             st.session_state["recovery_session"] = client.verify_recovery_token(token_hash)
@@ -116,7 +116,7 @@ def _render_new_password(client: SupabaseAccessClient) -> bool:
             st.error("This password-reset link is invalid or has expired. Request a new link.")
             return True
 
-    st.subheader("Choose a new password")
+    st.subheader("Set a new password")
     with st.form("new_password_form"):
         password = st.text_input("New password", type="password", key="new_password")
         confirmed = st.text_input("Confirm new password", type="password", key="confirm_new_password")
