@@ -41,23 +41,23 @@ def inject_workspace_styles() -> None:
          create a second, empty product header above the workspace. */
       [data-testid="stHeader"] { background:transparent; height:0 !important; min-height:0 !important; }
       [data-testid="stHeader"] [data-testid="stToolbar"] { top:.45rem; right:.55rem; }
-      [data-testid="stSidebar"] { background:linear-gradient(180deg,#fbfdff 0%,var(--sidebar) 58%,#f3f8fa 100%); border-right:1px solid var(--line); min-width:190px; max-width:190px; }
+      [data-testid="stSidebar"] { background:linear-gradient(180deg,#fbfdff 0%,var(--sidebar) 58%,#f3f8fa 100%); border-right:1px solid var(--line); min-width:224px; max-width:224px; }
       [data-testid="stSidebar"] [data-testid="stSidebarContent"] { padding:.85rem .65rem 1rem; display:flex; flex-direction:column; min-height:100%; }
       [data-testid="stSidebar"] .stButton { margin:.08rem 0; }
-      [data-testid="stMainBlockContainer"], .block-container { max-width:1132px; padding:0 26px 4rem !important; }
+      [data-testid="stMainBlockContainer"], .block-container { max-width:1380px; padding:0 42px 5rem !important; }
       h1,h2,h3 { color:var(--text); letter-spacing:-.035em; }
       .va-brand-wrap { display:flex; align-items:center; gap:.6rem; padding:.15rem .5rem 1.65rem; }
       .va-mark { width:34px; height:34px; display:grid; place-items:center; color:#7f92f2; flex:0 0 34px; }
       .va-mark svg { width:100%; height:100%; display:block; }
-      .va-brand { font-size:.88rem; font-weight:720; color:var(--text); letter-spacing:-.025em; }
+      .va-brand { font-size:1rem; font-weight:760; color:var(--text); letter-spacing:-.025em; }
       .va-brand b { color:var(--blue); font-weight:760; }
-      .va-brand-sub { display:block; color:var(--faint); font-size:.5rem; font-style:italic; letter-spacing:.07em; margin-top:.12rem; }
-      .va-side-label { color:var(--faint); font-size:.59rem; font-weight:720; letter-spacing:.1em; text-transform:uppercase; margin:1rem .58rem .36rem; }
+      .va-brand-sub { display:block; color:var(--faint); font-size:.61rem; font-style:italic; letter-spacing:.07em; margin-top:.14rem; }
+      .va-side-label { color:#71839b; font-size:.68rem; font-weight:780; letter-spacing:.11em; text-transform:uppercase; margin:1.15rem .58rem .42rem; }
       .va-side-separator { border-top:1px solid var(--line-soft); margin:1.28rem .55rem 0; }
       .va-research-card { background:#f8fafc; border:1px solid var(--line); border-radius:8px; padding:.68rem .75rem; margin:0 .5rem .35rem; }
       .va-research-name { color:var(--text); font-size:.76rem; font-weight:650; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
       .va-research-meta { color:var(--faint); font-size:.68rem; margin-top:.22rem; }
-      [class*="st-key-nav_"] button { border:0 !important; background:transparent !important; text-align:left; box-shadow:none !important; color:#475467 !important; min-height:2.25rem; padding:.28rem .5rem; font-size:.75rem; font-weight:540; border-radius:7px; }
+      [class*="st-key-nav_"] button { border:0 !important; background:transparent !important; text-align:left; box-shadow:none !important; color:#42546b !important; min-height:2.7rem; padding:.36rem .6rem; font-size:.86rem; font-weight:600; border-radius:9px; }
       [class*="st-key-nav_"] button:hover { background:#edf4fb !important; color:var(--text) !important; }
       [class*="st-key-nav_"] button[kind="primary"] { background:linear-gradient(90deg,var(--blue-bg),#edf8fa) !important; color:#1e4fae !important; box-shadow:inset 3px 0 0 var(--blue) !important; outline:0; }
       /* A consistent icon tile makes the permanent navigation scannable,
@@ -76,8 +76,9 @@ def inject_workspace_styles() -> None:
       .st-key-nav_stage_readiness button::before { content:"↗"; }
       .st-key-nav_settings button::before { content:"⚙"; }
       [class*="st-key-nav_"] button[kind="primary"]::before { background:linear-gradient(135deg,#dce8ff,#d9f3f1); color:var(--teal-strong); }
-      .va-topbar { display:flex; align-items:center; justify-content:space-between; gap:1rem; min-height:54px; padding:0; border-bottom:1px solid var(--line); }
-      .va-crumb { color:var(--muted); font-size:.78rem; } .va-crumb b { color:var(--text); font-weight:650; }
+      .va-topbar { display:flex; align-items:center; justify-content:space-between; gap:1rem; min-height:72px; padding:0; border-bottom:1px solid var(--line); }
+      .va-topbar-left{display:flex;align-items:center;gap:1rem;min-width:0}.va-main-brand{display:flex;align-items:center;gap:.55rem;flex:0 0 auto}.va-main-brand-mark{display:grid;place-items:center;width:31px;height:31px;color:#788df0}.va-main-brand-mark svg{width:31px;height:31px;display:block}.va-main-brand-copy{color:var(--text);font-size:.88rem;font-weight:780;letter-spacing:-.025em;white-space:nowrap}.va-main-brand-copy b{color:var(--blue)}.va-top-divider{width:1px;height:24px;background:var(--line)}
+      .va-crumb { color:var(--muted); font-size:.86rem; overflow:hidden;text-overflow:ellipsis;white-space:nowrap; } .va-crumb b { color:var(--text); font-weight:700; }
       .va-top-actions { display:flex; align-items:center; gap:.55rem; }
       .va-draft { color:#475467; background:#f2f4f7; border-radius:999px; padding:.2rem .5rem; font-size:.63rem; margin-left:.35rem; }
       .va-top-status { color:#667085; background:transparent; border:0; padding:.22rem; font-size:.66rem; white-space:nowrap; }
@@ -154,38 +155,39 @@ def inject_workspace_styles() -> None:
       .st-key-account_panel details summary { min-height:2.25rem; font-size:.72rem; color:#475467; }
       .st-key-account_panel [data-testid="stAlert"] { padding:.45rem !important; font-size:.66rem !important; }
       .st-key-account_panel [data-testid="stCaptionContainer"] p { font-size:.64rem !important; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-      [data-testid="stMainBlockContainer"], .block-container { max-width:1200px; padding:0 34px 4rem !important; }
-      .va-topbar { min-height:62px; }
+      [data-testid="stMainBlockContainer"], .block-container { max-width:1380px; padding:0 42px 5rem !important; }
       .va-crumb b { font-size:.88rem; letter-spacing:-.01em; }
-      .va-dashboard-head { display:flex; align-items:flex-end; justify-content:space-between; gap:1.5rem; padding:1.55rem 0 1.2rem; }
-      .va-dashboard-head h1 { margin:0; font-size:1.9rem; font-weight:720; letter-spacing:-.04em; }
-      .va-dashboard-head p { margin:.38rem 0 0; color:var(--muted); font-size:.86rem; }
-      .va-dashboard-status { display:flex; align-items:center; gap:.42rem; color:#24665f; background:#edf9f6; border:1px solid #c9e8e2; border-radius:999px; padding:.4rem .65rem; font-size:.67rem; font-weight:680; white-space:nowrap; }
+      .va-dashboard-head { position:relative;overflow:hidden;display:flex; align-items:center; justify-content:space-between; gap:2rem; padding:2.25rem 2.35rem; margin:1.55rem 0 1.25rem; border-radius:20px; background:linear-gradient(120deg,#102a56 0%,#17477b 60%,#137d7a 145%); box-shadow:0 20px 52px rgba(24,55,96,.18); }
+      .va-dashboard-head::after{content:"";position:absolute;width:280px;height:280px;border-radius:50%;right:-105px;top:-155px;background:rgba(103,232,221,.10);border:1px solid rgba(180,244,238,.16)}
+      .va-dashboard-head h1 { position:relative;z-index:1;margin:0; color:#fff;font-size:2.4rem; font-weight:760; letter-spacing:-.045em; }
+      .va-dashboard-head p { position:relative;z-index:1;margin:.55rem 0 0; color:#d9e7f5; font-size:1.02rem;line-height:1.55;max-width:720px; }
+      .va-dashboard-status { position:relative;z-index:1;display:flex; align-items:center; gap:.48rem; color:#e4fffb; background:rgba(11,127,123,.28); border:1px solid rgba(150,231,222,.48); border-radius:999px; padding:.62rem .9rem; font-size:.78rem; font-weight:720; white-space:nowrap; }
       .va-dashboard-status::before { content:""; width:7px; height:7px; border-radius:50%; background:#12a594; }
       .va-command-card { background:#fff; border:1px solid var(--line); border-radius:14px; box-shadow:0 10px 28px rgba(27,54,93,.07); overflow:hidden; }
-      .va-command-main { padding:1.3rem 1.35rem 1.15rem; }
-      .va-command-label { color:var(--blue); font-size:.63rem; font-weight:760; letter-spacing:.1em; text-transform:uppercase; }
-      .va-command-title { color:var(--text); font-size:1.15rem; font-weight:710; margin:.35rem 0 .25rem; }
-      .va-command-copy { color:var(--muted); font-size:.78rem; line-height:1.5; }
+      .va-command-main { padding:1.65rem 1.75rem 1.4rem; }
+      .va-command-label { color:var(--blue); font-size:.72rem; font-weight:790; letter-spacing:.1em; text-transform:uppercase; }
+      .va-command-title { color:var(--text); font-size:1.42rem; font-weight:740; margin:.42rem 0 .3rem; }
+      .va-command-copy { color:var(--muted); font-size:.91rem; line-height:1.55; }
       .va-stage-track { display:grid; grid-template-columns:repeat(5,1fr); border-top:1px solid var(--line-soft); background:#fbfcfe; }
-      .va-track-item { position:relative; padding:.85rem .72rem .8rem; border-right:1px solid var(--line-soft); }
+      .va-track-item { position:relative; padding:1.05rem .9rem 1rem; border-right:1px solid var(--line-soft); }
       .va-track-item:last-child { border-right:0; }
-      .va-track-number { color:var(--faint); font-size:.58rem; font-weight:760; letter-spacing:.08em; }
-      .va-track-name { color:#475467; font-size:.69rem; font-weight:650; margin-top:.18rem; }
+      .va-track-number { color:var(--faint); font-size:.67rem; font-weight:790; letter-spacing:.08em; }
+      .va-track-name { color:#42546b; font-size:.82rem; font-weight:680; margin-top:.22rem; }
       .va-track-item.active { background:#edf4ff; box-shadow:inset 0 3px 0 var(--blue); }
       .va-track-item.active .va-track-number,.va-track-item.active .va-track-name { color:#174ea6; }
-      .va-summary-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:.75rem; margin-bottom:1rem; }
-      .va-summary-card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:1rem 1.05rem; min-height:92px; }
-      .va-summary-label { color:var(--faint); font-size:.6rem; font-weight:760; letter-spacing:.09em; text-transform:uppercase; }
-      .va-summary-value { color:var(--text); font-size:1.12rem; font-weight:720; margin:.38rem 0 .12rem; }
-      .va-summary-meta { color:var(--muted); font-size:.7rem; }
-      .va-empty-record { display:flex; align-items:center; justify-content:space-between; gap:1rem; background:#fff; border:1px solid var(--line); border-radius:12px; padding:1rem 1.1rem; }
-      .va-empty-record strong { display:block; color:var(--text); font-size:.82rem; margin-bottom:.18rem; }
-      .va-empty-record span { color:var(--muted); font-size:.73rem; }
+      .va-summary-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-bottom:1.25rem; }
+      .va-summary-card { position:relative;overflow:hidden;background:linear-gradient(145deg,#fff,#f8fbff); border:1px solid #d7e2ee; border-radius:15px; padding:1.35rem 1.4rem; min-height:122px;box-shadow:0 10px 28px rgba(30,59,98,.065); }
+      .va-summary-card::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:linear-gradient(var(--blue),var(--teal))}
+      .va-summary-label { color:#71839b; font-size:.69rem; font-weight:790; letter-spacing:.1em; text-transform:uppercase; }
+      .va-summary-value { color:var(--text); font-size:1.36rem; font-weight:750; margin:.48rem 0 .18rem; }
+      .va-summary-meta { color:var(--muted); font-size:.82rem;line-height:1.4; }
+      .va-empty-record { display:flex; align-items:center; justify-content:space-between; gap:1rem; background:linear-gradient(100deg,#fff,#f7fbff); border:1px solid var(--line); border-radius:14px; padding:1.3rem 1.4rem; }
+      .va-empty-record strong { display:block; color:var(--text); font-size:.96rem; margin-bottom:.24rem; }
+      .va-empty-record span { color:var(--muted); font-size:.84rem; }
       .va-empty-badge { color:#667085; background:#f2f4f7; border-radius:999px; padding:.28rem .55rem; font-size:.62rem; white-space:nowrap; }
-      .va-section-title { margin:1.55rem 0 .22rem; }
+      .va-section-title { margin:1.85rem 0 .55rem;font-size:1.22rem; }
       @media(max-width:700px){.va-dashboard-head{align-items:flex-start;flex-direction:column}.va-stage-track{grid-template-columns:1fr}.va-track-item{border-right:0;border-bottom:1px solid var(--line-soft)}.va-summary-grid{grid-template-columns:1fr}.va-empty-record{align-items:flex-start;flex-direction:column}.st-key-account_panel{position:static}[data-testid="stSidebar"] [data-testid="stSidebarContent"]{padding-bottom:1rem!important}}
-      @media(max-width:700px){[data-testid="stSidebar"]{min-width:0;max-width:none}[data-testid="stMainBlockContainer"],.block-container{padding:0 12px 3rem!important}.va-topbar{min-height:48px}.va-draft{display:none}[class*="st-key-workflow_"] button{font-size:0!important}[class*="st-key-workflow_"] button::first-letter{font-size:.7rem}}
+      @media(max-width:700px){[data-testid="stSidebar"]{min-width:0;max-width:none}[data-testid="stMainBlockContainer"],.block-container{padding:0 14px 3rem!important}.va-topbar{min-height:58px}.va-main-brand-copy,.va-top-divider{display:none}.va-dashboard-head{padding:1.6rem 1.35rem;align-items:flex-start;flex-direction:column}.va-dashboard-head h1{font-size:2rem}.va-draft{display:none}[class*="st-key-workflow_"] button{font-size:0!important}[class*="st-key-workflow_"] button::first-letter{font-size:.7rem}}
     </style>
     """, unsafe_allow_html=True)
 
@@ -198,16 +200,17 @@ def _set_stage(stage: str) -> None:
 def render_workspace_header(active_stage: str = "thesis") -> None:
     name = escape(st.session_state.get("current_strategy_name") or "Untitled research")
     state = "Evidence available" if st.session_state.get("bt_result") else ("Blueprint ready" if st.session_state.get("blueprint_schema") else "Draft")
+    compact_brand = '<div class="va-main-brand"><div class="va-main-brand-mark"><svg viewBox="0 0 72 72" fill="none" aria-hidden="true"><circle cx="14" cy="15" r="7" fill="currentColor"/><circle cx="28" cy="59" r="5" fill="currentColor"/><circle cx="46" cy="14" r="4" fill="currentColor"/><circle cx="9" cy="39" r="4" fill="currentColor"/><path d="M22 33 38 11" stroke="currentColor" stroke-width="9" stroke-linecap="round"/><path d="M35 42 48 24" stroke="currentColor" stroke-width="9" stroke-linecap="round"/><path d="M40 58 56 36" stroke="currentColor" stroke-width="9" stroke-linecap="round"/><path d="M55 29 66 14" stroke="currentColor" stroke-width="9" stroke-linecap="round"/></svg></div><div class="va-main-brand-copy">Vector Algo<b>AI</b></div></div>'
     if active_stage not in {key for key, _, _, _ in STAGES}:
         section = {"home": "Research dashboard", "library": "Strategy library", "settings": "Settings"}.get(active_stage, "Workspace")
         st.markdown(
-            f'<div class="va-topbar"><div class="va-crumb"><b>{section}</b></div>'
+            f'<div class="va-topbar"><div class="va-topbar-left">{compact_brand}<div class="va-top-divider"></div><div class="va-crumb"><b>{section}</b></div></div>'
             f'<div class="va-top-actions"><div class="va-top-status"><i></i>Workspace active</div></div></div>',
             unsafe_allow_html=True,
         )
         return
     st.markdown(
-        f'<div class="va-topbar"><div class="va-crumb"><span>Strategy Lab</span> &nbsp;›&nbsp; <b>{name}</b><span class="va-draft">Draft 04</span></div>'
+        f'<div class="va-topbar"><div class="va-topbar-left">{compact_brand}<div class="va-top-divider"></div><div class="va-crumb"><span>Strategy Lab</span> &nbsp;›&nbsp; <b>{name}</b><span class="va-draft">Draft 04</span></div></div>'
         f'<div class="va-top-actions"><div class="va-top-status"><i></i>{state}</div><div class="va-top-status">↶ Versions</div></div></div>',
         unsafe_allow_html=True,
     )
