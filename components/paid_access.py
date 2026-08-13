@@ -6,7 +6,7 @@ import streamlit as st
 from core.auth import AccessConfigurationError, AccessServiceError, AuthSession, SupabaseAccessClient
 
 APP_URL = "https://vectoralgoai.streamlit.app"
-OWNER_EMAIL = "yadavaveen898@gmail.com"
+OWNER_EMAIL = "yadavpraveen898@gmail.com"
 
 
 def _client() -> SupabaseAccessClient:
