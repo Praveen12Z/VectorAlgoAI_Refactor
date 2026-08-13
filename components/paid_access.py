@@ -117,7 +117,7 @@ def _render_new_password(client: SupabaseAccessClient) -> bool:
             return True
 
     st.subheader("Set a new password")
-    with st.form("new_password_form"):
+    with st.form("new_password_form", enter_to_submit=False):
         password = st.text_input("New password", type="password", key="new_password")
         confirmed = st.text_input("Confirm new password", type="password", key="confirm_new_password")
         submitted = st.form_submit_button("Update password", use_container_width=True)
