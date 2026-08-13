@@ -72,6 +72,12 @@ def _style(authenticated: bool = False) -> None:
     .vai-payment-success{margin:1rem 0;padding:1.25rem 1.3rem;border:1px solid #b9dfd9;border-radius:14px;background:#f1fbf8;box-shadow:0 12px 34px rgba(32,110,97,.08);text-align:center}
     .vai-payment-check{display:grid;place-items:center;width:44px;height:44px;margin:0 auto .65rem;border-radius:50%;background:#149e8f;color:#fff;font-size:1.45rem;font-weight:800}
     .vai-payment-success h2{margin:.15rem 0 .35rem;color:#0a514a;font-size:1.35rem}.vai-payment-success p{margin:0;color:#426b67;line-height:1.5}
+    .vai-confirm{margin-top:1rem;padding:2rem 1.55rem 1.55rem;border:1px solid #d9e1ee;border-radius:14px;background:#fff;box-shadow:0 12px 34px rgba(32,59,97,.08);text-align:center}
+    .vai-confirm-icon{display:grid;place-items:center;width:54px;height:54px;margin:0 auto .9rem;border-radius:50%;background:#e9f8f5;color:#0f8d82;font-size:1.55rem;font-weight:800}
+    .vai-confirm h2{margin:.15rem 0 .55rem;color:#0a2147;font-size:1.35rem}
+    .vai-confirm p{margin:0;color:#607086;line-height:1.55;font-size:.88rem}
+    .vai-confirm-email{display:inline-block;margin:.85rem 0;color:#243b67!important;background:#f1f5ff;border:1px solid #d8e1fb;border-radius:8px;padding:.5rem .7rem;font-weight:700}
+    .vai-confirm-note{font-size:.74rem!important;color:#8491a5!important}
     </style>
     <div class="vai-login-brand">
       <div class="vai-login-symbol">
@@ -189,8 +195,33 @@ def _render_checkout_return(client: SupabaseAccessClient) -> bool:
     return False
 
 
+def _render_confirmation_pending() -> bool:
+    email = st.session_state.get("signup_confirmation_email")
+    if not email:
+        return False
+    st.markdown(
+        f"""
+        <section class="vai-confirm">
+          <div class="vai-confirm-icon">✉</div>
+          <h2>Confirm your email address</h2>
+          <p>We sent a confirmation link to</p>
+          <div class="vai-confirm-email">{email}</div>
+          <p>Open the email and select <strong>Confirm email address</strong> to activate your Vector AlgoAI account.</p>
+          <p class="vai-confirm-note">Check your spam or promotions folder if it does not arrive within a few minutes.</p>
+        </section>
+        """,
+        unsafe_allow_html=True,
+    )
+    if st.button("Back to sign in", key="confirmation_back_to_signin", use_container_width=True):
+        st.session_state.pop("signup_confirmation_email", None)
+        st.rerun()
+    return True
+
+
 def _render_logged_out(client: SupabaseAccessClient) -> None:
     if _render_new_password(client):
+        return
+    if _render_confirmation_pending():
         return
 
     if st.session_state.pop("password_updated", False):
@@ -244,8 +275,11 @@ def _render_logged_out(client: SupabaseAccessClient) -> None:
             else:
                 try:
                     signed_in = client.sign_up(email, password)
-                    st.success("Account created. Sign in to continue." if signed_in else
-                               "Check your email to confirm your account, then sign in.")
+                    if signed_in:
+                        st.success("Account created. Sign in to continue.")
+                    else:
+                        st.session_state["signup_confirmation_email"] = email.strip()
+                        st.rerun()
                 except AccessServiceError as exc:
                     st.error(str(exc))
 
