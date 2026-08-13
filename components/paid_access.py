@@ -1,6 +1,7 @@
 """Streamlit UI for authenticated, webhook-verified paid access."""
 from __future__ import annotations
 
+from html import escape
 import streamlit as st
 
 from core.auth import AccessConfigurationError, AccessServiceError, AuthSession, SupabaseAccessClient
@@ -199,13 +200,14 @@ def _render_confirmation_pending() -> bool:
     email = st.session_state.get("signup_confirmation_email")
     if not email:
         return False
+    safe_email = escape(str(email))
     st.markdown(
         f"""
         <section class="vai-confirm">
           <div class="vai-confirm-icon">✉</div>
           <h2>Confirm your email address</h2>
           <p>We sent a confirmation link to</p>
-          <div class="vai-confirm-email">{email}</div>
+          <div class="vai-confirm-email">{safe_email}</div>
           <p>Open the email and select <strong>Confirm email address</strong> to activate your Vector AlgoAI account.</p>
           <p class="vai-confirm-note">Check your spam or promotions folder if it does not arrive within a few minutes.</p>
         </section>
