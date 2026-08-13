@@ -14,7 +14,8 @@ STAGES = (
 )
 
 WORKSPACE_ITEMS = (
-    ("thesis", "✦", "Strategy Lab"),
+    ("home", "⌂", "Dashboard"),
+    ("thesis", "✦", "New strategy"),
     ("library", "▦", "Strategy Library"),
     ("journal", "▤", "Trade Journal"),
 )
@@ -111,6 +112,17 @@ def inject_workspace_styles() -> None:
       .va-chip { display:inline-block; border:1px solid #cfe1ea; background:#f1f8fa; color:#31657a; padding:.18rem .46rem; border-radius:999px; font-size:.65rem; margin:.35rem .28rem 0 0; }
       .va-card-title { color:var(--faint); font-size:.66rem; font-weight:760; letter-spacing:.1em; text-transform:uppercase; margin-bottom:.48rem; }
       .va-card-value { color:var(--text); font-size:.88rem; line-height:1.5; font-weight:560; }
+      .va-dashboard-hero { display:flex; align-items:center; justify-content:space-between; gap:1.5rem; padding:1.25rem 1.35rem; margin:1.25rem 0 1rem; background:linear-gradient(120deg,#102a56 0%,#173f78 62%,#0f766e 140%); border-radius:14px; color:#fff; box-shadow:0 16px 38px rgba(20,52,92,.16); }
+      .va-dashboard-eyebrow { color:#8ee0d8; font-size:.64rem; font-weight:760; letter-spacing:.12em; text-transform:uppercase; }
+      .va-dashboard-hero h1 { color:#fff; font-size:1.55rem; margin:.28rem 0 .35rem; }
+      .va-dashboard-hero p { color:#dbe8f7; max-width:650px; margin:0; font-size:.84rem; line-height:1.5; }
+      .va-dashboard-pill { flex:0 0 auto; color:#d9f8f4; border:1px solid rgba(142,224,216,.45); background:rgba(15,159,154,.18); border-radius:999px; padding:.45rem .7rem; font-size:.68rem; font-weight:700; }
+      .va-dashboard-strip { display:grid; grid-template-columns:repeat(3,1fr); gap:.8rem; margin:0 0 1rem; }
+      .va-pipeline-card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:1rem; box-shadow:0 7px 22px rgba(34,66,105,.05); }
+      .va-pipeline-step { color:var(--blue); font-size:.63rem; font-weight:760; letter-spacing:.08em; text-transform:uppercase; }
+      .va-pipeline-title { color:var(--text); font-size:.92rem; font-weight:680; margin:.3rem 0; }
+      .va-pipeline-copy { color:var(--muted); font-size:.74rem; line-height:1.45; }
+      @media(max-width:700px){.va-dashboard-hero{align-items:flex-start;flex-direction:column}.va-dashboard-strip{grid-template-columns:1fr}}
       .va-section-title { color:var(--text); font-size:1.06rem; font-weight:700; margin:2.1rem 0 .22rem; letter-spacing:-.02em; }
       .va-section-copy { color:var(--muted); font-size:.86rem; line-height:1.5; margin-bottom:1rem; }
       .va-evidence-banner { background:linear-gradient(110deg,var(--blue-bg),#f7fbff 54%,var(--teal-bg)); border:1px solid #c8dbea; border-left:3px solid var(--teal); border-radius:8px; padding:1rem 1.1rem; margin:.8rem 0 1.35rem; }
@@ -148,7 +160,14 @@ def _set_stage(stage: str) -> None:
 def render_workspace_header(active_stage: str = "thesis") -> None:
     name = escape(st.session_state.get("current_strategy_name") or "Untitled research")
     state = "Evidence available" if st.session_state.get("bt_result") else ("Blueprint ready" if st.session_state.get("blueprint_schema") else "Draft")
-    stage_label = next((label for key, _, label, _ in STAGES if key == active_stage), "Research")
+    if active_stage not in {key for key, _, _, _ in STAGES}:
+        section = {"home": "Research dashboard", "library": "Strategy library", "settings": "Settings"}.get(active_stage, "Workspace")
+        st.markdown(
+            f'<div class="va-topbar"><div class="va-crumb"><b>{section}</b></div>'
+            f'<div class="va-top-actions"><div class="va-top-status"><i></i>Workspace active</div></div></div>',
+            unsafe_allow_html=True,
+        )
+        return
     st.markdown(
         f'<div class="va-topbar"><div class="va-crumb"><span>Strategy Lab</span> &nbsp;›&nbsp; <b>{name}</b><span class="va-draft">Draft 04</span></div>'
         f'<div class="va-top-actions"><div class="va-top-status"><i></i>{state}</div><div class="va-top-status">↶ Versions</div></div></div>',
@@ -170,10 +189,10 @@ def render_workspace_sidebar() -> tuple[int, bool, bool]:
     years, show_trade_lines, show_rr_labels = 2, False, False
     with st.sidebar:
         st.markdown('<div class="va-brand-wrap"><div class="va-mark"><svg viewBox="0 0 72 72" fill="none" aria-hidden="true"><circle cx="14" cy="15" r="7" fill="currentColor"/><circle cx="28" cy="59" r="5" fill="currentColor"/><circle cx="46" cy="14" r="4" fill="currentColor"/><circle cx="9" cy="39" r="4" fill="currentColor"/><path d="M22 33 38 11" stroke="currentColor" stroke-width="9" stroke-linecap="round"/><path d="M35 42 48 24" stroke="currentColor" stroke-width="9" stroke-linecap="round"/><path d="M40 58 56 36" stroke="currentColor" stroke-width="9" stroke-linecap="round"/><path d="M55 29 66 14" stroke="currentColor" stroke-width="9" stroke-linecap="round"/></svg></div><div><div class="va-brand">Vector Algo<b>AI</b></div><div class="va-brand-sub">“Edge Over Ego.”</div></div></div>', unsafe_allow_html=True)
-        active = st.session_state.get("active_workspace_stage", "thesis")
+        active = st.session_state.get("active_workspace_stage", "home")
         st.markdown('<div class="va-side-label">Research</div>', unsafe_allow_html=True)
         for destination, icon, label in WORKSPACE_ITEMS:
-            target = "thesis" if destination == "thesis" else destination
+            target = destination
             if st.button(label, key=f"nav_workspace_{destination}", use_container_width=True, type="primary" if active == target else "secondary"):
                 _set_stage(target)
                 st.rerun()
@@ -182,7 +201,7 @@ def render_workspace_sidebar() -> tuple[int, bool, bool]:
             if st.button(label, key=f"nav_intelligence_{destination}", use_container_width=True):
                 st.session_state["active_workspace_view"] = destination
                 st.rerun()
-        st.markdown('<div style="height:8rem"></div><div class="va-side-separator"></div>', unsafe_allow_html=True)
+        st.markdown('<div style="height:2.5rem"></div><div class="va-side-separator"></div>', unsafe_allow_html=True)
         if st.button("Settings", key="nav_settings", use_container_width=True, type="primary" if active == "settings" else "secondary"):
             _set_stage("settings")
             st.rerun()
