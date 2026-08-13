@@ -264,21 +264,22 @@ def _render_subscription(client: SupabaseAccessClient, session: AuthSession) -> 
             if key in st.query_params:
                 del st.query_params[key]
         with st.sidebar:
-            with st.expander("Account & billing", expanded=False):
-                st.caption(session.email)
-                if subscription.cancel_at_period_end:
-                    st.warning("Plan ends after the current billing period.")
-                else:
-                    st.caption("Founding plan · Active")
-                if st.button("Manage subscription", use_container_width=True):
-                    try:
-                        st.session_state["portal_url"] = client.invoke("customer-portal", session)
-                    except AccessServiceError as exc:
-                        st.error(str(exc))
-                if st.session_state.get("portal_url"):
-                    st.link_button("Open secure billing portal", st.session_state["portal_url"], use_container_width=True)
-                if st.button("Sign out", use_container_width=True):
-                    _logout()
+            with st.container(key="account_panel"):
+                with st.expander("Account", expanded=False):
+                    st.caption(session.email)
+                    if subscription.cancel_at_period_end:
+                        st.caption("Plan ends after this billing period")
+                    else:
+                        st.caption("Founding plan · Active")
+                    if st.button("Manage billing", use_container_width=True):
+                        try:
+                            st.session_state["portal_url"] = client.invoke("customer-portal", session)
+                        except AccessServiceError as exc:
+                            st.error(str(exc))
+                    if st.session_state.get("portal_url"):
+                        st.link_button("Open billing portal", st.session_state["portal_url"], use_container_width=True)
+                    if st.button("Sign out", use_container_width=True):
+                        _logout()
         return True
     if st.session_state.get("checkout_confirmed"):
         st.subheader("Finalizing your Strategy Lab access")
