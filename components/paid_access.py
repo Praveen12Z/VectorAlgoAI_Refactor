@@ -264,18 +264,21 @@ def _render_subscription(client: SupabaseAccessClient, session: AuthSession) -> 
             if key in st.query_params:
                 del st.query_params[key]
         with st.sidebar:
-            st.caption(f"Signed in as {session.email}")
-            if subscription.cancel_at_period_end:
-                st.warning("Your subscription will end after the current billing period.")
-            if st.button("Open billing portal", use_container_width=True):
-                try:
-                    st.session_state["portal_url"] = client.invoke("customer-portal", session)
-                except AccessServiceError as exc:
-                    st.error(str(exc))
-            if st.session_state.get("portal_url"):
-                st.link_button("Continue to secure billing", st.session_state["portal_url"], use_container_width=True)
-            if st.button("Sign out", use_container_width=True):
-                _logout()
+            with st.expander("Account & billing", expanded=False):
+                st.caption(session.email)
+                if subscription.cancel_at_period_end:
+                    st.warning("Plan ends after the current billing period.")
+                else:
+                    st.caption("Founding plan · Active")
+                if st.button("Manage subscription", use_container_width=True):
+                    try:
+                        st.session_state["portal_url"] = client.invoke("customer-portal", session)
+                    except AccessServiceError as exc:
+                        st.error(str(exc))
+                if st.session_state.get("portal_url"):
+                    st.link_button("Open secure billing portal", st.session_state["portal_url"], use_container_width=True)
+                if st.button("Sign out", use_container_width=True):
+                    _logout()
         return True
     if st.session_state.get("checkout_confirmed"):
         st.subheader("Finalizing your Strategy Lab access")
