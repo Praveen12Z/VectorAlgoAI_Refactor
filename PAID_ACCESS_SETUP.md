@@ -30,6 +30,22 @@ Supabase Edge Functions by default.
 8. Switch to live Stripe keys and the live €18.99 recurring Price ID only after
    every test passes, then repeat a low-risk live end-to-end verification.
 
+## Email-first authentication template
+
+The primary login uses one six-digit code for both new and existing members.
+Before deploying this version, open **Supabase → Authentication → Emails** and
+add the following visible code to both **Confirm sign up** and
+**Magic link or OTP** templates:
+
+```html
+<p>Your secure Vector AlgoAI code is:</p>
+<p style="font-size:32px;font-weight:800;letter-spacing:8px;">{{ .Token }}</p>
+<p>This code expires shortly. Do not share it with anyone.</p>
+```
+
+The surrounding branded email HTML can remain unchanged. The password login
+is retained under **Use password instead** during the transition.
+
 ## Security invariants
 
 - Checkout success redirects never grant access.
@@ -37,3 +53,4 @@ Supabase Edge Functions by default.
 - Missing configuration, request failures, and missing subscription rows fail closed.
 - Users may select only their own subscription row under Row Level Security.
 - Stripe secrets and the Supabase service-role key never belong in Streamlit Secrets.
+- Authentication responses never reveal whether an email address is registered.

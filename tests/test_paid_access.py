@@ -55,6 +55,30 @@ class PaidAccessTests(unittest.TestCase):
         self.assertEqual(session.user_id, "user-1")
         self.assertEqual(http.calls[0][2]["json"]["email"], "member@example.com")
 
+    def test_email_code_flow_is_identical_for_new_and_existing_users(self):
+        http = FakeHttp([
+            FakeResponse(payload={}),
+            FakeResponse(payload={
+                "access_token": "access", "refresh_token": "refresh",
+                "user": {"id": "user-2", "email": "member@example.com"},
+            }),
+        ])
+        client = SupabaseAccessClient("https://example.supabase.co", "public-key", http)
+
+        client.send_email_code("Member@Example.com")
+        session = client.verify_email_code("Member@Example.com", "123456")
+
+        self.assertEqual(http.calls[0][0:2],
+                         ("POST", "https://example.supabase.co/auth/v1/otp"))
+        self.assertEqual(http.calls[0][2]["json"],
+                         {"email": "member@example.com", "create_user": True})
+        self.assertEqual(http.calls[1][0:2],
+                         ("POST", "https://example.supabase.co/auth/v1/verify"))
+        self.assertEqual(http.calls[1][2]["json"], {
+            "email": "member@example.com", "token": "123456", "type": "email",
+        })
+        self.assertEqual(session.user_id, "user-2")
+
     def test_subscription_request_uses_user_bearer_and_filter(self):
         http = FakeHttp([FakeResponse(payload=[{"status": "active", "price_id": "price_1"}])])
         client = SupabaseAccessClient("https://example.supabase.co", "public-key", http)

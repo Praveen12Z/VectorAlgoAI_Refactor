@@ -196,8 +196,13 @@ def _render_checkout_return(client: SupabaseAccessClient) -> bool:
     return False
 
 
-def _render_confirmation_pending() -> bool:
-    email = st.session_state.get("signup_confirmation_email")
+def _valid_email(email: str) -> bool:
+    local, separator, domain = email.strip().partition("@")
+    return bool(local and separator and "." in domain and not domain.startswith("."))
+
+
+def _render_email_code_pending(client: SupabaseAccessClient) -> bool:
+    email = st.session_state.get("email_code_pending")
     if not email:
         return False
     safe_email = escape(str(email))
@@ -205,40 +210,70 @@ def _render_confirmation_pending() -> bool:
         f"""
         <section class="vai-confirm">
           <div class="vai-confirm-icon">✉</div>
-          <h2>Continue with your email</h2>
-          <p>Account instructions were requested for</p>
+          <h2>Check your email</h2>
+          <p>Enter the six-digit secure code sent to</p>
           <div class="vai-confirm-email">{safe_email}</div>
-          <p>If this is a new account, open the confirmation email and select <strong>Confirm email address</strong>.</p>
-          <p class="vai-confirm-note">Already registered? No duplicate account was created. Sign in or reset your password. Check spam or promotions if you are waiting for a confirmation email.</p>
+          <p>The same code securely creates a new account or signs in an existing member.</p>
+          <p class="vai-confirm-note">The code expires shortly. Check spam or promotions if it has not arrived.</p>
         </section>
         """,
         unsafe_allow_html=True,
     )
-    sign_in_col, reset_col = st.columns(2)
-    with sign_in_col:
-        if st.button("Go to sign in", key="confirmation_back_to_signin", use_container_width=True):
-            st.session_state.pop("signup_confirmation_email", None)
-            st.session_state["show_password_reset"] = False
+    with st.form("email_code_form"):
+        code = st.text_input("Secure code", max_chars=6, placeholder="000000")
+        submitted = st.form_submit_button("Continue securely", use_container_width=True)
+    change_col, resend_col = st.columns(2)
+    with change_col:
+        if st.button("Use a different email", key="change_email", use_container_width=True):
+            st.session_state.pop("email_code_pending", None)
             st.rerun()
-    with reset_col:
-        if st.button("Forgot password?", key="confirmation_open_reset", use_container_width=True):
-            st.session_state.pop("signup_confirmation_email", None)
-            st.session_state["show_password_reset"] = True
-            st.rerun()
+    with resend_col:
+        if st.button("Resend code", key="resend_email_code", use_container_width=True):
+            try:
+                client.send_email_code(str(email))
+                st.success("A new code has been sent.")
+            except AccessServiceError as exc:
+                st.error(_friendly_reset_error(exc))
+    if submitted:
+        if len(code.strip()) != 6 or not code.strip().isdigit():
+            st.error("Enter the six-digit code from your email.")
+        else:
+            try:
+                st.session_state["auth_session"] = client.verify_email_code(str(email), code)
+                st.session_state.pop("email_code_pending", None)
+                st.rerun()
+            except AccessServiceError:
+                st.error("That code is incorrect or has expired. Request a new code and try again.")
     return True
 
 
 def _render_logged_out(client: SupabaseAccessClient) -> None:
     if _render_new_password(client):
         return
-    if _render_confirmation_pending():
+    if _render_email_code_pending(client):
         return
 
     if st.session_state.pop("password_updated", False):
         st.success("Your password has been updated. You can now sign in.")
 
-    login_tab, signup_tab = st.tabs(["Sign in", "Create account"])
-    with login_tab:
+    st.markdown("#### Continue with your email")
+    st.caption("New and existing members use the same secure sign-in flow.")
+    with st.form("email_first_form"):
+        email = st.text_input("Email address", key="email_first_address")
+        submitted = st.form_submit_button("Email me a secure code", use_container_width=True)
+    st.caption("By continuing, you agree to the Terms and Privacy Policy.")
+    if submitted:
+        if not _valid_email(email):
+            st.error("Enter a valid email address.")
+        else:
+            try:
+                client.send_email_code(email)
+                st.session_state["email_code_pending"] = email.strip().lower()
+                st.rerun()
+            except AccessServiceError as exc:
+                st.error(_friendly_reset_error(exc))
+
+    with st.expander("Use password instead"):
         if not st.session_state.get("show_password_reset"):
             with st.form("login_form"):
                 email = st.text_input("Email", key="login_email")
@@ -268,30 +303,6 @@ def _render_logged_out(client: SupabaseAccessClient) -> None:
                     st.success("If the account exists, a password-reset email has been sent.")
                 except AccessServiceError as exc:
                     st.error(_friendly_reset_error(exc))
-    with signup_tab:
-        with st.form("signup_form"):
-            email = st.text_input("Email", key="signup_email")
-            password = st.text_input("Password", type="password", key="signup_password")
-            confirmed = st.text_input("Confirm password", type="password")
-            accepted = st.checkbox("I agree to the Terms and Privacy Policy")
-            submitted = st.form_submit_button("Create account", use_container_width=True)
-        if submitted:
-            if len(password) < 8:
-                st.error("Use a password with at least 8 characters.")
-            elif password != confirmed:
-                st.error("Passwords do not match.")
-            elif not accepted:
-                st.error("Please accept the Terms and Privacy Policy.")
-            else:
-                try:
-                    signed_in = client.sign_up(email, password)
-                    if signed_in:
-                        st.success("Account created. Sign in to continue.")
-                    else:
-                        st.session_state["signup_confirmation_email"] = email.strip()
-                        st.rerun()
-                except AccessServiceError as exc:
-                    st.error(str(exc))
 
 
 def _is_owner(session: AuthSession) -> bool:

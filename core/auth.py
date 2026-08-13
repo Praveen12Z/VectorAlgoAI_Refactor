@@ -79,6 +79,24 @@ class SupabaseAccessClient:
         payload = response.json()
         return bool(payload.get("session") or payload.get("access_token"))
 
+    def send_email_code(self, email: str) -> None:
+        """Send one code that signs in existing users and creates new users."""
+        self._request(
+            "POST",
+            f"{self.url}/auth/v1/otp",
+            headers=self.public_headers,
+            json={"email": email.strip().lower(), "create_user": True},
+        )
+
+    def verify_email_code(self, email: str, code: str) -> AuthSession:
+        response = self._request(
+            "POST",
+            f"{self.url}/auth/v1/verify",
+            headers=self.public_headers,
+            json={"email": email.strip().lower(), "token": code.strip(), "type": "email"},
+        )
+        return AuthSession.from_payload(response.json())
+
     def sign_in(self, email: str, password: str) -> AuthSession:
         response = self._request("POST", f"{self.url}/auth/v1/token?grant_type=password",
                                  headers=self.public_headers,
