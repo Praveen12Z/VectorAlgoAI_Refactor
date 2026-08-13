@@ -197,45 +197,83 @@ def _render_workspace_landing(view: str) -> None:
     if view == "home":
         has_blueprint = bool(st.session_state.get("blueprint_schema"))
         has_evidence = bool(st.session_state.get("bt_result"))
-        stage = "Evidence review" if has_evidence else ("Blueprint review" if has_blueprint else "Strategy brief")
-        evidence_count = "1 record" if has_evidence else "0 records"
-        capital_state = "Under review" if has_evidence else "Not assessed"
+        has_research = has_blueprint or has_evidence or bool(st.session_state.get("strategy_description"))
+        stage = "Evidence review" if has_evidence else ("Rule blueprint" if has_blueprint else ("Strategy brief" if has_research else "No active research"))
+        evidence_count = "1" if has_evidence else "0"
+        capital_state = "Review required" if has_evidence else "Not assessed"
+
         st.markdown(
-            '<section class="va-dashboard-hero">'
-            '<div><div class="va-dashboard-eyebrow">Vector AlgoAI Research OS</div>'
-            '<h1>Turn a trading thesis into a capital decision.</h1>'
-            '<p>Build explicit rules, challenge them against historical evidence, diagnose fragility and advance only what survives.</p></div>'
-            '<div class="va-dashboard-pill">Research mode · Active</div></section>',
+            '<div class="va-dashboard-head"><div>'
+            '<h1>Research workspace</h1>'
+            '<p>Build, test and challenge strategy ideas before they reach capital.</p>'
+            '</div><div class="va-dashboard-status">System ready</div></div>',
             unsafe_allow_html=True,
         )
-        one, two, three = st.columns(3)
-        with one:
-            st.markdown(f'<div class="va-card va-card-blue"><div class="va-card-title">Active stage</div><div class="va-card-value">{stage}<br><span style="color:#718197;font-size:.76rem">Continue the current research record.</span></div></div>', unsafe_allow_html=True)
-        with two:
-            st.markdown(f'<div class="va-card va-card-teal"><div class="va-card-title">Evidence vault</div><div class="va-card-value">{evidence_count}<br><span style="color:#718197;font-size:.76rem">Backtests remain tied to approved rules.</span></div></div>', unsafe_allow_html=True)
-        with three:
-            st.markdown(f'<div class="va-card va-card-amber"><div class="va-card-title">Capital readiness</div><div class="va-card-value">{capital_state}<br><span style="color:#718197;font-size:.76rem">No capital verdict without evidence.</span></div></div>', unsafe_allow_html=True)
-        st.markdown('<div class="va-section-title">Research pipeline</div><div class="va-section-copy">One controlled workflow from idea to deployment readiness.</div>', unsafe_allow_html=True)
-        st.markdown(
-            '<div class="va-dashboard-strip">'
-            '<div class="va-pipeline-card"><div class="va-pipeline-step">01 · Define</div><div class="va-pipeline-title">Make the thesis testable</div><div class="va-pipeline-copy">Translate natural language into explicit entry, exit, risk and regime rules.</div></div>'
-            '<div class="va-pipeline-card"><div class="va-pipeline-step">02 · Challenge</div><div class="va-pipeline-title">Generate evidence</div><div class="va-pipeline-copy">Backtest after costs, inspect every trade and isolate unstable assumptions.</div></div>'
-            '<div class="va-pipeline-card"><div class="va-pipeline-step">03 · Decide</div><div class="va-pipeline-title">Gate capital</div><div class="va-pipeline-copy">Approve, refine or reject the strategy with an explainable verdict.</div></div>'
-            '</div>',
-            unsafe_allow_html=True,
-        )
-        primary, secondary = st.columns([1, 2.4])
-        with primary:
-            if st.button("＋  New strategy", type="primary", use_container_width=True):
+
+        action, continuation, spacer = st.columns([1.15, 1.45, 2.4])
+        with action:
+            if st.button("＋  New research", type="primary", use_container_width=True):
                 st.session_state["active_workspace_stage"] = "thesis"
                 st.rerun()
-        with secondary:
-            if has_evidence and st.button("Continue evidence review", use_container_width=True):
-                st.session_state["active_workspace_stage"] = "evidence"
-                st.rerun()
-            elif has_blueprint and st.button("Continue blueprint review", use_container_width=True):
-                st.session_state["active_workspace_stage"] = "blueprint"
-                st.rerun()
+        with continuation:
+            if has_evidence:
+                if st.button("Continue evidence review", use_container_width=True):
+                    st.session_state["active_workspace_stage"] = "evidence"
+                    st.rerun()
+            elif has_blueprint:
+                if st.button("Continue blueprint", use_container_width=True):
+                    st.session_state["active_workspace_stage"] = "blueprint"
+                    st.rerun()
+            elif has_research:
+                if st.button("Continue strategy brief", use_container_width=True):
+                    st.session_state["active_workspace_stage"] = "thesis"
+                    st.rerun()
+
+        st.markdown(
+            f'<div class="va-summary-grid">'
+            f'<div class="va-summary-card"><div class="va-summary-label">Active research</div><div class="va-summary-value">{stage}</div><div class="va-summary-meta">Current position in the research workflow</div></div>'
+            f'<div class="va-summary-card"><div class="va-summary-label">Evidence records</div><div class="va-summary-value">{evidence_count}</div><div class="va-summary-meta">Tests tied to approved rule contracts</div></div>'
+            f'<div class="va-summary-card"><div class="va-summary-label">Capital status</div><div class="va-summary-value">{capital_state}</div><div class="va-summary-meta">A verdict requires validated evidence</div></div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+        active_index = 2 if has_evidence else (1 if has_blueprint else 0)
+        track = [
+            ("01", "Strategy brief"),
+            ("02", "Rule blueprint"),
+            ("03", "Backtest"),
+            ("04", "Diagnosis"),
+            ("05", "Readiness"),
+        ]
+        track_html = "".join(
+            f'<div class="va-track-item{" active" if index == active_index and has_research else ""}">'
+            f'<div class="va-track-number">{number}</div><div class="va-track-name">{label}</div></div>'
+            for index, (number, label) in enumerate(track)
+        )
+        command_title = "Continue current research" if has_research else "Start your first research record"
+        command_copy = (
+            "Resume from the latest saved stage. Every result stays connected to the exact rules that produced it."
+            if has_research else
+            "Describe the trading thesis in plain English. Vector AlgoAI will convert it into an explicit rule contract for review."
+        )
+        st.markdown(
+            f'<div class="va-section-title">Research pipeline</div>'
+            f'<div class="va-command-card"><div class="va-command-main">'
+            f'<div class="va-command-label">Controlled workflow</div>'
+            f'<div class="va-command-title">{command_title}</div>'
+            f'<div class="va-command-copy">{command_copy}</div></div>'
+            f'<div class="va-stage-track">{track_html}</div></div>',
+            unsafe_allow_html=True,
+        )
+
+        st.markdown(
+            '<div class="va-section-title">Recent research</div>'
+            '<div class="va-empty-record"><div><strong>No completed research records yet</strong>'
+            '<span>Your approved strategies and evidence history will appear here.</span></div>'
+            '<div class="va-empty-badge">Awaiting first test</div></div>',
+            unsafe_allow_html=True,
+        )
     elif view == "library":
         st.markdown('<div class="va-page-kicker">Strategy library</div><div class="va-title">Research records, not signal lists.</div><div class="va-subtitle">Saved strategies and their evidence will live here. The first record is created when you approve your thesis.</div>', unsafe_allow_html=True)
         st.info("No saved strategy records yet. Start a New strategy to create the first research record.")
