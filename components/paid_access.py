@@ -57,7 +57,12 @@ def _style() -> None:
     [data-testid="stTextInput"] svg{fill:#52657f!important}
     [data-testid="stFormSubmitButton"] button{background:#5268db!important;color:#fff!important;border-color:#5268db!important;font-weight:700;border-radius:8px!important}
     [data-testid="stFormSubmitButton"] button:hover{background:#4257c7!important;border-color:#4257c7!important}
+    .stButton button[kind="secondary"]{color:#5268db!important;border:0!important;background:transparent!important;box-shadow:none!important;font-weight:650!important;padding:.25rem .1rem!important}
+    .stButton button[kind="secondary"]:hover{color:#4257c7!important;text-decoration:underline!important}
     [data-testid="stAlert"]{color:#10233f!important}
+    .vai-payment-success{margin:1rem 0;padding:1.25rem 1.3rem;border:1px solid #b9dfd9;border-radius:14px;background:#f1fbf8;box-shadow:0 12px 34px rgba(32,110,97,.08);text-align:center}
+    .vai-payment-check{display:grid;place-items:center;width:44px;height:44px;margin:0 auto .65rem;border-radius:50%;background:#149e8f;color:#fff;font-size:1.45rem;font-weight:800}
+    .vai-payment-success h2{margin:.15rem 0 .35rem;color:#0a514a;font-size:1.35rem}.vai-payment-success p{margin:0;color:#426b67;line-height:1.5}
     </style>
     <div class="vai-login-brand">
       <div class="vai-login-symbol">
@@ -83,19 +88,136 @@ def _style() -> None:
     </section>
     """, unsafe_allow_html=True)
 
-def _render_logged_out(client: SupabaseAccessClient) -> None:
-    login_tab, signup_tab, reset_tab = st.tabs(["Sign in", "Create account", "Reset password"])
-    with login_tab:
-        with st.form("login_form"):
-            email = st.text_input("Email", key="login_email")
-            password = st.text_input("Password", type="password", key="login_password")
-            submitted = st.form_submit_button("Sign in", use_container_width=True)
-        if submitted:
+
+def _clear_recovery_state() -> None:
+    st.session_state.pop("recovery_session", None)
+    st.session_state.pop("show_password_reset", None)
+    for key in ("token_hash", "type"):
+        if key in st.query_params:
+            del st.query_params[key]
+
+
+def _render_new_password(client: SupabaseAccessClient) -> bool:
+    token_hash = st.query_params.get("token_hash")
+    recovery_type = st.query_params.get("type")
+    if recovery_type != "recovery" and "recovery_session" not in st.session_state:
+        return False
+
+    if "recovery_session" not in st.session_state:
+        if not token_hash:
+            st.error("This password-reset link is incomplete. Request a new link.")
+            return True
+        try:
+            st.session_state["recovery_session"] = client.verify_recovery_token(token_hash)
+            for key in ("token_hash", "type"):
+                if key in st.query_params:
+                    del st.query_params[key]
+        except AccessServiceError:
+            st.error("This password-reset link is invalid or has expired. Request a new link.")
+            return True
+
+    st.subheader("Choose a new password")
+    with st.form("new_password_form"):
+        password = st.text_input("New password", type="password", key="new_password")
+        confirmed = st.text_input("Confirm new password", type="password", key="confirm_new_password")
+        submitted = st.form_submit_button("Update password", use_container_width=True)
+    if submitted:
+        if len(password) < 8:
+            st.error("Use a password with at least 8 characters.")
+        elif password != confirmed:
+            st.error("Passwords do not match.")
+        else:
             try:
-                st.session_state["auth_session"] = client.sign_in(email, password)
+                client.update_password(st.session_state["recovery_session"], password)
+                _clear_recovery_state()
+                st.session_state["password_updated"] = True
                 st.rerun()
             except AccessServiceError as exc:
                 st.error(str(exc))
+    return True
+
+
+def _friendly_reset_error(exc: AccessServiceError) -> str:
+    detail = str(exc)
+    if "rate limit" in detail.lower():
+        return "Too many authentication emails were requested. Please wait before trying again."
+    return detail
+
+
+def _render_checkout_return(client: SupabaseAccessClient) -> bool:
+    checkout_result = st.query_params.get("checkout")
+    if checkout_result == "cancelled":
+        st.info("Checkout was cancelled. You have not been charged.")
+        return False
+    if checkout_result != "success":
+        return False
+
+    session_id = st.query_params.get("session_id")
+    if not session_id:
+        st.warning("We could not verify the checkout return. Sign in to check your subscription.")
+        return False
+
+    try:
+        checkout = client.checkout_status(session_id)
+    except AccessServiceError:
+        st.warning("Payment is being verified. Sign in and refresh your subscription status.")
+        return False
+
+    confirmed = (checkout.get("status") == "complete" and
+                 checkout.get("payment_status") in {"paid", "no_payment_required"})
+    if confirmed:
+        st.session_state["checkout_confirmed"] = True
+        st.markdown("""
+        <section class="vai-payment-success">
+          <div class="vai-payment-check">✓</div>
+          <h2>Payment successful</h2>
+          <p>Your Founding Plan payment is confirmed. Welcome to Vector AlgoAI.</p>
+        </section>
+        """, unsafe_allow_html=True)
+        return True
+
+    st.warning("Stripe is still processing the payment. Please wait a moment and refresh this page.")
+    return False
+
+
+def _render_logged_out(client: SupabaseAccessClient) -> None:
+    if _render_new_password(client):
+        return
+
+    if st.session_state.pop("password_updated", False):
+        st.success("Your password has been updated. You can now sign in.")
+
+    login_tab, signup_tab = st.tabs(["Sign in", "Create account"])
+    with login_tab:
+        if not st.session_state.get("show_password_reset"):
+            with st.form("login_form"):
+                email = st.text_input("Email", key="login_email")
+                password = st.text_input("Password", type="password", key="login_password")
+                submitted = st.form_submit_button("Sign in", use_container_width=True)
+            if st.button("Forgot password?", key="show_reset"):
+                st.session_state["show_password_reset"] = True
+                st.rerun()
+            if submitted:
+                try:
+                    st.session_state["auth_session"] = client.sign_in(email, password)
+                    st.rerun()
+                except AccessServiceError as exc:
+                    st.error(str(exc))
+        else:
+            st.markdown("#### Reset your password")
+            st.caption("Enter the email address used for your Vector AlgoAI account.")
+            with st.form("reset_form"):
+                email = st.text_input("Account email", key="reset_email")
+                submitted = st.form_submit_button("Send reset email", use_container_width=True)
+            if st.button("Back to sign in", key="hide_reset"):
+                st.session_state["show_password_reset"] = False
+                st.rerun()
+            if submitted:
+                try:
+                    client.send_password_reset(email, APP_URL)
+                    st.success("If the account exists, a password-reset email has been sent.")
+                except AccessServiceError as exc:
+                    st.error(_friendly_reset_error(exc))
     with signup_tab:
         with st.form("signup_form"):
             email = st.text_input("Email", key="signup_email")
@@ -117,16 +239,6 @@ def _render_logged_out(client: SupabaseAccessClient) -> None:
                                "Check your email to confirm your account, then sign in.")
                 except AccessServiceError as exc:
                     st.error(str(exc))
-    with reset_tab:
-        with st.form("reset_form"):
-            email = st.text_input("Account email", key="reset_email")
-            submitted = st.form_submit_button("Send reset email", use_container_width=True)
-        if submitted:
-            try:
-                client.send_password_reset(email, APP_URL)
-                st.success("If the account exists, Supabase has sent a password-reset email.")
-            except AccessServiceError as exc:
-                st.error(str(exc))
 
 
 def _render_subscription(client: SupabaseAccessClient, session: AuthSession) -> bool:
@@ -138,6 +250,11 @@ def _render_subscription(client: SupabaseAccessClient, session: AuthSession) -> 
             _logout()
         return False
     if subscription.grants_access:
+        st.session_state.pop("checkout_url", None)
+        st.session_state.pop("checkout_confirmed", None)
+        for key in ("checkout", "session_id"):
+            if key in st.query_params:
+                del st.query_params[key]
         with st.sidebar:
             st.caption(f"Signed in as {session.email}")
             if subscription.cancel_at_period_end:
@@ -152,6 +269,14 @@ def _render_subscription(client: SupabaseAccessClient, session: AuthSession) -> 
             if st.button("Sign out", use_container_width=True):
                 _logout()
         return True
+    if st.session_state.get("checkout_confirmed"):
+        st.subheader("Finalizing your Strategy Lab access")
+        st.write("Your payment is confirmed. We are waiting for the signed Stripe notification to activate access.")
+        if st.button("Continue to Strategy Lab", type="primary", use_container_width=True):
+            st.rerun()
+        st.caption("This normally takes only a few seconds. You will not be charged again.")
+        return False
+
     st.subheader("Activate Strategy Lab")
     st.write("Your account is confirmed, but it does not have an active subscription yet.")
     if "checkout_url" not in st.session_state:
@@ -176,8 +301,11 @@ def require_paid_access() -> bool:
     except AccessConfigurationError:
         st.error("Strategy Lab access is temporarily unavailable.")
         return False
+    checkout_confirmed = _render_checkout_return(client)
     session = _session()
     if session is None:
+        if checkout_confirmed:
+            st.info("For security, sign in once to continue to Strategy Lab. Your payment is already confirmed.")
         _render_logged_out(client)
         return False
     return _render_subscription(client, session)

@@ -95,6 +95,18 @@ class SupabaseAccessClient:
         self._request("POST", f"{self.url}/auth/v1/recover?redirect_to={redirect}",
                       headers=self.public_headers, json={"email": email.strip().lower()})
 
+    def verify_recovery_token(self, token_hash: str) -> AuthSession:
+        response = self._request(
+            "POST", f"{self.url}/auth/v1/verify", headers=self.public_headers,
+            json={"token_hash": token_hash, "type": "recovery"})
+        return AuthSession.from_payload(response.json())
+
+    def update_password(self, session: AuthSession, password: str) -> None:
+        self._request(
+            "PUT", f"{self.url}/auth/v1/user",
+            headers={**self.public_headers, "Authorization": f"Bearer {session.access_token}"},
+            json={"password": password})
+
     def subscription(self, session: AuthSession) -> Subscription:
         response = self._request(
             "GET", f"{self.url}/rest/v1/subscriptions",
@@ -116,3 +128,12 @@ class SupabaseAccessClient:
         if not url:
             raise AccessServiceError("Billing did not return a secure redirect URL.")
         return str(url)
+
+    def checkout_status(self, session_id: str) -> Mapping[str, Any]:
+        response = self._request(
+            "POST", f"{self.url}/functions/v1/checkout-status",
+            headers=self.public_headers, json={"session_id": session_id})
+        payload = response.json()
+        if not isinstance(payload, Mapping):
+            raise AccessServiceError("Payment confirmation is temporarily unavailable.")
+        return payload

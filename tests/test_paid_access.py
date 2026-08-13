@@ -78,6 +78,42 @@ class PaidAccessTests(unittest.TestCase):
         with self.assertRaises(AccessServiceError):
             client.sign_in("x@example.com", "wrong")
 
+    def test_recovery_token_is_verified_before_password_update(self):
+        http = FakeHttp([
+            FakeResponse(payload={
+                "access_token": "recovery-access", "refresh_token": "recovery-refresh",
+                "user": {"id": "user-9", "email": "member@example.com"},
+            }),
+            FakeResponse(payload={"id": "user-9"}),
+        ])
+        client = SupabaseAccessClient("https://example.supabase.co", "public-key", http)
+
+        session = client.verify_recovery_token("secure-token-hash")
+        client.update_password(session, "a-new-password")
+
+        self.assertEqual(http.calls[0][0:2],
+                         ("POST", "https://example.supabase.co/auth/v1/verify"))
+        self.assertEqual(http.calls[0][2]["json"],
+                         {"token_hash": "secure-token-hash", "type": "recovery"})
+        self.assertEqual(http.calls[1][0:2],
+                         ("PUT", "https://example.supabase.co/auth/v1/user"))
+        self.assertEqual(http.calls[1][2]["headers"]["Authorization"],
+                         "Bearer recovery-access")
+        self.assertEqual(http.calls[1][2]["json"]["password"], "a-new-password")
+
+    def test_checkout_status_is_verified_server_side(self):
+        http = FakeHttp([FakeResponse(payload={
+            "status": "complete", "payment_status": "paid",
+        })])
+        client = SupabaseAccessClient("https://example.supabase.co", "public-key", http)
+
+        result = client.checkout_status("cs_test_verified")
+
+        self.assertEqual(result["payment_status"], "paid")
+        self.assertEqual(http.calls[0][0:2],
+                         ("POST", "https://example.supabase.co/functions/v1/checkout-status"))
+        self.assertEqual(http.calls[0][2]["json"], {"session_id": "cs_test_verified"})
+
 
 if __name__ == "__main__":
     unittest.main()

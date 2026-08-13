@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
       metadata: { supabase_user_id: user.id },
       subscription_data: { metadata: { supabase_user_id: user.id } },
       allow_promotion_codes: false,
-      success_url: `${appUrl}/?checkout=success`,
+      success_url: `${appUrl}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/?checkout=cancelled`,
     });
     return json({ url: checkout.url });
