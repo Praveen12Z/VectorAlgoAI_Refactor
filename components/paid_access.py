@@ -26,7 +26,15 @@ def _logout() -> None:
     st.rerun()
 
 
-def _style() -> None:
+def _style(authenticated: bool = False) -> None:
+    if authenticated:
+        st.markdown("""
+        <style>
+        [data-testid="stAppViewContainer"]{background:#f4f7fb;color:#10233f}
+        [data-testid="stHeader"]{background:transparent}
+        </style>
+        """, unsafe_allow_html=True)
+        return
     st.markdown("""
     <style>
     [data-testid="stAppViewContainer"]{background:linear-gradient(145deg,#f8faff 0%,#eef3fb 56%,#edf8f7 100%);color:#10233f}
@@ -295,14 +303,14 @@ def _render_subscription(client: SupabaseAccessClient, session: AuthSession) -> 
 
 
 def require_paid_access() -> bool:
-    _style()
+    session = _session()
+    _style(authenticated=session is not None)
     try:
         client = _client()
     except AccessConfigurationError:
         st.error("Strategy Lab access is temporarily unavailable.")
         return False
     checkout_confirmed = _render_checkout_return(client)
-    session = _session()
     if session is None:
         if checkout_confirmed:
             st.info("For security, sign in once to continue to Strategy Lab. Your payment is already confirmed.")
