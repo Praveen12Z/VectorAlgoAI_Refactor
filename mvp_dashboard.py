@@ -195,18 +195,47 @@ def _render_evidence_intro(bt: Dict[str, Any] | None) -> None:
 def _render_workspace_landing(view: str) -> None:
     """Focused product pages for the permanent workspace navigation."""
     if view == "home":
-        st.markdown('<div class="va-page-kicker">Research home</div><div class="va-title">Your strategy research, in one place.</div><div class="va-subtitle">Start a new thesis or continue the current research record. Every result stays connected to the logic that produced it.</div>', unsafe_allow_html=True)
+        has_blueprint = bool(st.session_state.get("blueprint_schema"))
+        has_evidence = bool(st.session_state.get("bt_result"))
+        stage = "Evidence review" if has_evidence else ("Blueprint review" if has_blueprint else "Strategy brief")
+        evidence_count = "1 record" if has_evidence else "0 records"
+        capital_state = "Under review" if has_evidence else "Not assessed"
+        st.markdown(
+            '<section class="va-dashboard-hero">'
+            '<div><div class="va-dashboard-eyebrow">Vector AlgoAI Research OS</div>'
+            '<h1>Turn a trading thesis into a capital decision.</h1>'
+            '<p>Build explicit rules, challenge them against historical evidence, diagnose fragility and advance only what survives.</p></div>'
+            '<div class="va-dashboard-pill">Research mode · Active</div></section>',
+            unsafe_allow_html=True,
+        )
         one, two, three = st.columns(3)
         with one:
-            st.markdown('<div class="va-card va-card-blue"><div class="va-card-title">Current research</div><div class="va-card-value">Draft strategy<br><span style="color:#718197;font-size:.8rem">Define a strategy brief to begin.</span></div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="va-card va-card-blue"><div class="va-card-title">Active stage</div><div class="va-card-value">{stage}<br><span style="color:#718197;font-size:.76rem">Continue the current research record.</span></div></div>', unsafe_allow_html=True)
         with two:
-            st.markdown('<div class="va-card va-card-teal"><div class="va-card-title">Evidence records</div><div class="va-card-value">0 tests<br><span style="color:#718197;font-size:.8rem">Historical evidence appears here.</span></div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="va-card va-card-teal"><div class="va-card-title">Evidence vault</div><div class="va-card-value">{evidence_count}<br><span style="color:#718197;font-size:.76rem">Backtests remain tied to approved rules.</span></div></div>', unsafe_allow_html=True)
         with three:
-            st.markdown('<div class="va-card va-card-amber"><div class="va-card-title">Capital status</div><div class="va-card-value">Not assessed<br><span style="color:#718197;font-size:.8rem">Requires approved evidence.</span></div></div>', unsafe_allow_html=True)
-        st.markdown('<div class="va-section-title">Begin with the trading thesis</div><div class="va-section-copy">Describe the market context, entry, confirmation, exit and risk rules. VectorAlgoAI converts it into an explicit research contract for you to approve.</div>', unsafe_allow_html=True)
-        if st.button("Create a strategy", type="primary"):
-            st.session_state["active_workspace_stage"] = "thesis"
-            st.rerun()
+            st.markdown(f'<div class="va-card va-card-amber"><div class="va-card-title">Capital readiness</div><div class="va-card-value">{capital_state}<br><span style="color:#718197;font-size:.76rem">No capital verdict without evidence.</span></div></div>', unsafe_allow_html=True)
+        st.markdown('<div class="va-section-title">Research pipeline</div><div class="va-section-copy">One controlled workflow from idea to deployment readiness.</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="va-dashboard-strip">'
+            '<div class="va-pipeline-card"><div class="va-pipeline-step">01 · Define</div><div class="va-pipeline-title">Make the thesis testable</div><div class="va-pipeline-copy">Translate natural language into explicit entry, exit, risk and regime rules.</div></div>'
+            '<div class="va-pipeline-card"><div class="va-pipeline-step">02 · Challenge</div><div class="va-pipeline-title">Generate evidence</div><div class="va-pipeline-copy">Backtest after costs, inspect every trade and isolate unstable assumptions.</div></div>'
+            '<div class="va-pipeline-card"><div class="va-pipeline-step">03 · Decide</div><div class="va-pipeline-title">Gate capital</div><div class="va-pipeline-copy">Approve, refine or reject the strategy with an explainable verdict.</div></div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        primary, secondary = st.columns([1, 2.4])
+        with primary:
+            if st.button("＋  New strategy", type="primary", use_container_width=True):
+                st.session_state["active_workspace_stage"] = "home"
+                st.rerun()
+        with secondary:
+            if has_evidence and st.button("Continue evidence review", use_container_width=True):
+                st.session_state["active_workspace_stage"] = "evidence"
+                st.rerun()
+            elif has_blueprint and st.button("Continue blueprint review", use_container_width=True):
+                st.session_state["active_workspace_stage"] = "blueprint"
+                st.rerun()
     elif view == "library":
         st.markdown('<div class="va-page-kicker">Strategy library</div><div class="va-title">Research records, not signal lists.</div><div class="va-subtitle">Saved strategies and their evidence will live here. The first record is created when you approve your thesis.</div>', unsafe_allow_html=True)
         st.info("No saved strategy records yet. Start a New strategy to create the first research record.")
@@ -303,7 +332,7 @@ def run_mvp_dashboard():
     if "bt_result" not in st.session_state:
         st.session_state["bt_result"] = None
     if "active_workspace_view" not in st.session_state:
-        st.session_state["active_workspace_view"] = "thesis"
+        st.session_state["active_workspace_view"] = "home"
 
     inject_workspace_styles()
     years, show_trade_lines, show_rr_labels = render_workspace_sidebar()
