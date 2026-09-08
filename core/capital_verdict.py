@@ -11,7 +11,7 @@ def get_capital_verdict(metrics: dict) -> dict:
     # Verdict
     # ------------------------------
 
-    if trades < 20:
+    if trades < 30:
         verdict = "⚠ INSUFFICIENT DATA"
         color = "orange"
 
@@ -19,17 +19,21 @@ def get_capital_verdict(metrics: dict) -> dict:
         verdict = "❌ DO NOT DEPLOY"
         color = "red"
 
-    elif dd > 25:
-        verdict = "⚠ PAPER TRADE ONLY"
+    elif not metrics.get("costs_included") or not metrics.get("oos_passed"):
+        verdict = "⚠ RESEARCH ONLY — ROBUSTNESS NOT VERIFIED"
         color = "orange"
 
-    elif pf > 1.3 and wr > 45:
-        verdict = "✅ SMALL ALLOCATION"
-        color = "green"
+    elif dd > 25:
+        verdict = "❌ DO NOT DEPLOY"
+        color = "red"
 
     elif pf > 1.6 and wr > 50 and dd < 15:
-        verdict = "🚀 PROP CHALLENGE READY"
+        verdict = "✅ ELIGIBLE FOR CONTROLLED PAPER TEST"
         color = "green"
+
+    elif pf > 1.3 and wr > 45:
+        verdict = "⚠ PAPER TEST WITH RESTRICTED RISK"
+        color = "orange"
 
     else:
         verdict = "⚠ NEEDS MORE TESTING"
@@ -38,4 +42,5 @@ def get_capital_verdict(metrics: dict) -> dict:
     return {
         "verdict": verdict,
         "color": color,
+        "capital_approved": False,
     }
