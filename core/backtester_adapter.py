@@ -19,6 +19,9 @@ class Position:
     sl: float | None
     tp: float | None
     risk_per_unit: float | None  # distance to stop (for RR)
+    size: float
+    risk_amount: float
+    point_value: float
     
 
 def _get_val(row: pd.Series, token):
@@ -95,6 +98,72 @@ def _build_exits(row: pd.Series, cfg: StrategyConfig, side: str) -> Tuple[float 
     return sl, tp, risk_per_unit
 
 
+def _resolve_bar_exit(position: Position, row: pd.Series) -> Tuple[str | None, float | None]:
+    """Resolve protective exits from OHLC data using a conservative policy.
+
+    Candle data does not reveal whether the high or low occurred first. When a
+    stop and target are both touched inside the same candle, the stop is assumed
+    to have occurred first. This avoids manufacturing optimistic backtests.
+    """
+    high = float(row["high"])
+    low = float(row["low"])
+    open_price = float(row["open"])
+
+    if position.direction == "long":
+        stop_hit = position.sl is not None and low <= position.sl
+        target_hit = position.tp is not None and high >= position.tp
+        if stop_hit:
+            return "SL", min(open_price, float(position.sl))
+        if target_hit:
+            return "TP", float(position.tp)
+    else:
+        stop_hit = position.sl is not None and high >= position.sl
+        target_hit = position.tp is not None and low <= position.tp
+        if stop_hit:
+            return "SL", max(open_price, float(position.sl))
+        if target_hit:
+            return "TP", float(position.tp)
+
+    return None, None
+
+
+def _open_position(
+    row: pd.Series,
+    cfg: StrategyConfig,
+    side: str,
+    ts: pd.Timestamp,
+    equity: float,
+) -> Position:
+    sl, tp, risk_per_unit = _build_exits(row, cfg, side)
+    if risk_per_unit is None or not np.isfinite(risk_per_unit) or risk_per_unit <= 0:
+        raise ValueError(
+            "The strategy has no executable protective stop, so risk-based position "
+            "sizing cannot be calculated. Add a valid stop-loss before backtesting."
+        )
+
+    risk_cfg = cfg.raw.get("risk", {}) or {}
+    risk_pct = float(risk_cfg.get("risk_per_trade_pct", 0.0))
+    point_value = float(risk_cfg.get("point_value", 1.0))
+    if not 0 < risk_pct <= 100:
+        raise ValueError("risk_per_trade_pct must be greater than 0 and no more than 100.")
+    if not np.isfinite(point_value) or point_value <= 0:
+        raise ValueError("risk.point_value must be a positive number.")
+
+    risk_amount = equity * risk_pct / 100.0
+    size = risk_amount / (risk_per_unit * point_value)
+    return Position(
+        direction=side,
+        entry_time=ts,
+        entry_price=float(row["close"]),
+        sl=sl,
+        tp=tp,
+        risk_per_unit=risk_per_unit,
+        size=size,
+        risk_amount=risk_amount,
+        point_value=point_value,
+    )
+
+
 def _grade_strategy(total_ret: float, pf: float, win_rate: float, num_trades: int) -> str:
     if num_trades < 10:
         return "D"
@@ -111,7 +180,9 @@ def run_backtest_v2(df: pd.DataFrame, cfg: StrategyConfig):
     """
     Very simple bar-by-bar backtester using YAML conditions.
     - Only supports one open position at a time.
-    - Uses close price for entry/exit.
+    - Evaluates entries at close.
+    - Resolves protective exits from the following candles' OHLC range.
+    - Assumes the stop was hit first when stop and target occur in one candle.
     """
     raw = cfg.raw or {}
     entry_block = raw.get("entry", {}) or {}
@@ -121,39 +192,32 @@ def run_backtest_v2(df: pd.DataFrame, cfg: StrategyConfig):
 
     risk_cfg = raw.get("risk", {}) or {}
     capital = float(risk_cfg.get("capital", 10000.0))
+    if not np.isfinite(capital) or capital <= 0:
+        raise ValueError("risk.capital must be a positive number.")
 
     position: Position | None = None
     trades: List[Dict] = []
+    current_equity = capital
 
     for ts, row in df.iterrows():
         # close existing position?
         if position is not None:
-            price = float(row["close"])
-            exit_reason = None
-
-            if position.direction == "long":
-                if position.sl is not None and price <= position.sl:
-                    exit_reason = "SL"
-                if position.tp is not None and price >= position.tp:
-                    exit_reason = "TP"
-            else:  # short
-                if position.sl is not None and price >= position.sl:
-                    exit_reason = "SL"
-                if position.tp is not None and price <= position.tp:
-                    exit_reason = "TP"
+            exit_reason, exit_price = _resolve_bar_exit(position, row)
 
             # simple time-based fail-safe: close at last bar
             is_last_bar = ts == df.index[-1]
 
             if exit_reason is not None or is_last_bar:
-                exit_price = price
+                if exit_price is None:
+                    exit_price = float(row["close"])
                 if position.direction == "long":
                     pnl_per_unit = exit_price - position.entry_price
                 else:
                     pnl_per_unit = position.entry_price - exit_price
 
-                risk = position.risk_per_unit or max(abs(pnl_per_unit), 1e-8)
-                rr = pnl_per_unit / risk
+                pnl = pnl_per_unit * position.size * position.point_value
+                rr = pnl / position.risk_amount
+                current_equity += pnl
 
                 trades.append(
                     {
@@ -162,7 +226,10 @@ def run_backtest_v2(df: pd.DataFrame, cfg: StrategyConfig):
                         "direction": position.direction,
                         "entry_price": position.entry_price,
                         "exit_price": exit_price,
-                        "pnl": pnl_per_unit,
+                        "size": position.size,
+                        "risk_amount": position.risk_amount,
+                        "point_value": position.point_value,
+                        "pnl": pnl,
                         "rr": rr,
                         "exit_reason": exit_reason or "time_exit",
                     }
@@ -175,25 +242,9 @@ def run_backtest_v2(df: pd.DataFrame, cfg: StrategyConfig):
         # if flat, check for entries
         if position is None:
             if _check_conditions(row, long_conds):
-                sl, tp, risk_per_unit = _build_exits(row, cfg, "long")
-                position = Position(
-                    direction="long",
-                    entry_time=ts,
-                    entry_price=float(row["close"]),
-                    sl=sl,
-                    tp=tp,
-                    risk_per_unit=risk_per_unit,
-                )
+                position = _open_position(row, cfg, "long", ts, current_equity)
             elif _check_conditions(row, short_conds):
-                sl, tp, risk_per_unit = _build_exits(row, cfg, "short")
-                position = Position(
-                    direction="short",
-                    entry_time=ts,
-                    entry_price=float(row["close"]),
-                    sl=sl,
-                    tp=tp,
-                    risk_per_unit=risk_per_unit,
-                )
+                position = _open_position(row, cfg, "short", ts, current_equity)
 
     trades_df = pd.DataFrame(trades)
     if trades_df.empty:
@@ -204,6 +255,10 @@ def run_backtest_v2(df: pd.DataFrame, cfg: StrategyConfig):
             "max_drawdown_pct": 0.0,
             "num_trades": 0,
             "grade": "D",
+            "execution_model": "ohlc_stop_first",
+            "risk_sizing_applied": False,
+            "costs_included": False,
+            "oos_passed": False,
         }
         weaknesses = ["Too few trades to evaluate.", "Strategy might be over-filtered."]
         suggestions = ["Relax entry conditions or test on more data."]
@@ -236,6 +291,10 @@ def run_backtest_v2(df: pd.DataFrame, cfg: StrategyConfig):
         "max_drawdown_pct": max_dd_pct,
         "num_trades": num_trades,
         "grade": grade,
+        "execution_model": "ohlc_stop_first",
+        "risk_sizing_applied": True,
+        "costs_included": False,
+        "oos_passed": False,
     }
 
     weaknesses: List[str] = []
