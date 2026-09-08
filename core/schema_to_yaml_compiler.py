@@ -1,94 +1,74 @@
+"""Compile the reviewed interpretation without replacing extracted parameters."""
+
 import yaml
 
 
+def _component(components: list[dict], name: str) -> dict | None:
+    return next((item for item in components if item.get("component") == name), None)
+
+
 def compile_schema_to_yaml(schema: dict, market="XAUUSD", timeframe="1h") -> str:
-
     components = schema.get("components", [])
+    indicators: list[dict] = []
+    entry_long: list[dict] = []
+    exit_long: list[dict] = []
 
-    indicators = []
-    entry_long = []
-    exit_long = []
+    ema = _component(components, "ema_trend")
+    ema_periods: list[int] = []
+    if ema:
+        ema_periods = sorted({int(p) for p in ema.get("params", {}).get("periods", [])})
+        for period in ema_periods:
+            indicators.append({"name": f"ema{period}", "type": "ema", "period": period, "source": "close"})
+        for fast, slow in zip(ema_periods, ema_periods[1:]):
+            entry_long.append({"left": f"ema{fast}", "op": ">", "right": f"ema{slow}"})
 
-    has_ema = any(c.get("component") == "ema_trend" for c in components)
-    has_rsi = any(c.get("component") == "rsi_filter" for c in components)
-    has_atr = any(c.get("component") in ["atr_stop", "rr_target", "atr_filter"] for c in components)
-    has_pullback = any(c.get("component") == "pullback_entry" for c in components)
-    has_support_resistance = any(c.get("component") == "support_resistance" for c in components)
+    if _component(components, "pullback_entry") and ema_periods:
+        entry_long.append({"left": "close", "op": "<", "right": f"ema{ema_periods[0]}"})
+    if _component(components, "support_resistance"):
+        entry_long.append({"left": "close", "op": "<=", "right": "support_zone"})
 
-    if has_ema:
-        indicators.extend([
-            {"name": "ema20", "type": "ema", "period": 20, "source": "close"},
-            {"name": "ema50", "type": "ema", "period": 50, "source": "close"},
-            {"name": "ema200", "type": "ema", "period": 200, "source": "close"},
-        ])
+    rsi = _component(components, "rsi_filter")
+    if rsi:
+        params = rsi.get("params", {})
+        period = int(params["period"])
+        name = f"rsi{period}"
+        indicators.append({"name": name, "type": "rsi", "period": period, "source": "close"})
+        entry_long.append({"left": name, "op": params["op"], "right": params["threshold"]})
 
-        entry_long.extend([
-            {"left": "ema50", "op": ">", "right": "ema200"},
-            {"left": "ema20", "op": ">", "right": "ema50"},
-        ])
+    atr_sources = [c for c in components if c.get("component") in {"atr_filter", "atr_stop"}]
+    if atr_sources:
+        period = int(atr_sources[0].get("params", {}).get("period", 14))
+        indicators.append({"name": f"atr{period}", "type": "atr", "period": period})
 
-    if has_pullback:
-        entry_long.append(
-            {"left": "close", "op": "<", "right": "ema20"}
-        )
+    stop = _component(components, "atr_stop")
+    target = _component(components, "rr_target")
+    if stop:
+        params = stop.get("params", {})
+        period = int(params["period"])
+        multiple = float(params["multiple"])
+        atr_name = f"atr{period}"
+        if not any(item["name"] == atr_name for item in indicators):
+            indicators.append({"name": atr_name, "type": "atr", "period": period})
+        exit_long.append({"type": "atr_sl", "atr_col": atr_name, "multiple": multiple})
+        if target:
+            rr = float(target.get("params", {})["rr"])
+            exit_long.append({"type": "atr_tp", "atr_col": atr_name, "multiple": multiple * rr})
 
-    if has_support_resistance:
-        entry_long.append(
-            {"left": "close", "op": "<=", "right": "support_zone"}
-        )
-
-    if has_rsi:
-        indicators.append(
-            {"name": "rsi14", "type": "rsi", "period": 14, "source": "close"}
-        )
-
-        entry_long.append(
-            {"left": "rsi14", "op": ">", "right": 55}
-        )
-
-    if has_atr:
-        indicators.append(
-            {"name": "atr14", "type": "atr", "period": 14}
-        )
-
-        exit_long.extend([
-            {"type": "atr_sl", "atr_col": "atr14", "multiple": 2.0},
-            {"type": "atr_tp", "atr_col": "atr14", "multiple": 3.0},
-        ])
-
-    if not indicators:
-        indicators.append(
-            {"name": "atr14", "type": "atr", "period": 14}
-        )
-
-    if not exit_long:
-        if not any(ind.get("name") == "atr14" for ind in indicators):
-            indicators.append(
-                {"name": "atr14", "type": "atr", "period": 14}
-            )
-
-        exit_long.extend([
-            {"type": "atr_sl", "atr_col": "atr14", "multiple": 2.0},
-            {"type": "atr_tp", "atr_col": "atr14", "multiple": 3.0},
-        ])
-
+    risk = schema.get("risk", {})
     strategy = {
         "name": "AI Generated Universal Strategy",
         "market": market,
         "timeframe": timeframe,
         "indicators": indicators,
-        "entry": {
-            "long": entry_long,
-            "short": []
-        },
-        "exit": {
-            "long": exit_long,
-            "short": []
-        },
+        "entry": {"long": entry_long, "short": []},
+        "exit": {"long": exit_long, "short": []},
         "risk": {
-            "capital": 10000,
-            "risk_per_trade_pct": 1.0
-        }
+            "capital": float(risk.get("capital", 10000)),
+            "risk_per_trade_pct": float(risk.get("risk_per_trade_pct", 1.0)),
+        },
+        "interpretation": {
+            "assumptions": schema.get("assumptions", []),
+            "source_text": schema.get("source_text", ""),
+        },
     }
-
     return yaml.dump(strategy, sort_keys=False)
