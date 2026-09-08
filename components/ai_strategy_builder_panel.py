@@ -1,3 +1,5 @@
+from html import escape
+
 import streamlit as st
 import yaml
 
@@ -87,6 +89,7 @@ def _render_blueprint():
         current_yaml = generated_yaml
 
     components = schema.get("components", [])
+    assumptions = schema.get("assumptions", [])
     grouped = {}
     for component in components:
         grouped.setdefault(component.get("category", "other").replace("_", " ").title(), []).append(component.get("component", "rule").replace("_", " ").title())
@@ -100,7 +103,7 @@ def _render_blueprint():
     for index, (label, value) in enumerate(items):
         with cols[index % 3]:
             tone = ("blue", "teal", "amber")[index % 3]
-            st.markdown(f'<div class="va-card va-card-{tone}"><div class="va-card-title">{label}</div><div class="va-card-value">{value}</div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="va-card va-card-{tone}"><div class="va-card-title">{escape(str(label))}</div><div class="va-card-value">{escape(str(value))}</div></div>', unsafe_allow_html=True)
 
     if not grouped:
         st.warning("The thesis is still too broad to produce explicit rules. Add the market context, entry trigger, confirmation and risk/exit conditions.")
@@ -116,10 +119,29 @@ def _render_blueprint():
             for issue in issues:
                 st.caption(f"• {issue}")
 
+        assumptions_accepted = True
+        if assumptions:
+            st.warning("The interpreter had to infer the values below. They are not facts supplied by you.")
+            for assumption in assumptions:
+                st.markdown(
+                    f"**{escape(str(assumption.get('field', 'Assumption')))}:** "
+                    f"{escape(str(assumption.get('value', '')))}  \n"
+                    f"{escape(str(assumption.get('reason', '')))}"
+                )
+            assumptions_accepted = st.checkbox(
+                "I have reviewed and accept these inferred values for this research run.",
+                key="blueprint_assumptions_accepted",
+            )
+
         st.markdown('<span class="va-status">Review required</span> &nbsp; <span style="color:#94a3b8;font-size:.86rem">Confirm that the interpretation matches how you actually trade.</span>', unsafe_allow_html=True)
         action, detail = st.columns([1, 2])
         with action:
-            if st.button("Approve & Run Backtest  →", type="primary", use_container_width=True, disabled=bool(issues)):
+            if st.button(
+                "Approve & Run Backtest  →",
+                type="primary",
+                use_container_width=True,
+                disabled=bool(issues) or not assumptions_accepted,
+            ):
                 # Freeze the reviewed contract. Evidence must consume this exact
                 # value instead of relying on a widget-backed session key.
                 st.session_state["blueprint_yaml"] = current_yaml
