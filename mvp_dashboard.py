@@ -7,6 +7,7 @@ from typing import Dict, Any
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+import yaml
 
 from core.data_loader import load_ohlcv
 from core.indicators import apply_all_indicators
@@ -20,6 +21,7 @@ from core.root_cause_analyzer import analyze_root_cause
 from core.gradecard import build_gradecard
 from core.strategy_optimizer import optimize_strategy
 from core.market_fit_analyzer import analyze_market_fit
+from core.strategy_contract import require_approved_strategy_contract
 
 from components.research_panel import render_research_panel
 from components.doctor_panel import render_doctor_panel
@@ -391,7 +393,7 @@ def run_mvp_dashboard():
 
     run_clicked = False
     if active_stage == "evidence":
-        st.markdown('<div class="va-page-kicker">Backtest Results</div><div class="va-title">Test the approved rules against history</div><div class="va-subtitle">Realistic costs included. Historical evidence remains separate from future validation.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="va-page-kicker">Backtest Results</div><div class="va-title">Test the approved rules against history</div><div class="va-subtitle">Baseline execution model. Trading costs and hold-out validation are not yet included.</div>', unsafe_allow_html=True)
         _render_evidence_intro(st.session_state.get("bt_result"))
         if not st.session_state.get("blueprint_approved"):
             st.info("Approve the Rule Blueprint before running the backtest.")
@@ -419,6 +421,10 @@ def run_mvp_dashboard():
             evidence_yaml = st.session_state.get("evidence_yaml_editor")
             if not isinstance(evidence_yaml, str) or not evidence_yaml.strip():
                 evidence_yaml = st.session_state.get("approved_strategy_yaml") or st.session_state.get("blueprint_yaml")
+            evidence_contract = yaml.safe_load(evidence_yaml)
+            if not isinstance(evidence_contract, dict):
+                raise ValueError("The approved Strategy Contract must be a YAML object.")
+            require_approved_strategy_contract(evidence_contract)
             cfg: StrategyConfig = parse_strategy_yaml(evidence_yaml)
             st.session_state["strategy_yaml"] = evidence_yaml
             df_price = load_ohlcv(cfg.market, cfg.timeframe, years)

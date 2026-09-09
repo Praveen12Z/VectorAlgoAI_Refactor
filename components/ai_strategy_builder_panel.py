@@ -6,6 +6,7 @@ import yaml
 from core.ai_strategy_builder import build_strategy_from_text
 from core.schema_to_yaml_compiler import compile_schema_to_yaml
 from core.research_contract import strategy_contract_issues
+from core.strategy_contract import approve_strategy_contract
 
 
 def render_ai_strategy_builder_panel(active_stage: str = "thesis"):
@@ -35,7 +36,7 @@ def _render_thesis_editor():
             st.markdown('<div class="va-panel-accent-teal"></div><div class="va-panel-title">Research setup</div><div class="va-panel-copy">Applied to the first evidence run</div><div style="height:.8rem"></div>', unsafe_allow_html=True)
             market = st.selectbox("Market", ["NAS100", "XAUUSD", "US30", "BTCUSD", "ETHUSD"], key="ai_market")
             timeframe = st.selectbox("Primary timeframe", ["15m", "1h", "4h", "1d"], index=1, key="ai_timeframe")
-            st.markdown('<div class="va-chip">✓ Realistic costs</div><div class="va-chip">✓ Hold-out validation</div><div class="va-panel-copy" style="margin-top:.9rem">Research-safe by default. Results stay separate from future validation.</div>', unsafe_allow_html=True)
+            st.markdown('<div class="va-chip">Cost model · pending</div><div class="va-chip">Hold-out · pending</div><div class="va-panel-copy" style="margin-top:.9rem">Baseline research only. Missing evidence remains visible.</div>', unsafe_allow_html=True)
 
     if st.button(
         "Build Rule Blueprint  →", use_container_width=True, type="primary"
@@ -108,6 +109,7 @@ def _render_blueprint():
     if not grouped:
         st.warning("The thesis is still too broad to produce explicit rules. Add the market context, entry trigger, confirmation and risk/exit conditions.")
     else:
+        parsed_yaml = {}
         try:
             parsed_yaml = yaml.safe_load(current_yaml) or {}
             issues = strategy_contract_issues(parsed_yaml)
@@ -118,6 +120,27 @@ def _render_blueprint():
             st.warning("This research contract is not ready to run yet.")
             for issue in issues:
                 st.caption(f"• {issue}")
+
+        contract = parsed_yaml.get("strategy_contract", {}) if isinstance(parsed_yaml, dict) else {}
+        rules = contract.get("rules", []) if isinstance(contract, dict) else []
+        if rules:
+            st.markdown('<div class="va-section-title">Strategy Contract v1 · capability review</div>', unsafe_allow_html=True)
+            st.caption("Every material rule must be executable before this contract can be approved for automated testing.")
+            status_icons = {
+                "executable": "✅",
+                "manual": "👤",
+                "ambiguous": "❓",
+                "unsupported": "⛔",
+            }
+            for rule in rules:
+                status = str(rule.get("status", "unsupported"))
+                with st.container(border=True):
+                    st.markdown(
+                        f"**{status_icons.get(status, '⛔')} {escape(str(rule.get('rule_id', 'Rule')))} · "
+                        f"{escape(str(rule.get('statement', 'Unnamed rule')))}**  \n"
+                        f"Status: `{escape(status.upper())}` · Domain: {escape(str(rule.get('domain', 'other')).title())}  \n"
+                        f"{escape(str(rule.get('reason', 'No capability explanation recorded.')))}"
+                    )
 
         assumptions_accepted = True
         if assumptions:
@@ -144,9 +167,11 @@ def _render_blueprint():
             ):
                 # Freeze the reviewed contract. Evidence must consume this exact
                 # value instead of relying on a widget-backed session key.
-                st.session_state["blueprint_yaml"] = current_yaml
-                st.session_state["approved_strategy_yaml"] = current_yaml
-                st.session_state["strategy_yaml"] = current_yaml
+                approved = approve_strategy_contract(parsed_yaml, assumptions_accepted)
+                approved_yaml = yaml.safe_dump(approved, sort_keys=False)
+                st.session_state["blueprint_yaml"] = approved_yaml
+                st.session_state["approved_strategy_yaml"] = approved_yaml
+                st.session_state["strategy_yaml"] = approved_yaml
                 st.session_state.pop("evidence_yaml_editor", None)
                 st.session_state["blueprint_approved"] = True
                 st.session_state["active_workspace_stage"] = "evidence"

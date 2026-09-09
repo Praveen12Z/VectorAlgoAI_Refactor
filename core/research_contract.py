@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from core.strategy_contract import contract_gate_issues
+
 
 def strategy_contract_issues(raw: dict[str, Any]) -> list[str]:
     """Return user-facing blockers instead of letting an invalid test fail later.
@@ -13,6 +15,7 @@ def strategy_contract_issues(raw: dict[str, Any]) -> list[str]:
     supply those candles truthfully.
     """
     issues: list[str] = []
+    issues.extend(contract_gate_issues(raw, require_approval=False))
     entry = raw.get("entry", {}) or {}
     if not (entry.get("long") or entry.get("short")):
         issues.append(
