@@ -104,6 +104,28 @@ class EvidenceHonestyTests(unittest.TestCase):
         self.assertEqual("UNVERIFIED", card["robustness"])
         self.assertEqual("F", card["deployability"])
         self.assertLessEqual(calculate_research_score(metrics)["score"], 69)
+        self.assertEqual(
+            "UNDETERMINED — ROBUSTNESS NOT VALIDATED",
+            build_risk_report(metrics)["risk_of_ruin"],
+        )
+
+    def test_adverse_small_holdout_caps_score_and_does_not_claim_ruin_risk(self):
+        metrics = {
+            "profit_factor": 1.31,
+            "win_rate_pct": 45.24,
+            "max_drawdown_pct": -3.83,
+            "total_return_pct": 4.50,
+            "num_trades": 42,
+            "costs_included": True,
+            "oos_passed": False,
+            "validation_status": "HOLD-OUT ADVERSE — SAMPLE TOO SMALL",
+        }
+
+        self.assertEqual(40, calculate_research_score(metrics)["score"])
+        self.assertEqual(
+            "UNDETERMINED — ROBUSTNESS NOT VALIDATED",
+            build_risk_report(metrics)["risk_of_ruin"],
+        )
 
     def test_engine_change_invalidates_generated_research_but_preserves_thesis(self):
         state = {

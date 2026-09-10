@@ -108,6 +108,19 @@ def calculate_research_score(metrics: dict) -> dict:
     elif not robustness_is_verified(metrics):
         score = min(score, 69)
 
+    # A positive full-sample result must not outweigh contradictory evidence
+    # from the chronological hold-out segment.
+    validation_status = str(metrics.get("validation_status", "")).upper()
+    if validation_status == "HOLD-OUT ADVERSE — SAMPLE TOO SMALL":
+        score = min(score, 40)
+    elif validation_status in {
+        "DEVELOPMENT EDGE FAILED",
+        "HOLD-OUT EDGE FAILED",
+        "HOLD-OUT DEGRADATION",
+        "HOLD-OUT RISK FAILED",
+    }:
+        score = min(score, 30)
+
     # =====================================
     # Grade
     # =====================================

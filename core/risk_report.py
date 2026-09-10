@@ -25,6 +25,8 @@ def build_risk_report(metrics: dict) -> dict:
 
     if not baseline_edge_is_demonstrated(metrics):
         risk_of_ruin = "HIGH"
+    elif not robustness_is_verified(metrics):
+        risk_of_ruin = "UNDETERMINED — ROBUSTNESS NOT VALIDATED"
     elif pf >= 1.5 and dd < 10:
         risk_of_ruin = "LOW"
 
