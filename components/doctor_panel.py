@@ -13,7 +13,7 @@ def render_doctor_panel(doctor):
         st.error(f"Severity: {severity}")
     elif severity == "HIGH":
         st.warning(f"Severity: {severity}")
-    elif severity == "INCONCLUSIVE":
+    elif severity in {"INCONCLUSIVE", "VALIDATION REQUIRED"}:
         st.info(f"Status: {severity}")
     else:
         st.success(f"Severity: {severity}")

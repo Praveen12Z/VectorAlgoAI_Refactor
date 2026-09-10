@@ -226,8 +226,14 @@ def render_workspace_header(active_stage: str = "thesis") -> None:
     st.markdown('</div>', unsafe_allow_html=True)
 
 
-def render_workspace_sidebar() -> tuple[int, bool, bool]:
+def render_workspace_sidebar() -> tuple[int, bool, bool, dict]:
     years, show_trade_lines, show_rr_labels = 2, False, False
+    validation_settings = {
+        "holdout_pct": 30,
+        "spread_points": 1.0,
+        "slippage_points_per_side": 0.5,
+        "commission_per_unit_round_turn": 0.0,
+    }
     with st.sidebar:
         st.markdown('<div class="va-brand-wrap"><div class="va-mark"><svg viewBox="0 0 72 72" fill="none" aria-hidden="true"><circle cx="14" cy="15" r="7" fill="currentColor"/><circle cx="28" cy="59" r="5" fill="currentColor"/><circle cx="46" cy="14" r="4" fill="currentColor"/><circle cx="9" cy="39" r="4" fill="currentColor"/><path d="M22 33 38 11" stroke="currentColor" stroke-width="9" stroke-linecap="round"/><path d="M35 42 48 24" stroke="currentColor" stroke-width="9" stroke-linecap="round"/><path d="M40 58 56 36" stroke="currentColor" stroke-width="9" stroke-linecap="round"/><path d="M55 29 66 14" stroke="currentColor" stroke-width="9" stroke-linecap="round"/></svg></div><div><div class="va-brand">Vector Algo<b>AI</b></div><div class="va-brand-sub">“Edge Over Ego.”</div></div></div>', unsafe_allow_html=True)
         active = st.session_state.get("active_workspace_stage", "home")
@@ -249,7 +255,24 @@ def render_workspace_sidebar() -> tuple[int, bool, bool]:
         if active == "evidence":
             st.markdown('<div class="va-side-label">Evidence settings</div>', unsafe_allow_html=True)
             years = st.slider("History", 1, 15, 2, format="%d years")
+            with st.expander("Validation model", expanded=True):
+                st.caption("Explicit research assumptions—replace them with broker-specific values when available.")
+                validation_settings["holdout_pct"] = st.slider(
+                    "Untouched hold-out", 20, 40, 30, 5, format="%d%%"
+                )
+                validation_settings["spread_points"] = st.number_input(
+                    "Spread (points)", min_value=0.0, value=1.0, step=0.1
+                )
+                validation_settings["slippage_points_per_side"] = st.number_input(
+                    "Slippage per side (points)", min_value=0.0, value=0.5, step=0.1
+                )
+                validation_settings["commission_per_unit_round_turn"] = st.number_input(
+                    "Commission per unit, round turn (account currency)",
+                    min_value=0.0,
+                    value=0.0,
+                    step=0.1,
+                )
             with st.expander("Chart options"):
                 show_trade_lines = st.checkbox("Trade paths")
                 show_rr_labels = st.checkbox("R labels")
-    return years, show_trade_lines, show_rr_labels
+    return years, show_trade_lines, show_rr_labels, validation_settings

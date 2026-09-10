@@ -22,7 +22,7 @@ def render_executive_summary(
 
     st.info(
         f"""
-Strategy Grade: {gradecard['overall']}
+Readiness Grade: {gradecard['overall']}
 
 Cross-market candidate: {market_candidate}
 

@@ -84,6 +84,27 @@ class EvidenceHonestyTests(unittest.TestCase):
         self.assertEqual("F", gradecard["overall"])
         self.assertEqual("❌ DO NOT DEPLOY — NO DEMONSTRATED EDGE", verdict["verdict"])
 
+    def test_promising_baseline_names_validation_as_the_remaining_problem(self):
+        metrics = {
+            "profit_factor": 1.33,
+            "win_rate_pct": 45.24,
+            "max_drawdown_pct": -3.84,
+            "total_return_pct": 4.93,
+            "num_trades": 42,
+            "costs_included": True,
+            "oos_passed": False,
+            "validation_reason": "The hold-out segment has fewer than 30 trades.",
+        }
+
+        self.assertEqual("VALIDATION REQUIRED", build_strategy_doctor(metrics)["severity"])
+        self.assertEqual("Robustness Not Verified", analyze_root_cause(metrics)["main_problem"])
+        self.assertEqual("Robustness Not Verified", optimize_strategy(metrics)["bottleneck"])
+        card = build_gradecard(metrics)
+        self.assertEqual("B", card["risk_management"])
+        self.assertEqual("UNVERIFIED", card["robustness"])
+        self.assertEqual("F", card["deployability"])
+        self.assertLessEqual(calculate_research_score(metrics)["score"], 69)
+
     def test_engine_change_invalidates_generated_research_but_preserves_thesis(self):
         state = {
             "research_engine_version": "older-engine",

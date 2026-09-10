@@ -84,6 +84,21 @@ def analyze_root_cause(metrics: dict) -> dict:
             "Review entry and exit rules",
         ]
 
+    elif not metrics.get("oos_passed"):
+
+        main_problem = "Robustness Not Verified"
+
+        explanation = metrics.get(
+            "validation_reason",
+            "The strategy has not passed an unchanged chronological hold-out test.",
+        )
+
+        fixes = [
+            "Keep the strategy rules frozen",
+            "Collect enough trades in both development and hold-out segments",
+            "Reject the version if its edge does not persist on hold-out data",
+        ]
+
     else:
 
         main_problem = "No Major Weakness Detected"

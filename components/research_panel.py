@@ -36,6 +36,10 @@ def render_research_panel(cfg, data_start, data_end, data_bars, research, verdic
     with r2:
         st.info(f"Overfitting Risk: {risk.get('overfitting_risk', '-')}")
 
+    validation_status = metrics.get("validation_status")
+    if validation_status:
+        st.info(f"Chronological Validation: {validation_status}")
+
     num_trades = int(metrics.get("num_trades", 0))
     if num_trades < 30:
         st.warning(

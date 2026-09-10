@@ -22,6 +22,47 @@ class Position:
     size: float
     risk_amount: float
     point_value: float
+    trading_cost_per_unit: float
+
+
+@dataclass(frozen=True)
+class ExecutionCostModel:
+    """Explicit round-trip friction assumptions for one traded unit."""
+
+    spread_points: float = 0.0
+    slippage_points_per_side: float = 0.0
+    commission_per_unit_round_turn: float = 0.0
+
+    def __post_init__(self) -> None:
+        values = (
+            self.spread_points,
+            self.slippage_points_per_side,
+            self.commission_per_unit_round_turn,
+        )
+        if any(not np.isfinite(float(value)) or float(value) < 0 for value in values):
+            raise ValueError("Execution-cost assumptions must be finite and non-negative.")
+
+    @property
+    def enabled(self) -> bool:
+        return any(
+            float(value) > 0
+            for value in (
+                self.spread_points,
+                self.slippage_points_per_side,
+                self.commission_per_unit_round_turn,
+            )
+        )
+
+    def cash_per_unit(self, point_value: float) -> float:
+        price_friction = self.spread_points + 2 * self.slippage_points_per_side
+        return price_friction * point_value + self.commission_per_unit_round_turn
+
+    def as_dict(self) -> Dict[str, float]:
+        return {
+            "spread_points": float(self.spread_points),
+            "slippage_points_per_side": float(self.slippage_points_per_side),
+            "commission_per_unit_round_turn": float(self.commission_per_unit_round_turn),
+        }
     
 
 def _get_val(row: pd.Series, token):
@@ -133,6 +174,7 @@ def _open_position(
     side: str,
     ts: pd.Timestamp,
     equity: float,
+    cost_model: ExecutionCostModel,
 ) -> Position:
     sl, tp, risk_per_unit = _build_exits(row, cfg, side)
     if risk_per_unit is None or not np.isfinite(risk_per_unit) or risk_per_unit <= 0:
@@ -150,7 +192,9 @@ def _open_position(
         raise ValueError("risk.point_value must be a positive number.")
 
     risk_amount = equity * risk_pct / 100.0
-    size = risk_amount / (risk_per_unit * point_value)
+    trading_cost_per_unit = cost_model.cash_per_unit(point_value)
+    risk_cash_per_unit = risk_per_unit * point_value + trading_cost_per_unit
+    size = risk_amount / risk_cash_per_unit
     return Position(
         direction=side,
         entry_time=ts,
@@ -161,6 +205,7 @@ def _open_position(
         size=size,
         risk_amount=risk_amount,
         point_value=point_value,
+        trading_cost_per_unit=trading_cost_per_unit,
     )
 
 
@@ -176,7 +221,11 @@ def _grade_strategy(total_ret: float, pf: float, win_rate: float, num_trades: in
     return "D"
 
 
-def run_backtest_v2(df: pd.DataFrame, cfg: StrategyConfig):
+def run_backtest_v2(
+    df: pd.DataFrame,
+    cfg: StrategyConfig,
+    cost_model: ExecutionCostModel | None = None,
+):
     """
     Very simple bar-by-bar backtester using YAML conditions.
     - Only supports one open position at a time.
@@ -185,6 +234,7 @@ def run_backtest_v2(df: pd.DataFrame, cfg: StrategyConfig):
     - Assumes the stop was hit first when stop and target occur in one candle.
     """
     raw = cfg.raw or {}
+    cost_model = cost_model or ExecutionCostModel()
     entry_block = raw.get("entry", {}) or {}
 
     long_conds = entry_block.get("long", []) or []
@@ -215,7 +265,9 @@ def run_backtest_v2(df: pd.DataFrame, cfg: StrategyConfig):
                 else:
                     pnl_per_unit = position.entry_price - exit_price
 
-                pnl = pnl_per_unit * position.size * position.point_value
+                gross_pnl = pnl_per_unit * position.size * position.point_value
+                trading_cost = position.size * position.trading_cost_per_unit
+                pnl = gross_pnl - trading_cost
                 rr = pnl / position.risk_amount
                 current_equity += pnl
 
@@ -229,6 +281,8 @@ def run_backtest_v2(df: pd.DataFrame, cfg: StrategyConfig):
                         "size": position.size,
                         "risk_amount": position.risk_amount,
                         "point_value": position.point_value,
+                        "gross_pnl": gross_pnl,
+                        "trading_cost": trading_cost,
                         "pnl": pnl,
                         "rr": rr,
                         "exit_reason": exit_reason or "time_exit",
@@ -242,9 +296,9 @@ def run_backtest_v2(df: pd.DataFrame, cfg: StrategyConfig):
         # if flat, check for entries
         if position is None:
             if _check_conditions(row, long_conds):
-                position = _open_position(row, cfg, "long", ts, current_equity)
+                position = _open_position(row, cfg, "long", ts, current_equity, cost_model)
             elif _check_conditions(row, short_conds):
-                position = _open_position(row, cfg, "short", ts, current_equity)
+                position = _open_position(row, cfg, "short", ts, current_equity, cost_model)
 
     trades_df = pd.DataFrame(trades)
     if trades_df.empty:
@@ -257,7 +311,9 @@ def run_backtest_v2(df: pd.DataFrame, cfg: StrategyConfig):
             "grade": "D",
             "execution_model": "ohlc_stop_first",
             "risk_sizing_applied": False,
-            "costs_included": False,
+            "costs_included": cost_model.enabled,
+            "cost_model": cost_model.as_dict(),
+            "total_trading_cost": 0.0,
             "oos_passed": False,
         }
         weaknesses = ["Too few trades to evaluate.", "Strategy might be over-filtered."]
@@ -293,7 +349,9 @@ def run_backtest_v2(df: pd.DataFrame, cfg: StrategyConfig):
         "grade": grade,
         "execution_model": "ohlc_stop_first",
         "risk_sizing_applied": True,
-        "costs_included": False,
+        "costs_included": cost_model.enabled,
+        "cost_model": cost_model.as_dict(),
+        "total_trading_cost": float(trades_df["trading_cost"].sum()),
         "oos_passed": False,
     }
 

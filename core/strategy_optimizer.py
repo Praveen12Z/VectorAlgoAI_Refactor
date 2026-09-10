@@ -61,6 +61,18 @@ def optimize_strategy(metrics: dict):
 
         impact = "Higher win rate"
 
+    elif not metrics.get("oos_passed"):
+
+        bottleneck = "Robustness Not Verified"
+
+        recommendations.extend([
+            "Freeze the current rules",
+            "Increase history or signal frequency without changing parameters",
+            "Require at least 30 trades in the untouched hold-out segment"
+        ])
+
+        impact = "A valid hold-out decision"
+
     else:
 
         bottleneck = "No Major Weakness"

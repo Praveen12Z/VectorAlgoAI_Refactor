@@ -12,7 +12,7 @@ import yaml
 from core.data_loader import load_ohlcv
 from core.indicators import apply_all_indicators
 from core.strategy_config import parse_strategy_yaml, StrategyConfig
-from core.backtester_adapter import run_backtest_v2
+from core.backtester_adapter import ExecutionCostModel, run_backtest_v2
 from core.research_score import calculate_research_score
 from core.capital_verdict import get_capital_verdict
 from core.risk_report import build_risk_report
@@ -23,6 +23,7 @@ from core.evidence_policy import evidence_is_sufficient, invalidate_stale_resear
 from core.strategy_optimizer import optimize_strategy
 from core.market_fit_analyzer import analyze_market_fit
 from core.strategy_contract import require_approved_strategy_contract
+from core.validation_engine import run_chronological_validation
 
 from components.research_panel import render_research_panel
 from components.doctor_panel import render_doctor_panel
@@ -30,6 +31,7 @@ from components.root_cause_panel import render_root_cause_panel
 from components.gradecard_panel import render_gradecard_panel
 from components.optimizer_panel import render_optimizer_panel
 from components.market_fit_panel import render_market_fit_panel
+from components.validation_panel import render_validation_panel
 from components.optimizer_panel import render_optimizer_panel
 from components.executive_summary_panel import (
     render_executive_summary
@@ -377,7 +379,7 @@ def run_mvp_dashboard():
         st.session_state["active_workspace_view"] = "home"
 
     inject_workspace_styles()
-    years, show_trade_lines, show_rr_labels = render_workspace_sidebar()
+    years, show_trade_lines, show_rr_labels, validation_settings = render_workspace_sidebar()
     active_stage = st.session_state.get("active_workspace_stage", "home")
     render_workspace_header(active_stage)
 
@@ -395,7 +397,7 @@ def run_mvp_dashboard():
 
     run_clicked = False
     if active_stage == "evidence":
-        st.markdown('<div class="va-page-kicker">Backtest Results</div><div class="va-title">Test the approved rules against history</div><div class="va-subtitle">Baseline execution model. Trading costs and hold-out validation are not yet included.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="va-page-kicker">Backtest Results</div><div class="va-title">Test the approved rules against history</div><div class="va-subtitle">Cost-aware execution with a chronological development and hold-out split.</div>', unsafe_allow_html=True)
         _render_evidence_intro(st.session_state.get("bt_result"))
         if not st.session_state.get("blueprint_approved"):
             st.info("Approve the Rule Blueprint before running the backtest.")
@@ -435,7 +437,24 @@ def run_mvp_dashboard():
                 st.session_state["bt_result"] = {"error": "No price data loaded."}
             else:
                 df_feat = apply_all_indicators(df_price, cfg)
-                metrics, weaknesses, suggestions, trades_df = run_backtest_v2(df_feat, cfg)
+                cost_model = ExecutionCostModel(
+                    spread_points=validation_settings["spread_points"],
+                    slippage_points_per_side=validation_settings["slippage_points_per_side"],
+                    commission_per_unit_round_turn=validation_settings[
+                        "commission_per_unit_round_turn"
+                    ],
+                )
+                validation = run_chronological_validation(
+                    df_feat,
+                    cfg,
+                    cost_model,
+                    holdout_pct=validation_settings["holdout_pct"],
+                )
+                full_result = validation["full"]
+                metrics = full_result["metrics"]
+                weaknesses = full_result["weaknesses"]
+                suggestions = full_result["suggestions"]
+                trades_df = full_result["trades"]
 
                 st.session_state["bt_result"] = {
                     "cfg": cfg,
@@ -444,6 +463,7 @@ def run_mvp_dashboard():
                     "weaknesses": weaknesses,
                     "suggestions": suggestions,
                     "trades_df": trades_df,
+                    "validation": validation,
                     "data_range": (df_price.index[0].date(), df_price.index[-1].date(), len(df_price)),
                 }
 
@@ -472,6 +492,7 @@ def run_mvp_dashboard():
     weaknesses = bt["weaknesses"]
     suggestions = bt["suggestions"]
     trades_df: pd.DataFrame = bt["trades_df"]
+    validation = bt.get("validation", {})
     data_start, data_end, data_bars = bt["data_range"]
 
     # =====================================================
@@ -508,14 +529,17 @@ def run_mvp_dashboard():
         render_gradecard_panel(gradecard)
         return
 
-    st.markdown('<div class="va-section-title">Baseline evidence</div>', unsafe_allow_html=True)
-    st.markdown('<div class="va-section-copy">This is the first historical result for the approved rules. It is evidence to examine—not a capital recommendation.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="va-section-title">Cost-aware full-sample evidence</div>', unsafe_allow_html=True)
+    st.markdown('<div class="va-section-copy">This full-window result includes the selected execution-cost assumptions. Deployment still depends on the separate hold-out decision below.</div>', unsafe_allow_html=True)
     m1, m2, m3, m4, m5 = st.columns(5)
     m1.metric("Total return", f"{metrics.get('total_return_pct', 0.0):.2f} %")
     m2.metric("Profit factor", f"{metrics.get('profit_factor', 0.0):.2f}")
     m3.metric("Win rate", f"{metrics.get('win_rate_pct', 0.0):.2f} %")
     m4.metric("Max drawdown", f"{metrics.get('max_drawdown_pct', 0.0):.2f} %")
     m5.metric("Trades", int(metrics.get("num_trades", 0)))
+
+    if validation:
+        render_validation_panel(validation)
 
     st.markdown('<div class="va-section-title">Trade inspection</div>', unsafe_allow_html=True)
     st.markdown('<div class="va-section-copy">Inspect the executed trades against the price series. Enable trade paths or R labels only when you need them.</div>', unsafe_allow_html=True)

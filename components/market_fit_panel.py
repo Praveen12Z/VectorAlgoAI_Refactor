@@ -15,7 +15,10 @@ def render_market_fit_panel(results, baseline_trades=0):
                 "Cross-market comparison is locked until the baseline strategy has at least 30 trades."
             )
         else:
-            st.warning("No eligible cross-market evidence is available.")
+            st.warning(
+                "Cross-market comparison is locked until market-specific data and "
+                "execution-cost profiles are configured."
+            )
 
         return
 

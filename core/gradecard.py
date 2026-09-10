@@ -80,6 +80,8 @@ def build_gradecard(metrics: dict) -> dict:
         risk = "D"
     else:
         risk = "F"
+    if not robustness_is_verified(metrics) and risk == "A":
+        risk = "B"
 
     # Edge quality
     if not baseline_edge_is_demonstrated(metrics):

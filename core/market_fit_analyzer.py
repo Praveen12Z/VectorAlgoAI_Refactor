@@ -18,9 +18,9 @@ MARKETS = [
 ]
 
 
-def analyze_market_fit(cfg, years=2, baseline_metrics=None):
+def analyze_market_fit(cfg, years=2, baseline_metrics=None, cost_models=None):
 
-    if not evidence_is_sufficient(baseline_metrics):
+    if not evidence_is_sufficient(baseline_metrics) or not cost_models:
         return []
 
     # Expensive data/execution dependencies are intentionally loaded only after
@@ -32,6 +32,9 @@ def analyze_market_fit(cfg, years=2, baseline_metrics=None):
     results = []
 
     for market in MARKETS:
+
+        if market == cfg.market or market not in cost_models:
+            continue
 
         try:
 
@@ -55,7 +58,8 @@ def analyze_market_fit(cfg, years=2, baseline_metrics=None):
             metrics, weaknesses, suggestions, trades_df = (
                 run_backtest_v2(
                     df,
-                    local_cfg
+                    local_cfg,
+                    cost_models[market],
                 )
             )
 

@@ -97,6 +97,8 @@ def build_strategy_doctor(metrics: dict) -> dict:
     if not metrics.get("oos_passed"):
         findings.append("No hold-out or out-of-sample validation has passed.")
         recommendations.append("Reserve unseen data and validate without retuning the rules.")
+        if severity == "LOW":
+            severity = "VALIDATION REQUIRED"
 
     if not findings:
         findings.append("No major structural weaknesses detected.")
