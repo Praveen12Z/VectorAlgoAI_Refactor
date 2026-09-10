@@ -1,5 +1,7 @@
 # core/research_score.py
 
+from core.evidence_policy import evidence_is_sufficient
+
 def calculate_research_score(metrics: dict) -> dict:
 
     pf = float(metrics.get("profit_factor", 0))
@@ -7,6 +9,13 @@ def calculate_research_score(metrics: dict) -> dict:
     drawdown = abs(float(metrics.get("max_drawdown_pct", 0)))
     trades = int(metrics.get("num_trades", 0))
     total_return = float(metrics.get("total_return_pct", 0))
+
+    if not evidence_is_sufficient(metrics):
+        return {
+            "score": None,
+            "grade": "UNSCORED",
+            "sufficient_evidence": False,
+        }
 
     score = 0
 
@@ -110,4 +119,5 @@ def calculate_research_score(metrics: dict) -> dict:
     return {
         "score": score,
         "grade": grade,
+        "sufficient_evidence": True,
     }

@@ -14,7 +14,7 @@ import json
 from typing import Any
 
 
-CONTRACT_VERSION = "1.0"
+CONTRACT_VERSION = "1.1"
 VALID_STATUSES = {"executable", "manual", "ambiguous", "unsupported"}
 
 

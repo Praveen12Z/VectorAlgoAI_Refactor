@@ -1,10 +1,19 @@
 # core/risk_report.py
 
+from core.evidence_policy import evidence_is_sufficient
+
 def build_risk_report(metrics: dict) -> dict:
 
     pf = float(metrics.get("profit_factor", 0))
     dd = abs(float(metrics.get("max_drawdown_pct", 0)))
     trades = int(metrics.get("num_trades", 0))
+
+    if not evidence_is_sufficient(metrics):
+        return {
+            "risk_of_ruin": "UNKNOWN — INSUFFICIENT EVIDENCE",
+            "overfitting_risk": "HIGH",
+            "confidence_score": None,
+        }
 
     # ----------------------------------
     # Risk Of Ruin

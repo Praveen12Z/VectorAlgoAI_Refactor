@@ -16,14 +16,17 @@ def render_research_panel(cfg, data_start, data_end, data_bars, research, verdic
 
     c1, c2, c3 = st.columns(3)
 
+    score = research.get("score")
+    confidence = risk.get("confidence_score")
+
     with c1:
-        st.metric("Research Score", f"{research.get('score', 0)}/100")
+        st.metric("Research Score", f"{score}/100" if score is not None else "Unscored")
 
     with c2:
         st.metric("Capital Verdict", verdict.get("verdict", "-") )
 
     with c3:
-        st.metric("Confidence Score", f"{risk.get('confidence_score', 0)}%")
+        st.metric("Confidence Score", f"{confidence}%" if confidence is not None else "Unscored")
 
     r1, r2 = st.columns(2)
 
@@ -34,8 +37,8 @@ def render_research_panel(cfg, data_start, data_end, data_bars, research, verdic
         st.info(f"Overfitting Risk: {risk.get('overfitting_risk', '-')}")
 
     num_trades = int(metrics.get("num_trades", 0))
-    if num_trades < 20:
+    if num_trades < 30:
         st.warning(
             f"Statistical Validity Warning: only {num_trades} trade(s) found. "
-            "Minimum recommended sample is 20–30 trades before trusting any result."
+            "At least 30 trades are required before VectorAlgoAI scores edge, risk or readiness."
         )

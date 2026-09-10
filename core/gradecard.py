@@ -2,6 +2,8 @@
 
 import math
 
+from core.evidence_policy import evidence_is_sufficient
+
 
 def _safe_float(value, default=0.0):
     try:
@@ -33,6 +35,16 @@ def build_gradecard(metrics: dict) -> dict:
       D = poor
       F = not deployable
     """
+    if not evidence_is_sufficient(metrics):
+        return {
+            "statistical_validity": "UNSCORED",
+            "risk_management": "UNSCORED",
+            "edge_quality": "UNSCORED",
+            "robustness": "UNSCORED",
+            "deployability": "UNSCORED",
+            "overall": "UNSCORED",
+        }
+
     pf = _safe_float(metrics.get("profit_factor", 0))
     win_rate = _safe_float(metrics.get("win_rate_pct", 0))
     drawdown = abs(_safe_float(metrics.get("max_drawdown_pct", 0)))

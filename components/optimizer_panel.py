@@ -2,17 +2,17 @@ import streamlit as st
 
 def render_optimizer_panel(data):
 
-    st.subheader("🚀 AI Strategy Optimizer")
+    st.subheader("🧪 Research Experiments")
 
     st.warning(
         f"Primary Bottleneck: {data['bottleneck']}"
     )
 
-    st.markdown("### Recommended Improvements")
+    st.markdown("### Suggested experiments")
 
     for item in data["recommendations"]:
-        st.write(f"✓ {item}")
+        st.write(f"• {item}")
 
-    st.success(
-        f"Expected Impact: {data['impact']}"
+    st.caption(
+        f"Hypothesis to test: {data['impact']}. This is not a predicted outcome."
     )

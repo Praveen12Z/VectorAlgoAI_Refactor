@@ -21,6 +21,9 @@ def render_ai_strategy_builder_panel(active_stage: str = "thesis"):
 
 def _render_thesis_editor():
     st.markdown('<div class="va-page-kicker">Strategy Brief</div><div class="va-title">Turn your trading idea into testable rules</div><div class="va-subtitle">Describe the edge as you trade it. VectorAlgoAI will expose every assumption before testing.</div>', unsafe_allow_html=True)
+    reset_notice = st.session_state.pop("research_reset_notice", None)
+    if reset_notice:
+        st.info(reset_notice)
     editor, context = st.columns([1.55, .7], gap="medium")
     with editor:
         with st.container(border=True):

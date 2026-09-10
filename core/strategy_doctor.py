@@ -2,6 +2,8 @@
 
 import math
 
+from core.evidence_policy import MIN_SCORABLE_TRADES, evidence_is_sufficient
+
 
 def _safe_float(value, default=0.0):
     try:
@@ -24,6 +26,17 @@ def build_strategy_doctor(metrics: dict) -> dict:
     except Exception:
         trades = 0
     total_return = _safe_float(metrics.get("total_return_pct", 0))
+
+    if not evidence_is_sufficient(metrics):
+        return {
+            "severity": "INCONCLUSIVE",
+            "findings": [
+                f"Only {trades} trade(s) were observed. Performance, edge and risk cannot be scored reliably."
+            ],
+            "recommendations": [
+                f"Collect at least {MIN_SCORABLE_TRADES} trades before evaluating performance or deployment."
+            ],
+        }
 
     findings = []
     recommendations = []

@@ -2,9 +2,7 @@
 
 from copy import deepcopy
 
-from core.data_loader import load_ohlcv
-from core.indicators import apply_all_indicators
-from core.backtester_adapter import run_backtest_v2
+from core.evidence_policy import MIN_SCORABLE_TRADES, evidence_is_sufficient
 
 
 MARKETS = [
@@ -20,7 +18,16 @@ MARKETS = [
 ]
 
 
-def analyze_market_fit(cfg, years=2):
+def analyze_market_fit(cfg, years=2, baseline_metrics=None):
+
+    if not evidence_is_sufficient(baseline_metrics):
+        return []
+
+    # Expensive data/execution dependencies are intentionally loaded only after
+    # the shared evidence gate permits a cross-market experiment.
+    from core.backtester_adapter import run_backtest_v2
+    from core.data_loader import load_ohlcv
+    from core.indicators import apply_all_indicators
 
     results = []
 
@@ -45,7 +52,7 @@ def analyze_market_fit(cfg, years=2):
                 local_cfg
             )
 
-            metrics, trades_df, equity_curve, df_feat = (
+            metrics, weaknesses, suggestions, trades_df = (
                 run_backtest_v2(
                     df,
                     local_cfg
@@ -67,7 +74,7 @@ def analyze_market_fit(cfg, years=2):
             # ---------------------------------
             # Ignore statistically useless runs
             # ---------------------------------
-            if trades < 20:
+            if trades < MIN_SCORABLE_TRADES:
                 continue
 
             confidence_score = (

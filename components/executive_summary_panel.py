@@ -10,12 +10,15 @@ def render_executive_summary(
     market_fit,
 ):
 
-    best_market = "Unknown"
+    best_market = "Not assessed"
 
     if market_fit and len(market_fit) > 0:
         best_market = market_fit[0]["market"]
 
     st.subheader("📋 AI Executive Summary")
+
+    score = research.get("score")
+    score_display = f"{score}/100" if score is not None else "Unscored"
 
     st.info(
         f"""
@@ -27,9 +30,9 @@ Capital Verdict: {verdict['verdict']}
 
 Primary Issue: {optimizer['bottleneck']}
 
-Research Score: {research['score']}/100
+Research Score: {score_display}
 
-Top Recommendation:
+Next research experiment:
 {optimizer['recommendations'][0]}
 """
     )

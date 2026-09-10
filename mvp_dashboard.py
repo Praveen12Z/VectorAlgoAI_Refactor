@@ -19,6 +19,7 @@ from core.risk_report import build_risk_report
 from core.strategy_doctor import build_strategy_doctor
 from core.root_cause_analyzer import analyze_root_cause
 from core.gradecard import build_gradecard
+from core.evidence_policy import evidence_is_sufficient, invalidate_stale_research_state, trade_count
 from core.strategy_optimizer import optimize_strategy
 from core.market_fit_analyzer import analyze_market_fit
 from core.strategy_contract import require_approved_strategy_contract
@@ -363,6 +364,7 @@ Capital readiness is based on the evidence available today. {verdict}
 
 
 def run_mvp_dashboard():
+    invalidate_stale_research_state(st.session_state)
     if "active_workspace_stage" not in st.session_state:
         st.session_state["active_workspace_stage"] = "home"
     if "strategy_yaml" not in st.session_state:
@@ -486,19 +488,21 @@ def run_mvp_dashboard():
     optimizer = optimize_strategy(metrics)
 
     gradecard = build_gradecard(metrics)
+    baseline_trades = trade_count(metrics)
+    can_compare_markets = evidence_is_sufficient(metrics)
 
     if active_stage == "diagnosis":
-        st.markdown('<div class="va-page-kicker">Strategy Diagnosis</div><div class="va-title">Why this version failed</div><div class="va-subtitle">VectorAlgoAI separates observed weaknesses from suggested experiments.</div>', unsafe_allow_html=True)
-        market_fit = analyze_market_fit(cfg, years)
+        st.markdown('<div class="va-page-kicker">Strategy Diagnosis</div><div class="va-title">Why this version is inconclusive</div><div class="va-subtitle">VectorAlgoAI separates observed weaknesses from suggested experiments.</div>', unsafe_allow_html=True)
+        market_fit = analyze_market_fit(cfg, years, metrics) if can_compare_markets else []
         render_doctor_panel(doctor)
         render_root_cause_panel(root_cause)
-        render_market_fit_panel(market_fit)
+        render_market_fit_panel(market_fit, baseline_trades)
         render_optimizer_panel(optimizer)
         return
 
     if active_stage == "readiness":
         st.markdown('<div class="va-page-kicker">Deployment Readiness</div><div class="va-title">Should this strategy receive capital?</div><div class="va-subtitle">Capital decisions are gated by evidence—not optimism.</div>', unsafe_allow_html=True)
-        market_fit = analyze_market_fit(cfg, years)
+        market_fit = analyze_market_fit(cfg, years, metrics) if can_compare_markets else []
         render_executive_summary(research, verdict, doctor, gradecard, optimizer, market_fit)
         render_research_panel(cfg, data_start, data_end, data_bars, research, verdict, risk, metrics)
         render_gradecard_panel(gradecard)

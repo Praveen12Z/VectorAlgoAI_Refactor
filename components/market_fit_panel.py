@@ -2,7 +2,7 @@ import pandas as pd
 import streamlit as st
 
 
-def render_market_fit_panel(results):
+def render_market_fit_panel(results, baseline_trades=0):
 
     st.subheader(
         "🌍 Market Fit Analyzer"
@@ -10,9 +10,12 @@ def render_market_fit_panel(results):
 
     if not results:
 
-        st.warning(
-            "No market fit data available."
-        )
+        if baseline_trades < 30:
+            st.warning(
+                "Cross-market comparison is locked until the baseline strategy has at least 30 trades."
+            )
+        else:
+            st.warning("No eligible cross-market evidence is available.")
 
         return
 
@@ -26,7 +29,7 @@ def render_market_fit_panel(results):
     best = results[0]
 
     st.success(
-        f"🥇 Best Market: "
+        f"Strongest tested market: "
         f"{best['market']} "
         f"(PF {best['profit_factor']})"
     )
