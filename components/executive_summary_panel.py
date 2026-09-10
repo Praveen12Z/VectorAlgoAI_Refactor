@@ -10,10 +10,10 @@ def render_executive_summary(
     market_fit,
 ):
 
-    best_market = "Not assessed"
+    market_candidate = "Not assessed"
 
     if market_fit and len(market_fit) > 0:
-        best_market = market_fit[0]["market"]
+        market_candidate = f"{market_fit[0]['market']} — unvalidated"
 
     st.subheader("📋 AI Executive Summary")
 
@@ -24,7 +24,7 @@ def render_executive_summary(
         f"""
 Strategy Grade: {gradecard['overall']}
 
-Best Market: {best_market}
+Cross-market candidate: {market_candidate}
 
 Capital Verdict: {verdict['verdict']}
 

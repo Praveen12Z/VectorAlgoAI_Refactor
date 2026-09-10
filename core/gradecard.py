@@ -2,7 +2,11 @@
 
 import math
 
-from core.evidence_policy import evidence_is_sufficient
+from core.evidence_policy import (
+    baseline_edge_is_demonstrated,
+    evidence_is_sufficient,
+    robustness_is_verified,
+)
 
 
 def _safe_float(value, default=0.0):
@@ -52,19 +56,21 @@ def build_gradecard(metrics: dict) -> dict:
     total_return = _safe_float(metrics.get("total_return_pct", 0))
 
     # Statistical validity
-    if trades >= 100:
+    if trades >= 250:
         statistical = "A"
-    elif trades >= 50:
+    elif trades >= 100:
         statistical = "B"
-    elif trades >= 30:
+    elif trades >= 50:
         statistical = "C"
-    elif trades >= 20:
+    elif trades >= 30:
         statistical = "D"
     else:
         statistical = "F"
 
     # Risk management
-    if drawdown <= 8:
+    if pf < 1.10:
+        risk = "D"
+    elif drawdown <= 8:
         risk = "A"
     elif drawdown <= 15:
         risk = "B"
@@ -76,46 +82,55 @@ def build_gradecard(metrics: dict) -> dict:
         risk = "F"
 
     # Edge quality
-    if pf >= 1.6 and total_return > 0:
+    if not baseline_edge_is_demonstrated(metrics):
+        edge = "F"
+    elif pf >= 1.6:
         edge = "A"
-    elif pf >= 1.3 and total_return > 0:
+    elif pf >= 1.4:
         edge = "B"
-    elif pf >= 1.1 and total_return > 0:
+    elif pf >= 1.2:
         edge = "C"
-    elif pf >= 1.0:
+    elif pf >= 1.1:
         edge = "D"
     else:
         edge = "F"
 
-    # Robustness proxy: sample size + win rate + PF quality
-    if trades >= 100 and pf >= 1.3 and win_rate >= 45:
+    # Robustness is never inferred from in-sample trade count. It must be
+    # earned through cost-aware and out-of-sample validation.
+    if not robustness_is_verified(metrics):
+        robustness = "UNVERIFIED"
+    elif trades >= 250 and pf >= 1.4:
         robustness = "A"
-    elif trades >= 50 and pf >= 1.15:
+    elif trades >= 100 and pf >= 1.3:
         robustness = "B"
-    elif trades >= 30 and pf >= 1.0:
+    elif trades >= 50 and pf >= 1.2:
         robustness = "C"
-    elif trades >= 20:
+    elif trades >= 30 and pf >= 1.1:
         robustness = "D"
     else:
         robustness = "F"
 
     # Deployability
-    if trades >= 50 and pf >= 1.3 and drawdown <= 15 and total_return > 0:
+    if not baseline_edge_is_demonstrated(metrics) or not robustness_is_verified(metrics):
+        deployability = "F"
+    elif trades >= 100 and pf >= 1.4 and drawdown <= 15:
         deployability = "A"
-    elif trades >= 50 and pf >= 1.15 and drawdown <= 20 and total_return > 0:
+    elif trades >= 50 and pf >= 1.3 and drawdown <= 20:
         deployability = "B"
-    elif trades >= 30 and pf >= 1.0 and total_return > 0:
+    elif trades >= 30 and pf >= 1.2:
         deployability = "C"
     elif trades >= 30:
         deployability = "D"
     else:
         deployability = "F"
 
-    grades = [statistical, risk, edge, robustness, deployability]
+    grades = [statistical, risk, edge, deployability]
     score_map = {"A": 5, "B": 4, "C": 3, "D": 2, "F": 0}
     avg = sum(score_map[g] for g in grades) / len(grades)
 
-    if avg >= 4.5:
+    if edge == "F" or deployability == "F":
+        overall = "F"
+    elif avg >= 4.5:
         overall = "A"
     elif avg >= 3.5:
         overall = "B"

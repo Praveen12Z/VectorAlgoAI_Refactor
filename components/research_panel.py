@@ -26,7 +26,7 @@ def render_research_panel(cfg, data_start, data_end, data_bars, research, verdic
         st.metric("Capital Verdict", verdict.get("verdict", "-") )
 
     with c3:
-        st.metric("Confidence Score", f"{confidence}%" if confidence is not None else "Unscored")
+        st.metric("Evidence Maturity", f"{confidence}%" if confidence is not None else "Unscored")
 
     r1, r2 = st.columns(2)
 

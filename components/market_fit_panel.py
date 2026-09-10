@@ -29,7 +29,7 @@ def render_market_fit_panel(results, baseline_trades=0):
     best = results[0]
 
     st.success(
-        f"Strongest tested market: "
+        f"Strongest baseline candidate (not validated): "
         f"{best['market']} "
         f"(PF {best['profit_factor']})"
     )

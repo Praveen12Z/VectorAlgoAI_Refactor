@@ -7,7 +7,8 @@ from typing import Any
 
 
 MIN_SCORABLE_TRADES = 30
-RESEARCH_ENGINE_VERSION = "strategy-contract-1.1-evidence-1"
+MIN_DEMONSTRATED_PROFIT_FACTOR = 1.10
+RESEARCH_ENGINE_VERSION = "strategy-contract-1.1-evidence-2"
 
 _STALE_RESEARCH_KEYS = (
     "blueprint_yaml",
@@ -30,6 +31,24 @@ def trade_count(metrics: dict[str, Any] | None) -> int:
 
 def evidence_is_sufficient(metrics: dict[str, Any] | None) -> bool:
     return trade_count(metrics) >= MIN_SCORABLE_TRADES
+
+
+def baseline_edge_is_demonstrated(metrics: dict[str, Any] | None) -> bool:
+    """Require more than accounting breakeven before describing an edge."""
+    if not evidence_is_sufficient(metrics):
+        return False
+    try:
+        profit_factor = float((metrics or {}).get("profit_factor", 0))
+        total_return = float((metrics or {}).get("total_return_pct", 0))
+    except (TypeError, ValueError):
+        return False
+    return profit_factor >= MIN_DEMONSTRATED_PROFIT_FACTOR and total_return > 0
+
+
+def robustness_is_verified(metrics: dict[str, Any] | None) -> bool:
+    """Robustness requires both friction-aware and out-of-sample evidence."""
+    values = metrics or {}
+    return bool(values.get("costs_included") and values.get("oos_passed"))
 
 
 def invalidate_stale_research_state(state: MutableMapping[str, Any]) -> bool:

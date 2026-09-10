@@ -303,12 +303,12 @@ def run_backtest_v2(df: pd.DataFrame, cfg: StrategyConfig):
     if num_trades < 20:
         weaknesses.append("Too few trades to determine stability (sample < 20).")
         suggestions.append("Test on more history or trade more frequently.")
-    if pf < 1.0:
-        weaknesses.append("Profit factor below 1 – strategy loses money net of costs.")
-        suggestions.append("Rebuild RR structure; aim for PF > 1.3 on robust samples.")
-    if win_rate_pct < 45:
-        weaknesses.append("Win rate is low (< 45%).")
-        suggestions.append("Improve confluence at entry and tighten stops.")
+    if pf < 1.10:
+        weaknesses.append("No demonstrated baseline edge (profit factor < 1.10 before costs).")
+        suggestions.append("Test one entry or exit change at a time, then add realistic costs.")
+    if win_rate_pct < 45 and pf < 1.10:
+        weaknesses.append("Low win rate is not being offset by sufficient winner size.")
+        suggestions.append("Test entry selectivity separately from stop and target changes.")
     if max_dd_pct < -20:
         weaknesses.append("Max drawdown deeper than -20%.")
         suggestions.append("Reduce risk per trade or add volatility filters.")

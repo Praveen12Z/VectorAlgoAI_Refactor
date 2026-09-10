@@ -60,9 +60,13 @@ def build_strategy_doctor(metrics: dict) -> dict:
             severity = "HIGH"
         findings.append("Strategy has negative expectancy (Profit Factor < 1.00).")
         recommendations.append("Rework entry conditions and risk management.")
+    elif pf < 1.10:
+        severity = "HIGH"
+        findings.append("No baseline edge is demonstrated (Profit Factor < 1.10).")
+        recommendations.append("Do not deploy. Test one change at a time against this baseline.")
     elif pf < 1.20:
-        findings.append("Edge is extremely fragile.")
-        recommendations.append("Increase reward-to-risk ratio or improve filtering.")
+        findings.append("The observed edge is fragile.")
+        recommendations.append("Challenge the edge with realistic costs and hold-out data.")
 
     if dd > 25:
         if severity == "LOW":
@@ -86,6 +90,13 @@ def build_strategy_doctor(metrics: dict) -> dict:
     elif total_return > 0 and trades <= 5:
         findings.append("Positive return achieved with insufficient evidence.")
         recommendations.append("Result may be luck. Gather more samples.")
+
+    if not metrics.get("costs_included"):
+        findings.append("Trading costs are not included, so net expectancy is unknown.")
+        recommendations.append("Add spread, commission and slippage before judging profitability.")
+    if not metrics.get("oos_passed"):
+        findings.append("No hold-out or out-of-sample validation has passed.")
+        recommendations.append("Reserve unseen data and validate without retuning the rules.")
 
     if not findings:
         findings.append("No major structural weaknesses detected.")

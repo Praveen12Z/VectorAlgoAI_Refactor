@@ -64,6 +64,8 @@ def analyze_market_fit(cfg, years=2, baseline_metrics=None):
                 0
             )
 
+            total_return = float(metrics.get("total_return_pct", 0))
+
             trades = int(
                 metrics.get(
                     "num_trades",
@@ -74,7 +76,7 @@ def analyze_market_fit(cfg, years=2, baseline_metrics=None):
             # ---------------------------------
             # Ignore statistically useless runs
             # ---------------------------------
-            if trades < MIN_SCORABLE_TRADES:
+            if trades < MIN_SCORABLE_TRADES or float(pf) < 1.10 or total_return <= 0:
                 continue
 
             confidence_score = (
@@ -90,10 +92,7 @@ def analyze_market_fit(cfg, years=2, baseline_metrics=None):
                         2
                     ),
                     "return_pct": round(
-                        metrics.get(
-                            "total_return_pct",
-                            0
-                        ),
+                            total_return,
                         2
                     ),
                     "trades": trades,

@@ -7,10 +7,13 @@ from core.evidence_policy import (
     invalidate_stale_research_state,
 )
 from core.gradecard import build_gradecard
+from core.capital_verdict import get_capital_verdict
 from core.market_fit_analyzer import analyze_market_fit
 from core.research_score import calculate_research_score
 from core.risk_report import build_risk_report
+from core.root_cause_analyzer import analyze_root_cause
 from core.strategy_doctor import build_strategy_doctor
+from core.strategy_optimizer import optimize_strategy
 
 
 FIVE_TRADE_RESULT = {
@@ -19,6 +22,17 @@ FIVE_TRADE_RESULT = {
     "max_drawdown_pct": -0.5,
     "total_return_pct": 2.0,
     "num_trades": 5,
+}
+
+BREAKEVEN_RESULT = {
+    "profit_factor": 1.00,
+    "win_rate_pct": 40.62,
+    "max_drawdown_pct": -6.01,
+    "total_return_pct": 0.05,
+    "num_trades": 64,
+    "risk_sizing_applied": True,
+    "costs_included": False,
+    "oos_passed": False,
 }
 
 
@@ -43,6 +57,32 @@ class EvidenceHonestyTests(unittest.TestCase):
         self.assertTrue(evidence_is_sufficient(metrics))
         self.assertIsNotNone(calculate_research_score(metrics)["score"])
         self.assertNotEqual("UNSCORED", build_gradecard(metrics)["overall"])
+
+    def test_breakeven_baseline_is_consistently_rejected(self):
+        research = calculate_research_score(BREAKEVEN_RESULT)
+        risk = build_risk_report(BREAKEVEN_RESULT)
+        doctor = build_strategy_doctor(BREAKEVEN_RESULT)
+        root_cause = analyze_root_cause(BREAKEVEN_RESULT)
+        optimizer = optimize_strategy(BREAKEVEN_RESULT)
+        gradecard = build_gradecard(BREAKEVEN_RESULT)
+        verdict = get_capital_verdict(BREAKEVEN_RESULT)
+
+        self.assertEqual(35, research["score"])
+        self.assertEqual("F", research["grade"])
+        self.assertEqual("HIGH", risk["risk_of_ruin"])
+        self.assertEqual("UNKNOWN — NOT VALIDATED", risk["overfitting_risk"])
+        self.assertLessEqual(risk["confidence_score"], 40)
+        self.assertEqual("HIGH", doctor["severity"])
+        self.assertIn("No baseline edge", doctor["findings"][0])
+        self.assertEqual("No Demonstrated Edge", root_cause["main_problem"])
+        self.assertEqual("No Demonstrated Edge", optimizer["bottleneck"])
+        self.assertEqual("C", gradecard["statistical_validity"])
+        self.assertEqual("D", gradecard["risk_management"])
+        self.assertEqual("F", gradecard["edge_quality"])
+        self.assertEqual("UNVERIFIED", gradecard["robustness"])
+        self.assertEqual("F", gradecard["deployability"])
+        self.assertEqual("F", gradecard["overall"])
+        self.assertEqual("❌ DO NOT DEPLOY — NO DEMONSTRATED EDGE", verdict["verdict"])
 
     def test_engine_change_invalidates_generated_research_but_preserves_thesis(self):
         state = {

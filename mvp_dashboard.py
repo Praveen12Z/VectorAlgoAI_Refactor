@@ -492,7 +492,7 @@ def run_mvp_dashboard():
     can_compare_markets = evidence_is_sufficient(metrics)
 
     if active_stage == "diagnosis":
-        st.markdown('<div class="va-page-kicker">Strategy Diagnosis</div><div class="va-title">Why this version is inconclusive</div><div class="va-subtitle">VectorAlgoAI separates observed weaknesses from suggested experiments.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="va-page-kicker">Strategy Diagnosis</div><div class="va-title">Why this version is not capital-ready</div><div class="va-subtitle">VectorAlgoAI separates observed weaknesses from suggested experiments.</div>', unsafe_allow_html=True)
         market_fit = analyze_market_fit(cfg, years, metrics) if can_compare_markets else []
         render_doctor_panel(doctor)
         render_root_cause_panel(root_cause)

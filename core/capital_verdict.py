@@ -15,8 +15,8 @@ def get_capital_verdict(metrics: dict) -> dict:
         verdict = "⚠ INSUFFICIENT DATA"
         color = "orange"
 
-    elif pf < 1:
-        verdict = "❌ DO NOT DEPLOY"
+    elif pf < 1.10 or float(metrics.get("total_return_pct", 0)) <= 0:
+        verdict = "❌ DO NOT DEPLOY — NO DEMONSTRATED EDGE"
         color = "red"
 
     elif not metrics.get("costs_included") or not metrics.get("oos_passed"):

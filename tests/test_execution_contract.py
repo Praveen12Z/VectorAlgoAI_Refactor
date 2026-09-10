@@ -75,6 +75,7 @@ class ExecutionContractTests(unittest.TestCase):
         verdict = get_capital_verdict(
             {
                 "profit_factor": 2.0,
+                "total_return_pct": 20.0,
                 "max_drawdown_pct": -8.0,
                 "num_trades": 100,
                 "win_rate_pct": 60.0,

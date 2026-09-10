@@ -27,20 +27,20 @@ def analyze_root_cause(metrics: dict) -> dict:
             "Gather at least 30 trades",
         ]
 
-    elif pf < 1:
+    elif pf < 1.10:
 
-        main_problem = "Negative Expectancy"
+        main_problem = "No Demonstrated Edge"
 
         explanation = (
-            f"Profit Factor is {pf:.2f}. "
-            "Losses exceed gains."
+            f"Profit Factor is {pf:.2f}. The baseline is too close to breakeven "
+            "to survive unmodelled trading costs with confidence."
         )
 
         fixes = [
             "Improve entry quality",
-            "Increase reward/risk ratio",
-            "Add trend filter",
-            "Avoid weak setups",
+            "Test entry selectivity as one controlled change",
+            "Test stop and target placement separately",
+            "Add realistic costs before comparing variants",
         ]
 
     elif dd > 25:

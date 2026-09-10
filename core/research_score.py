@@ -1,6 +1,6 @@
 # core/research_score.py
 
-from core.evidence_policy import evidence_is_sufficient
+from core.evidence_policy import baseline_edge_is_demonstrated, evidence_is_sufficient
 
 def calculate_research_score(metrics: dict) -> dict:
 
@@ -96,6 +96,11 @@ def calculate_research_score(metrics: dict) -> dict:
         score = min(score, 70)
 
     score = max(0, min(100, score))
+
+    # Sample size and a shallow drawdown cannot compensate for the absence of
+    # economic edge.  A near-breakeven PF is especially vulnerable to costs.
+    if not baseline_edge_is_demonstrated(metrics):
+        score = min(score, 35)
 
     # =====================================
     # Grade

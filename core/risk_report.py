@@ -1,6 +1,10 @@
 # core/risk_report.py
 
-from core.evidence_policy import evidence_is_sufficient
+from core.evidence_policy import (
+    baseline_edge_is_demonstrated,
+    evidence_is_sufficient,
+    robustness_is_verified,
+)
 
 def build_risk_report(metrics: dict) -> dict:
 
@@ -19,7 +23,9 @@ def build_risk_report(metrics: dict) -> dict:
     # Risk Of Ruin
     # ----------------------------------
 
-    if pf >= 1.5 and dd < 10:
+    if not baseline_edge_is_demonstrated(metrics):
+        risk_of_ruin = "HIGH"
+    elif pf >= 1.5 and dd < 10:
         risk_of_ruin = "LOW"
 
     elif pf >= 1.1 and dd < 20:
@@ -32,12 +38,10 @@ def build_risk_report(metrics: dict) -> dict:
     # Overfitting Risk
     # ----------------------------------
 
-    if trades < 20:
-        overfitting = "HIGH"
-
-    elif trades < 50:
+    if not robustness_is_verified(metrics):
+        overfitting = "UNKNOWN — NOT VALIDATED"
+    elif trades < 100:
         overfitting = "MEDIUM"
-
     else:
         overfitting = "LOW"
 
@@ -46,19 +50,18 @@ def build_risk_report(metrics: dict) -> dict:
     # ----------------------------------
 
     if trades >= 200:
-        confidence = 90
-
+        confidence = 70
     elif trades >= 100:
-        confidence = 75
-
-    elif trades >= 50:
-        confidence = 60
-
-    elif trades >= 20:
+        confidence = 55
+    else:
         confidence = 40
 
-    else:
-        confidence = 20
+    if metrics.get("costs_included"):
+        confidence += 15
+    if metrics.get("oos_passed"):
+        confidence += 15
+    if not baseline_edge_is_demonstrated(metrics):
+        confidence = min(confidence, 40)
 
     return {
         "risk_of_ruin": risk_of_ruin,

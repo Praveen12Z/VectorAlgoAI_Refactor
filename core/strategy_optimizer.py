@@ -24,18 +24,18 @@ def optimize_strategy(metrics: dict):
 
         impact = "Higher confidence"
 
-    elif pf < 1:
+    elif pf < 1.10:
 
-        bottleneck = "Negative Expectancy"
+        bottleneck = "No Demonstrated Edge"
 
         recommendations.extend([
-            "Add trend filter",
-            "Avoid ranging markets",
-            "Increase reward/risk ratio",
-            "Improve entry quality"
+            "Test entry selectivity as one controlled change",
+            "Test stop and target placement separately",
+            "Add realistic costs before comparing variants",
+            "Keep an untouched hold-out sample"
         ])
 
-        impact = "PF may improve above 1.10"
+        impact = "A measurable improvement over the baseline"
 
     elif dd > 20:
 
