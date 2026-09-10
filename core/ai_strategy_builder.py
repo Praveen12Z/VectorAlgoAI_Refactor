@@ -55,7 +55,7 @@ def build_strategy_from_text(text: str) -> dict:
         if not period_match:
             _assume(assumptions, "RSI period", 14, "No RSI lookback was supplied.")
         threshold_match = re.search(
-            r"\brsi(?:\s*[-:]?\s*\d{1,2})?\s*(?:is\s*)?"
+            r"\brsi(?:\s*[-:]?\s*\d{1,2})?\s*(?:(?:is|remains|stays)\s*)?"
             r"(above|over|greater than|below|under|less than|>|<)\s*(\d{1,3}(?:\.\d+)?)",
             txt,
         )

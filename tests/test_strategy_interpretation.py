@@ -66,6 +66,16 @@ class StrategyInterpretationTests(unittest.TestCase):
 
         self.assertIn({"left": "rsi9", "op": "<", "right": 30.0}, contract["entry"]["long"])
 
+    def test_rsi_remains_above_is_treated_as_explicit(self):
+        schema = build_strategy_from_text(
+            "Trade EMA20 above EMA50 pullbacks when RSI14 remains above 45, "
+            "with an ATR14 stop, target 2R, risk 0.5%, account €25,000."
+        )
+        contract = yaml.safe_load(compile_schema_to_yaml(schema, "NAS100", "1d"))
+
+        self.assertIn({"left": "rsi14", "op": ">", "right": 45.0}, contract["entry"]["long"])
+        self.assertNotIn("RSI threshold", {item["field"] for item in schema["assumptions"]})
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -6,7 +6,7 @@ import yaml
 from core.ai_strategy_builder import build_strategy_from_text
 from core.schema_to_yaml_compiler import compile_schema_to_yaml
 from core.research_contract import strategy_contract_issues
-from core.strategy_contract import approve_strategy_contract
+from core.strategy_contract import CONTRACT_VERSION, approve_strategy_contract
 
 
 def render_ai_strategy_builder_panel(active_stage: str = "thesis"):
@@ -127,7 +127,10 @@ def _render_blueprint():
         contract = parsed_yaml.get("strategy_contract", {}) if isinstance(parsed_yaml, dict) else {}
         rules = contract.get("rules", []) if isinstance(contract, dict) else []
         if rules:
-            st.markdown('<div class="va-section-title">Strategy Contract v1 · capability review</div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="va-section-title">Strategy Contract v{CONTRACT_VERSION} · capability review</div>',
+                unsafe_allow_html=True,
+            )
             st.caption("Every material rule must be executable before this contract can be approved for automated testing.")
             status_icons = {
                 "executable": "✅",
