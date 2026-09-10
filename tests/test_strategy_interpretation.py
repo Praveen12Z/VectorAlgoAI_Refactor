@@ -42,6 +42,24 @@ class StrategyInterpretationTests(unittest.TestCase):
             "Research capital",
         }.issubset(fields))
 
+    def test_capital_is_preserved_in_natural_account_phrasings(self):
+        phrasings = (
+            "risk 0.5% of a €25,000 account",
+            "risk 0.5%, account €25,000",
+            "risk 0.5% on a $25,000 trading account",
+            "risk 0.5%, capital 25000",
+        )
+        for phrase in phrasings:
+            with self.subTest(phrase=phrase):
+                schema = build_strategy_from_text(
+                    f"Trade EMA20 pullbacks with an ATR14 stop, target 2R, {phrase}."
+                )
+                self.assertEqual(25000.0, schema["risk"]["capital"])
+                self.assertNotIn(
+                    "Research capital",
+                    {item["field"] for item in schema["assumptions"]},
+                )
+
     def test_rsi_below_is_not_rewritten_as_above(self):
         schema = build_strategy_from_text("Enter at support when RSI 9 below 30, risk 1%.")
         contract = yaml.safe_load(compile_schema_to_yaml(schema, "XAUUSD", "15m"))

@@ -11,6 +11,12 @@ ACTIVE_SUBSCRIPTION_STATUSES = frozenset({"active", "trialing"})
 REQUEST_TIMEOUT_SECONDS = 15
 
 
+def valid_email_code(code: str) -> bool:
+    """Accept Supabase's configurable numeric OTP lengths without truncation."""
+    normalized = code.strip()
+    return normalized.isdigit() and 6 <= len(normalized) <= 10
+
+
 class AccessConfigurationError(RuntimeError):
     pass
 

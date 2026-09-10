@@ -4,7 +4,13 @@ from __future__ import annotations
 from html import escape
 import streamlit as st
 
-from core.auth import AccessConfigurationError, AccessServiceError, AuthSession, SupabaseAccessClient
+from core.auth import (
+    AccessConfigurationError,
+    AccessServiceError,
+    AuthSession,
+    SupabaseAccessClient,
+    valid_email_code,
+)
 
 APP_URL = "https://vectoralgoai.streamlit.app"
 OWNER_EMAIL = "yadavpraveen898@gmail.com"
@@ -211,7 +217,7 @@ def _render_email_code_pending(client: SupabaseAccessClient) -> bool:
         <section class="vai-confirm">
           <div class="vai-confirm-icon">✉</div>
           <h2>Check your email</h2>
-          <p>Enter the six-digit secure code sent to</p>
+          <p>Enter the secure code sent to</p>
           <div class="vai-confirm-email">{safe_email}</div>
           <p>The same code securely creates a new account or signs in an existing member.</p>
           <p class="vai-confirm-note">The code expires shortly. Check spam or promotions if it has not arrived.</p>
@@ -220,7 +226,7 @@ def _render_email_code_pending(client: SupabaseAccessClient) -> bool:
         unsafe_allow_html=True,
     )
     with st.form("email_code_form"):
-        code = st.text_input("Secure code", max_chars=6, placeholder="000000")
+        code = st.text_input("Secure code", max_chars=10, placeholder="Enter your code")
         submitted = st.form_submit_button("Continue securely", use_container_width=True)
     change_col, resend_col = st.columns(2)
     with change_col:
@@ -235,8 +241,8 @@ def _render_email_code_pending(client: SupabaseAccessClient) -> bool:
             except AccessServiceError as exc:
                 st.error(_friendly_reset_error(exc))
     if submitted:
-        if len(code.strip()) != 6 or not code.strip().isdigit():
-            st.error("Enter the six-digit code from your email.")
+        if not valid_email_code(code):
+            st.error("Enter the complete numeric code from your email.")
         else:
             try:
                 st.session_state["auth_session"] = client.verify_email_code(str(email), code)

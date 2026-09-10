@@ -12,6 +12,7 @@ from core.auth import (
     AuthSession,
     Subscription,
     SupabaseAccessClient,
+    valid_email_code,
 )
 
 
@@ -35,6 +36,13 @@ class FakeHttp:
 
 
 class PaidAccessTests(unittest.TestCase):
+    def test_email_code_validation_does_not_truncate_configured_otp_lengths(self):
+        self.assertTrue(valid_email_code("123456"))
+        self.assertTrue(valid_email_code("12345678"))
+        self.assertTrue(valid_email_code(" 1234567890 "))
+        for invalid in ("12345", "12345678901", "12 3456", "abcdef"):
+            self.assertFalse(valid_email_code(invalid))
+
     def test_missing_configuration_fails_closed(self):
         with self.assertRaises(AccessConfigurationError):
             SupabaseAccessClient("", "")

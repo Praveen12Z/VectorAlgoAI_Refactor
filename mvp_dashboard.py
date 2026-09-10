@@ -448,6 +448,10 @@ def run_mvp_dashboard():
         except Exception as e:
             st.session_state["bt_result"] = {"error": str(e), "traceback": traceback.format_exc()}
 
+        # The banner is rendered before the action button. Start a clean pass
+        # so it immediately reflects the result generated above.
+        st.rerun()
+
     bt = st.session_state.get("bt_result")
     if bt is None:
         st.info("Run an evidence test to unlock this research stage.")

@@ -14,6 +14,20 @@ def _assume(items: list[dict], field: str, value, reason: str) -> None:
     items.append({"field": field, "value": value, "reason": reason})
 
 
+def _extract_research_capital(text: str) -> float | None:
+    """Extract account capital whether the amount appears before or after its label."""
+    amount = r"([\d][\d,]*(?:\.\d+)?)"
+    patterns = (
+        rf"(?:capital|account(?:\s+size)?)[^\d€$£]{{0,20}}[€$£]?\s*{amount}",
+        rf"[€$£]?\s*{amount}\s*(?:[€$£]\s*)?(?:trading\s+|research\s+)?(?:account|capital)\b",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, text)
+        if match:
+            return float(match.group(1).replace(",", ""))
+    return None
+
+
 def build_strategy_from_text(text: str) -> dict:
     schema = UniversalStrategy()
     txt = text.lower()
@@ -116,9 +130,9 @@ def build_strategy_from_text(text: str) -> dict:
     if not risk_match:
         _assume(assumptions, "Risk per trade", "1%", "No position-risk percentage was supplied.")
 
-    capital_match = re.search(r"(?:capital|account)[^\d€$]{0,12}[€$]?\s*([\d,]+(?:\.\d+)?)", txt)
-    capital = float(capital_match.group(1).replace(",", "")) if capital_match else 10000.0
-    if not capital_match:
+    explicit_capital = _extract_research_capital(txt)
+    capital = explicit_capital if explicit_capital is not None else 10000.0
+    if explicit_capital is None:
         _assume(assumptions, "Research capital", 10000, "No account capital was supplied.")
 
     result = schema.to_dict()
