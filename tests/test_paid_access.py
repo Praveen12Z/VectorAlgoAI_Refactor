@@ -35,6 +35,11 @@ class FakeHttp:
         return self.responses.pop(0)
 
 
+class FailingHttp:
+    def request(self, method, url, **kwargs):
+        raise ConnectionError("offline")
+
+
 class PaidAccessTests(unittest.TestCase):
     def test_email_code_validation_does_not_truncate_configured_otp_lengths(self):
         self.assertTrue(valid_email_code("123456"))
@@ -109,6 +114,27 @@ class PaidAccessTests(unittest.TestCase):
             FakeHttp([FakeResponse(status_code=401, payload={"message": "Invalid login"})]))
         with self.assertRaises(AccessServiceError):
             client.sign_in("x@example.com", "wrong")
+
+    def test_connection_errors_become_safe_service_errors(self):
+        client = SupabaseAccessClient(
+            "https://example.supabase.co", "public-key", FailingHttp()
+        )
+        with self.assertRaisesRegex(AccessServiceError, "could not be reached"):
+            client.send_email_code("x@example.com")
+
+    def test_research_record_is_scoped_to_authenticated_user(self):
+        http = FakeHttp([FakeResponse(payload=[{"id": "record-1"}])])
+        client = SupabaseAccessClient("https://example.supabase.co", "public-key", http)
+        session = AuthSession("private-token", "refresh", "user-7", "x@example.com")
+
+        saved = client.save_research_record(session, {"record_hash": "hash-1"})
+
+        self.assertEqual("record-1", saved["id"])
+        call = http.calls[0]
+        self.assertEqual("POST", call[0])
+        self.assertEqual("Bearer private-token", call[2]["headers"]["Authorization"])
+        self.assertEqual("user-7", call[2]["json"]["user_id"])
+        self.assertEqual("user_id,record_hash", call[2]["params"]["on_conflict"])
 
     def test_recovery_token_is_verified_before_password_update(self):
         http = FakeHttp([

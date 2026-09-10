@@ -2,6 +2,7 @@
 # VectorAlgoAI – Strategy Crash-Test MVP Dashboard
 # (Public MVP mode: website handles signup; saving/accounts disabled for now)
 import traceback
+import json
 from typing import Dict, Any
 
 import pandas as pd
@@ -24,6 +25,14 @@ from core.strategy_optimizer import optimize_strategy
 from core.market_fit_analyzer import analyze_market_fit
 from core.strategy_contract import require_approved_strategy_contract
 from core.validation_engine import run_chronological_validation
+from core.regime_analyzer import analyze_regime_shift
+from core.research_record import build_research_record
+from core.auth import (
+    AccessConfigurationError,
+    AccessServiceError,
+    AuthSession,
+    SupabaseAccessClient,
+)
 
 from components.research_panel import render_research_panel
 from components.doctor_panel import render_doctor_panel
@@ -32,6 +41,7 @@ from components.gradecard_panel import render_gradecard_panel
 from components.optimizer_panel import render_optimizer_panel
 from components.market_fit_panel import render_market_fit_panel
 from components.validation_panel import render_validation_panel
+from components.regime_panel import render_regime_panel
 from components.optimizer_panel import render_optimizer_panel
 from components.executive_summary_panel import (
     render_executive_summary
@@ -168,6 +178,42 @@ risk:
 """
 
 
+def _research_storage_client() -> tuple[SupabaseAccessClient, AuthSession]:
+    session = st.session_state.get("auth_session")
+    if not isinstance(session, AuthSession):
+        raise AccessServiceError("Sign in before saving a permanent research record.")
+    try:
+        config = st.secrets["supabase"]
+        return SupabaseAccessClient(config["url"], config["anon_key"]), session
+    except (AccessConfigurationError, KeyError, TypeError, AttributeError) as exc:
+        raise AccessServiceError("Permanent research storage is not configured.") from exc
+
+
+def _persist_research_record(record: dict) -> dict:
+    try:
+        client, session = _research_storage_client()
+        saved = client.save_research_record(session, record)
+        return {
+            "saved": True,
+            "record_id": saved.get("id"),
+            "record_hash": record["record_hash"],
+        }
+    except (AccessConfigurationError, AccessServiceError):
+        return {
+            "saved": False,
+            "record_hash": record["record_hash"],
+            "message": (
+                "Permanent storage is pending database setup. Download this evidence record now; "
+                "the backtest result itself remains available in this session."
+            ),
+        }
+
+
+def _load_research_records() -> list[dict]:
+    client, session = _research_storage_client()
+    return [dict(item) for item in client.research_records(session)]
+
+
 def _render_evidence_intro(bt: Dict[str, Any] | None) -> None:
     """Keep the evidence screen calm: state first, detailed proof second."""
     if bt is None:
@@ -281,7 +327,20 @@ def _render_workspace_landing(view: str) -> None:
         )
     elif view == "library":
         st.markdown('<div class="va-page-kicker">Strategy library</div><div class="va-title">Research records, not signal lists.</div><div class="va-subtitle">Saved strategies and their evidence will live here. The first record is created when you approve your thesis.</div>', unsafe_allow_html=True)
-        st.info("No saved strategy records yet. Start a New strategy to create the first research record.")
+        try:
+            records = _load_research_records()
+        except AccessServiceError:
+            st.warning("Permanent Strategy Library storage is not ready yet.")
+            return
+        if not records:
+            st.info("No permanent research records yet. Run an approved evidence test to create one.")
+            return
+        library = pd.DataFrame(records)
+        columns = [
+            "strategy_name", "market", "timeframe", "validation_status",
+            "validation_passed", "data_start", "data_end", "created_at",
+        ]
+        st.dataframe(library[[column for column in columns if column in library]], use_container_width=True, hide_index=True)
     else:
         st.markdown('<div class="va-page-kicker">Settings</div><div class="va-title">Workspace settings</div><div class="va-subtitle">Account and research defaults will be configured here as the MVP grows.</div>', unsafe_allow_html=True)
         st.markdown('<div class="va-card"><div class="va-card-title">Current default</div><div class="va-card-value">NAS100 · 1h research timeframe</div></div>', unsafe_allow_html=True)
@@ -450,11 +509,21 @@ def run_mvp_dashboard():
                     cost_model,
                     holdout_pct=validation_settings["holdout_pct"],
                 )
+                regime_analysis = analyze_regime_shift(df_feat, cfg, validation)
+                validation["regime_analysis"] = regime_analysis
                 full_result = validation["full"]
                 metrics = full_result["metrics"]
                 weaknesses = full_result["weaknesses"]
                 suggestions = full_result["suggestions"]
                 trades_df = full_result["trades"]
+                record = build_research_record(
+                    strategy_name=st.session_state.get("current_strategy_name") or cfg.name,
+                    strategy_yaml=evidence_yaml,
+                    contract=evidence_contract,
+                    cfg=cfg,
+                    validation=validation,
+                )
+                persistence = _persist_research_record(record)
 
                 st.session_state["bt_result"] = {
                     "cfg": cfg,
@@ -464,6 +533,8 @@ def run_mvp_dashboard():
                     "suggestions": suggestions,
                     "trades_df": trades_df,
                     "validation": validation,
+                    "research_record": record,
+                    "persistence": persistence,
                     "data_range": (df_price.index[0].date(), df_price.index[-1].date(), len(df_price)),
                 }
 
@@ -493,6 +564,9 @@ def run_mvp_dashboard():
     suggestions = bt["suggestions"]
     trades_df: pd.DataFrame = bt["trades_df"]
     validation = bt.get("validation", {})
+    regime_analysis = validation.get("regime_analysis", {})
+    research_record = bt.get("research_record", {})
+    persistence = bt.get("persistence", {})
     data_start, data_end, data_bars = bt["data_range"]
 
     # =====================================================
@@ -517,6 +591,8 @@ def run_mvp_dashboard():
         market_fit = analyze_market_fit(cfg, years, metrics) if can_compare_markets else []
         render_doctor_panel(doctor)
         render_root_cause_panel(root_cause)
+        if regime_analysis:
+            render_regime_panel(regime_analysis)
         render_market_fit_panel(market_fit, baseline_trades)
         render_optimizer_panel(optimizer)
         return
@@ -540,6 +616,19 @@ def run_mvp_dashboard():
 
     if validation:
         render_validation_panel(validation)
+    if persistence.get("saved"):
+        st.success(
+            f"Permanent evidence record saved · {persistence.get('record_hash', '')[:12]}"
+        )
+    elif persistence:
+        st.warning(persistence.get("message", "Permanent evidence storage is unavailable."))
+    if research_record:
+        st.download_button(
+            "Download immutable evidence record",
+            json.dumps(research_record, indent=2, ensure_ascii=False).encode("utf-8"),
+            file_name=f"{research_record['record_hash'][:12]}_evidence.json",
+            mime="application/json",
+        )
 
     st.markdown('<div class="va-section-title">Trade inspection</div>', unsafe_allow_html=True)
     st.markdown('<div class="va-section-copy">Inspect the executed trades against the price series. Enable trade paths or R labels only when you need them.</div>', unsafe_allow_html=True)

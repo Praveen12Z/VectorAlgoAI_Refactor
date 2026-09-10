@@ -10,6 +10,9 @@ from core.backtester_adapter import ExecutionCostModel, run_backtest_v2
 from core.evidence_policy import MIN_SCORABLE_TRADES, baseline_edge_is_demonstrated
 
 
+MIN_ADVERSE_HOLDOUT_TRADES = 10
+
+
 def _period(df: pd.DataFrame) -> tuple[Any, Any, int]:
     if df.empty:
         return None, None, 0
@@ -25,6 +28,22 @@ def _comparison_status(development: dict, holdout: dict, costs_included: bool) -
             "status": "COSTS REQUIRED",
             "passed": False,
             "reason": "At least one non-zero execution-cost assumption is required.",
+        }
+    holdout_pf = float(holdout.get("profit_factor", 0))
+    holdout_return = float(holdout.get("total_return_pct", 0))
+    if (
+        holdout_trades >= MIN_ADVERSE_HOLDOUT_TRADES
+        and holdout_trades < MIN_SCORABLE_TRADES
+        and (holdout_pf < 0.80 or holdout_return < 0)
+    ):
+        return {
+            "status": "HOLD-OUT ADVERSE — SAMPLE TOO SMALL",
+            "passed": False,
+            "reason": (
+                f"Hold-out produced only {holdout_trades} trades, so the result is not "
+                f"conclusive; however PF {holdout_pf:.2f} and return {holdout_return:.2f}% "
+                "are materially adverse and prohibit deployment."
+            ),
         }
     if development_trades < MIN_SCORABLE_TRADES or holdout_trades < MIN_SCORABLE_TRADES:
         return {
@@ -49,7 +68,6 @@ def _comparison_status(development: dict, holdout: dict, costs_included: bool) -
         }
 
     development_pf = float(development.get("profit_factor", 0))
-    holdout_pf = float(holdout.get("profit_factor", 0))
     retention = holdout_pf / development_pf if development_pf > 0 else 0.0
     holdout_drawdown = abs(float(holdout.get("max_drawdown_pct", 0)))
     if retention < 0.70:

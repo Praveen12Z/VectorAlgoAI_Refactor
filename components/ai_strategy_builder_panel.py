@@ -39,7 +39,7 @@ def _render_thesis_editor():
             st.markdown('<div class="va-panel-accent-teal"></div><div class="va-panel-title">Research setup</div><div class="va-panel-copy">Applied to the first evidence run</div><div style="height:.8rem"></div>', unsafe_allow_html=True)
             market = st.selectbox("Market", ["NAS100", "XAUUSD", "US30", "BTCUSD", "ETHUSD"], key="ai_market")
             timeframe = st.selectbox("Primary timeframe", ["15m", "1h", "4h", "1d"], index=1, key="ai_timeframe")
-            st.markdown('<div class="va-chip">Cost model · pending</div><div class="va-chip">Hold-out · pending</div><div class="va-panel-copy" style="margin-top:.9rem">Baseline research only. Missing evidence remains visible.</div>', unsafe_allow_html=True)
+            st.markdown('<div class="va-chip">Cost model · explicit</div><div class="va-chip">Hold-out · chronological</div><div class="va-panel-copy" style="margin-top:.9rem">Execution assumptions are configured before evidence generation.</div>', unsafe_allow_html=True)
 
     if st.button(
         "Build Rule Blueprint  →", use_container_width=True, type="primary"

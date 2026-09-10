@@ -64,6 +64,24 @@ class ValidationEngineTests(unittest.TestCase):
         self.assertIn("12", result["reason"])
         self.assertFalse(result["full"]["metrics"]["oos_passed"])
 
+    def test_small_but_materially_adverse_holdout_is_named_honestly(self):
+        adverse = self._result(0.52, 12)
+        adverse[0]["total_return_pct"] = -2.73
+        responses = [
+            self._result(1.31, 42),
+            self._result(1.87, 30),
+            adverse,
+        ]
+        with patch("core.validation_engine.run_backtest_v2", side_effect=responses):
+            result = run_chronological_validation(
+                self.data, object(), self.costs, holdout_pct=30
+            )
+
+        self.assertFalse(result["passed"])
+        self.assertEqual("HOLD-OUT ADVERSE — SAMPLE TOO SMALL", result["status"])
+        self.assertIn("not conclusive", result["reason"])
+        self.assertIn("prohibit deployment", result["reason"])
+
 
 if __name__ == "__main__":
     unittest.main()

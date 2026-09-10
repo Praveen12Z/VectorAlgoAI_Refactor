@@ -68,7 +68,12 @@ class SupabaseAccessClient:
 
     def _request(self, method: str, endpoint: str, **kwargs: Any) -> Any:
         kwargs.setdefault("timeout", REQUEST_TIMEOUT_SECONDS)
-        response = self.http.request(method, endpoint, **kwargs)
+        try:
+            response = self.http.request(method, endpoint, **kwargs)
+        except Exception as exc:
+            raise AccessServiceError(
+                "The access service could not be reached. Please try again shortly."
+            ) from exc
         if response.status_code >= 400:
             try:
                 body = response.json()
@@ -143,6 +148,42 @@ class SupabaseAccessClient:
         row = rows[0]
         return Subscription(str(row.get("status") or "none").lower(), row.get("price_id"),
                             row.get("current_period_end"), bool(row.get("cancel_at_period_end", False)))
+
+    def save_research_record(
+        self, session: AuthSession, record: Mapping[str, Any]
+    ) -> Mapping[str, Any]:
+        payload = {**dict(record), "user_id": session.user_id}
+        response = self._request(
+            "POST",
+            f"{self.url}/rest/v1/research_records",
+            headers={
+                **self.public_headers,
+                "Authorization": f"Bearer {session.access_token}",
+                "Prefer": "return=representation,resolution=ignore-duplicates",
+            },
+            params={"on_conflict": "user_id,record_hash"},
+            json=payload,
+        )
+        rows = response.json()
+        return rows[0] if isinstance(rows, list) and rows else payload
+
+    def research_records(self, session: AuthSession, limit: int = 25) -> list[Mapping[str, Any]]:
+        response = self._request(
+            "GET",
+            f"{self.url}/rest/v1/research_records",
+            headers={**self.public_headers, "Authorization": f"Bearer {session.access_token}"},
+            params={
+                "select": (
+                    "id,record_hash,strategy_name,market,timeframe,validation_status,"
+                    "validation_passed,data_start,data_end,created_at"
+                ),
+                "user_id": f"eq.{session.user_id}",
+                "order": "created_at.desc",
+                "limit": str(max(1, min(int(limit), 100))),
+            },
+        )
+        rows = response.json()
+        return rows if isinstance(rows, list) else []
 
     def invoke(self, function_name: str, session: AuthSession) -> str:
         response = self._request(
