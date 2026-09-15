@@ -23,6 +23,24 @@ def _profit_factor(pnl: pd.Series) -> float:
     return gains / losses
 
 
+def _profit_factor_observation(development_pf: float, holdout_pf: float) -> str:
+    """Describe direction without turning an association into a causal claim."""
+    if math.isnan(development_pf) or math.isnan(holdout_pf):
+        return "Development and hold-out PF could not be compared reliably."
+
+    if math.isclose(development_pf, holdout_pf, rel_tol=0.0, abs_tol=0.05):
+        direction = "little observed change"
+    elif holdout_pf > development_pf:
+        direction = "an observed improvement"
+    else:
+        direction = "observed degradation"
+
+    return (
+        f"Hold-out PF changed from {development_pf:.2f} to {holdout_pf:.2f}; "
+        f"this is {direction}, not proof of cause."
+    )
+
+
 def _trade_rows(trades: pd.DataFrame, labels: pd.DataFrame, segment: str) -> list[dict[str, Any]]:
     if trades is None or trades.empty or "entry_time" not in trades.columns:
         return []
@@ -116,9 +134,10 @@ def analyze_regime_shift(df: pd.DataFrame, cfg, validation: dict) -> dict:
     development_metrics = development.get("metrics", {})
     holdout_metrics = holdout.get("metrics", {})
     observations = [
-        "Hold-out PF changed from "
-        f"{float(development_metrics.get('profit_factor', 0)):.2f} to "
-        f"{float(holdout_metrics.get('profit_factor', 0)):.2f}; this is observed degradation, not proof of cause."
+        _profit_factor_observation(
+            float(development_metrics.get("profit_factor", 0)),
+            float(holdout_metrics.get("profit_factor", 0)),
+        )
     ]
     dev_context = context(development_context)
     hold_context = context(holdout_context)

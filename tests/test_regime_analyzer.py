@@ -3,10 +3,15 @@ from types import SimpleNamespace
 
 import pandas as pd
 
-from core.regime_analyzer import analyze_regime_shift
+from core.regime_analyzer import _profit_factor_observation, analyze_regime_shift
 
 
 class RegimeAnalyzerTests(unittest.TestCase):
+    def test_profit_factor_direction_is_described_correctly(self):
+        self.assertIn("observed degradation", _profit_factor_observation(1.87, 0.52))
+        self.assertIn("an observed improvement", _profit_factor_observation(0.84, 1.50))
+        self.assertIn("little observed change", _profit_factor_observation(1.20, 1.23))
+
     def test_thresholds_come_from_development_and_holdout_is_descriptive(self):
         index = pd.date_range("2025-01-01", periods=100, freq="D")
         data = pd.DataFrame(
