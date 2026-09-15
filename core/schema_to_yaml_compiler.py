@@ -33,6 +33,14 @@ def compile_schema_to_yaml(schema: dict, market="XAUUSD", timeframe="1h") -> str
     if "pullback_entry" in executable_components and ema_periods:
         entry_long.append({"left": "close", "op": "<", "right": f"ema{ema_periods[0]}"})
 
+    reclaim = _component(components, "ema_reclaim_entry")
+    if reclaim and "ema_reclaim_entry" in executable_components:
+        period = int(reclaim.get("params", {})["period"])
+        ema_name = f"ema{period}"
+        if not any(item["name"] == ema_name for item in indicators):
+            indicators.append({"name": ema_name, "type": "ema", "period": period, "source": "close"})
+        entry_long.append({"type": "cross_above", "left": "close", "right": ema_name})
+
     rsi = _component(components, "rsi_filter")
     if rsi and "rsi_filter" in executable_components:
         params = rsi.get("params", {})
@@ -41,10 +49,22 @@ def compile_schema_to_yaml(schema: dict, market="XAUUSD", timeframe="1h") -> str
         indicators.append({"name": name, "type": "rsi", "period": period, "source": "close"})
         entry_long.append({"left": name, "op": params["op"], "right": params["threshold"]})
 
-    atr_sources = [c for c in components if c.get("component") in {"atr_filter", "atr_stop"}]
+    atr_sources = [c for c in components if c.get("component") in {"atr_filter", "atr_relative_filter", "atr_stop"}]
     if atr_sources:
         period = int(atr_sources[0].get("params", {}).get("period", 14))
         indicators.append({"name": f"atr{period}", "type": "atr", "period": period})
+
+    relative_atr = _component(components, "atr_relative_filter")
+    if relative_atr and "atr_relative_filter" in executable_components:
+        params = relative_atr.get("params", {})
+        period = int(params["period"])
+        average_period = int(params["average_period"])
+        atr_name = f"atr{period}"
+        average_name = f"{atr_name}_ma{average_period}"
+        if not any(item["name"] == atr_name for item in indicators):
+            indicators.append({"name": atr_name, "type": "atr", "period": period})
+        indicators.append({"name": average_name, "type": "sma", "period": average_period, "source": atr_name})
+        entry_long.append({"left": atr_name, "op": params["op"], "right": average_name})
 
     stop = _component(components, "atr_stop")
     target = _component(components, "rr_target")

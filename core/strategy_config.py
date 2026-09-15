@@ -70,7 +70,7 @@ def parse_comparison_rules(rule_list):
     conditions = []
 
     for r in rule_list:
-        # Skip non-comparison rules (e.g. ATR SL/TP blocks)
+        # Skip typed rules handled directly by the canonical backtester.
         if "type" in r:
             continue
 

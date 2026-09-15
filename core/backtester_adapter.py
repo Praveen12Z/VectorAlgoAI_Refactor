@@ -76,10 +76,27 @@ def _get_val(row: pd.Series, token):
     return float(token)
 
 
-def _check_conditions(row: pd.Series, conds: List[Dict]) -> bool:
+def _check_conditions(row: pd.Series, conds: List[Dict], previous_row: pd.Series | None = None) -> bool:
     if not conds:
         return False
     for c in conds:
+        if c.get("type") == "cross_above":
+            if previous_row is None:
+                return False
+            left_now = _get_val(row, c.get("left"))
+            right_now = _get_val(row, c.get("right"))
+            left_before = _get_val(previous_row, c.get("left"))
+            right_before = _get_val(previous_row, c.get("right"))
+            if not (
+                np.isfinite(left_now)
+                and np.isfinite(right_now)
+                and np.isfinite(left_before)
+                and np.isfinite(right_before)
+                and left_before <= right_before
+                and left_now > right_now
+            ):
+                return False
+            continue
         left = _get_val(row, c.get("left"))
         right = _get_val(row, c.get("right"))
         op = c.get("op", "==")
@@ -249,7 +266,8 @@ def run_backtest_v2(
     trades: List[Dict] = []
     current_equity = capital
 
-    for ts, row in df.iterrows():
+    for row_index, (ts, row) in enumerate(df.iterrows()):
+        previous_row = df.iloc[row_index - 1] if row_index > 0 else None
         # close existing position?
         if position is not None:
             exit_reason, exit_price = _resolve_bar_exit(position, row)
@@ -295,9 +313,9 @@ def run_backtest_v2(
 
         # if flat, check for entries
         if position is None:
-            if _check_conditions(row, long_conds):
+            if _check_conditions(row, long_conds, previous_row):
                 position = _open_position(row, cfg, "long", ts, current_equity, cost_model)
-            elif _check_conditions(row, short_conds):
+            elif _check_conditions(row, short_conds, previous_row):
                 position = _open_position(row, cfg, "short", ts, current_equity, cost_model)
 
     trades_df = pd.DataFrame(trades)

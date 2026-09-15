@@ -42,7 +42,20 @@ def build_strategy_from_text(text: str) -> dict:
 
     if "trendline" in txt:
         schema.add_component("trend", "trendline")
-    if any(term in txt for term in ("pullback", "pulls back", "retracement", "retest")):
+    reclaim_match = re.search(
+        r"(?:close|closes|closed)\s+(?:back\s+)?above\s+ema\s*[-:]?\s*(\d{1,3})",
+        txt,
+    )
+    reclaim_requested = "back above" in txt and "ema" in txt
+    if reclaim_match:
+        schema.add_component(
+            "entry", "ema_reclaim_entry", {"period": int(reclaim_match.group(1))}
+        )
+    elif reclaim_requested:
+        # Preserve the requested rule as a blocker instead of silently reducing
+        # it to a generic pullback.
+        schema.add_component("entry", "ema_reclaim_entry")
+    elif any(term in txt for term in ("pullback", "pulls back", "retracement", "retest")):
         schema.add_component("entry", "pullback_entry")
     if "breakout" in txt:
         schema.add_component("entry", "breakout")
@@ -56,6 +69,7 @@ def build_strategy_from_text(text: str) -> dict:
             _assume(assumptions, "RSI period", 14, "No RSI lookback was supplied.")
         threshold_match = re.search(
             r"\brsi(?:\s*[-:]?\s*\d{1,2})?\s*(?:(?:is|remains|stays)\s*)?"
+            r"(?:(?:must|should)\s+be\s*)?"
             r"(above|over|greater than|below|under|less than|>|<)\s*(\d{1,3}(?:\.\d+)?)",
             txt,
         )
@@ -75,7 +89,26 @@ def build_strategy_from_text(text: str) -> dict:
         atr_period = int(atr_match.group(1)) if atr_match else 14
         if not atr_match:
             _assume(assumptions, "ATR period", 14, "No ATR lookback was supplied.")
-        schema.add_component("confirmation", "atr_filter", {"period": atr_period})
+        relative_atr_match = re.search(
+            r"\batr\s*[-:]?\s*(\d{1,2})\s+(?:is\s+)?"
+            r"(below|under|above|over)\s+(?:its\s+)?"
+            r"(\d{1,3})\s*[- ]?period\s+(?:moving\s+)?average",
+            txt,
+        )
+        relative_atr_requested = (
+            "atr" in txt and "period" in txt and "average" in txt
+            and any(word in txt for word in ("below", "under", "above", "over"))
+        )
+        if relative_atr_match:
+            schema.add_component("confirmation", "atr_relative_filter", {
+                "period": int(relative_atr_match.group(1)),
+                "average_period": int(relative_atr_match.group(3)),
+                "op": "<" if relative_atr_match.group(2) in {"below", "under"} else ">",
+            })
+        elif relative_atr_requested:
+            schema.add_component("confirmation", "atr_relative_filter")
+        else:
+            schema.add_component("confirmation", "atr_filter", {"period": atr_period})
     else:
         atr_period = 14
 
@@ -103,9 +136,9 @@ def build_strategy_from_text(text: str) -> dict:
         if any(term in txt for term in terms):
             schema.add_component("smc", component)
 
-    stop_match = re.search(r"(\d+(?:\.\d+)?)\s*(?:x\s*)?atr\s*(?:stop|sl)", txt)
+    stop_match = re.search(r"(\d+(?:\.\d+)?)\s*(?:[x×]\s*)?atr\s*\d*\s*(?:stop|sl)", txt)
     if not stop_match:
-        stop_match = re.search(r"(?:stop|sl)[^\d]{0,12}(\d+(?:\.\d+)?)\s*(?:x\s*)?atr", txt)
+        stop_match = re.search(r"(?:stop(?:\s+loss)?|sl)[^\d]{0,20}(\d+(?:\.\d+)?)\s*(?:[x×]\s*)?atr", txt)
     stop_mentioned = "stop loss" in txt or "atr stop" in txt or bool(re.search(r"\bsl\b", txt))
     if stop_match:
         schema.add_component("risk", "atr_stop", {

@@ -2,7 +2,7 @@ import unittest
 
 import pandas as pd
 
-from core.backtester_adapter import ExecutionCostModel, run_backtest_v2
+from core.backtester_adapter import ExecutionCostModel, _check_conditions, run_backtest_v2
 from core.capital_verdict import get_capital_verdict
 from core.strategy_config import parse_strategy_yaml
 
@@ -38,6 +38,16 @@ risk:
 
 
 class ExecutionContractTests(unittest.TestCase):
+    def test_cross_above_requires_a_real_previous_bar_reclaim(self):
+        rule = [{"type": "cross_above", "left": "close", "right": "ema20"}]
+        before = pd.Series({"close": 99.0, "ema20": 100.0})
+        reclaimed = pd.Series({"close": 101.0, "ema20": 100.0})
+        already_above = pd.Series({"close": 102.0, "ema20": 100.0})
+
+        self.assertTrue(_check_conditions(reclaimed, rule, before))
+        self.assertFalse(_check_conditions(already_above, rule, reclaimed))
+        self.assertFalse(_check_conditions(reclaimed, rule, None))
+
     def _run(self, second_high, second_low):
         index = pd.date_range("2026-01-01", periods=2, freq="h")
         data = pd.DataFrame(

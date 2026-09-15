@@ -16,6 +16,10 @@ COMPONENT_REGISTRY = {
         "type": "entry"
     },
 
+    "ema_reclaim_entry": {
+        "type": "entry"
+    },
+
     "breakout": {
         "type": "entry"
     },
@@ -31,6 +35,10 @@ COMPONENT_REGISTRY = {
     },
 
     "atr_filter": {
+        "type": "confirmation"
+    },
+
+    "atr_relative_filter": {
         "type": "confirmation"
     },
 

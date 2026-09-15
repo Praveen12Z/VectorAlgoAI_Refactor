@@ -25,6 +25,11 @@ COMPONENT_LIBRARY = {
         "description": "Pullback entry"
     },
 
+    "ema_reclaim_entry": {
+        "category": "entry",
+        "description": "EMA reclaim entry"
+    },
+
     "breakout": {
         "category": "entry",
         "description": "Breakout entry"
@@ -52,6 +57,11 @@ COMPONENT_LIBRARY = {
     "atr_filter": {
         "category": "confirmation",
         "description": "Volatility filter"
+    },
+
+    "atr_relative_filter": {
+        "category": "confirmation",
+        "description": "ATR relative-volatility filter"
     },
 
     # --------------------------------

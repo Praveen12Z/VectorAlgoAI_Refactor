@@ -7,6 +7,45 @@ from core.schema_to_yaml_compiler import compile_schema_to_yaml
 
 
 class StrategyInterpretationTests(unittest.TestCase):
+    def test_version_c_rules_survive_exactly_into_executable_contract(self):
+        thesis = (
+            "Trade NAS100 long on the 1-hour timeframe. EMA20 must be above EMA50. "
+            "Price pulls back below EMA20 and then closes back above EMA20. "
+            "RSI14 must be above 50. Only enter when ATR14 is below its "
+            "50-period moving average. Stop loss: 1.5 × ATR14 below entry. "
+            "Take profit: 2R. Risk 0.5% of a €25,000 research account per trade."
+        )
+
+        schema = build_strategy_from_text(thesis)
+        strategy = yaml.safe_load(compile_schema_to_yaml(schema, "NAS100", "1h"))
+        rules = {
+            rule["component"]: rule
+            for rule in strategy["strategy_contract"]["rules"]
+        }
+
+        self.assertEqual({"period": 20}, rules["ema_reclaim_entry"]["parameters"])
+        self.assertEqual(
+            {"period": 14, "average_period": 50, "op": "<"},
+            rules["atr_relative_filter"]["parameters"],
+        )
+        self.assertEqual(
+            {"period": 14, "threshold": 50.0, "op": ">"},
+            rules["rsi_filter"]["parameters"],
+        )
+        self.assertEqual(
+            {"multiple": 1.5, "period": 14},
+            rules["atr_stop"]["parameters"],
+        )
+        self.assertIn(
+            {"type": "cross_above", "left": "close", "right": "ema20"},
+            strategy["entry"]["long"],
+        )
+        self.assertIn(
+            {"left": "atr14", "op": "<", "right": "atr14_ma50"},
+            strategy["entry"]["long"],
+        )
+        self.assertEqual([], schema["assumptions"])
+
     def test_explicit_parameters_survive_into_machine_contract(self):
         thesis = (
             "Trade NAS100 EMA20 above EMA50 and EMA200 pullbacks. "

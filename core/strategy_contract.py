@@ -14,7 +14,7 @@ import json
 from typing import Any
 
 
-CONTRACT_VERSION = "1.1"
+CONTRACT_VERSION = "1.2"
 VALID_STATUSES = {"executable", "manual", "ambiguous", "unsupported"}
 
 
@@ -29,6 +29,11 @@ CAPABILITIES: dict[str, dict[str, str]] = {
         "executor": "ema_pullback",
         "reason": "A close-price pullback to the fastest configured EMA is supported.",
     },
+    "ema_reclaim_entry": {
+        "status": "executable",
+        "executor": "ema_cross_reclaim",
+        "reason": "A close crossing back above the specified EMA is supported.",
+    },
     "rsi_filter": {
         "status": "executable",
         "executor": "rsi_comparison",
@@ -38,6 +43,11 @@ CAPABILITIES: dict[str, dict[str, str]] = {
         "status": "executable",
         "executor": "atr_calculation",
         "reason": "ATR calculation is supported as an input to protective exits.",
+    },
+    "atr_relative_filter": {
+        "status": "executable",
+        "executor": "atr_relative_average",
+        "reason": "ATR can be compared with its moving average using explicit lookbacks.",
     },
     "atr_stop": {
         "status": "executable",
@@ -159,8 +169,12 @@ def _classify(component: dict[str, Any], component_names: set[str]) -> dict[str,
         capability.update(status="ambiguous", executor="none", reason="At least two EMA periods are required.")
     elif name == "pullback_entry" and "ema_trend" not in component_names:
         capability.update(status="ambiguous", executor="none", reason="The pullback reference level is not defined.")
+    elif name == "ema_reclaim_entry" and "period" not in params:
+        capability.update(status="ambiguous", executor="none", reason="The EMA reclaim period is required.")
     elif name == "rsi_filter" and not {"period", "threshold", "op"}.issubset(params):
         capability.update(status="ambiguous", executor="none", reason="RSI period, threshold and comparison are required.")
+    elif name == "atr_relative_filter" and not {"period", "average_period", "op"}.issubset(params):
+        capability.update(status="ambiguous", executor="none", reason="ATR period, average period and comparison are required.")
     elif name == "atr_stop" and not {"period", "multiple"}.issubset(params):
         capability.update(status="ambiguous", executor="none", reason="ATR period and stop multiple are required.")
     elif name == "rr_target" and "atr_stop" not in component_names:
