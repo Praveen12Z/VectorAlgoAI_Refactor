@@ -27,6 +27,7 @@ from core.strategy_contract import require_approved_strategy_contract
 from core.validation_engine import run_chronological_validation
 from core.regime_analyzer import analyze_regime_shift
 from core.research_record import build_research_record
+from components.strategy_catalog_panel import render_strategy_catalog
 from core.experiment_tracking import annotate
 from components.experiment_library_panel import render_experiment_library, label as experiment_label
 from core.auth import (
@@ -329,6 +330,9 @@ def _render_workspace_landing(view: str) -> None:
         )
     elif view == "library":
         st.markdown('<div class="va-page-kicker">Strategy library</div><div class="va-title">Saved research and experiments</div><div class="va-subtitle">Review versions, record decisions and compare historical evidence.</div>', unsafe_allow_html=True)
+        render_strategy_catalog()
+        st.divider()
+        st.subheader("Your saved research")
         try:
             records = _load_research_records()
         except AccessServiceError:

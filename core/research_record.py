@@ -10,6 +10,7 @@ from typing import Any
 import pandas as pd
 
 from core.evidence_policy import RESEARCH_ENGINE_VERSION
+from core.strategy_catalog import catalog_origin
 
 
 def _json_safe(value: Any) -> Any:
@@ -73,6 +74,9 @@ def build_research_record(
         "regime_analysis": validation.get("regime_analysis", {}),
         "trade_records": full.get("trades", pd.DataFrame()),
     }
+    origin = catalog_origin(record['source_text'])
+    if origin:
+        record['execution_assumptions']['catalog_origin'] = origin
     safe_record = _json_safe(record)
     fingerprint_payload = json.dumps(
         safe_record, sort_keys=True, separators=(",", ":"), ensure_ascii=False
