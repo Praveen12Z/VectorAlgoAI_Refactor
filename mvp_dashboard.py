@@ -27,6 +27,8 @@ from core.strategy_contract import require_approved_strategy_contract
 from core.validation_engine import run_chronological_validation
 from core.regime_analyzer import analyze_regime_shift
 from core.research_record import build_research_record
+from core.experiment_tracking import annotate
+from components.experiment_library_panel import render_experiment_library, label as experiment_label
 from core.auth import (
     AccessConfigurationError,
     AccessServiceError,
@@ -326,7 +328,7 @@ def _render_workspace_landing(view: str) -> None:
             unsafe_allow_html=True,
         )
     elif view == "library":
-        st.markdown('<div class="va-page-kicker">Strategy library</div><div class="va-title">Research records, not signal lists.</div><div class="va-subtitle">Saved strategies and their evidence will live here. The first record is created when you approve your thesis.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="va-page-kicker">Strategy library</div><div class="va-title">Saved research and experiments</div><div class="va-subtitle">Review versions, record decisions and compare historical evidence.</div>', unsafe_allow_html=True)
         try:
             records = _load_research_records()
         except AccessServiceError:
@@ -335,12 +337,13 @@ def _render_workspace_landing(view: str) -> None:
         if not records:
             st.info("No permanent research records yet. Run an approved evidence test to create one.")
             return
-        library = pd.DataFrame(records)
-        columns = [
-            "strategy_name", "market", "timeframe", "validation_status",
-            "validation_passed", "data_start", "data_end", "created_at",
-        ]
-        st.dataframe(library[[column for column in columns if column in library]], use_container_width=True, hide_index=True)
+        def load_record(record_hash):
+            client, session = _research_storage_client()
+            return client.research_record(session, record_hash)
+        try:
+            render_experiment_library(records, load_record, _persist_research_record)
+        except AccessServiceError:
+            st.error("Could not load the saved evidence. Please retry.")
     else:
         st.markdown('<div class="va-page-kicker">Settings</div><div class="va-title">Workspace settings</div><div class="va-subtitle">Account and research defaults will be configured here as the MVP grows.</div>', unsafe_allow_html=True)
         st.markdown('<div class="va-card"><div class="va-card-title">Current default</div><div class="va-card-value">NAS100 · 1h research timeframe</div></div>', unsafe_allow_html=True)
@@ -460,6 +463,17 @@ def run_mvp_dashboard():
         _render_evidence_intro(st.session_state.get("bt_result"))
         if not st.session_state.get("blueprint_approved"):
             st.info("Approve the Rule Blueprint before running the backtest.")
+        with st.expander("Experiment details", expanded=True):
+            st.text_input("Research name", key="current_strategy_name", placeholder="NAS100 EMA Reclaim")
+            st.text_input("Version label", key="experiment_version", placeholder="C")
+            st.text_area("Hypothesis / what changed and why", key="experiment_hypothesis")
+            try:
+                parents = {r['record_hash']: r for r in _load_research_records()}
+            except AccessServiceError:
+                parents = {}
+                st.caption("Saved parents are temporarily unavailable. You can still run independent research.")
+            st.selectbox("Parent saved record", [None, *parents], key="experiment_parent",
+                         format_func=lambda h: experiment_label(parents[h]) if h in parents else "None — independent research")
         run_clicked = st.button(
             "Run Backtest", use_container_width=False, type="primary",
             disabled=not st.session_state.get("blueprint_approved", False),
@@ -476,7 +490,6 @@ def run_mvp_dashboard():
 
         with st.expander("Advanced configuration", expanded=False):
             st.caption("Optional. Inspect or adjust the machine-readable rules before running the test.")
-            st.text_input("Strategy name (for exports)", key="current_strategy_name", placeholder="e.g. NAS100 Pullback v5")
             st.text_area("YAML strategy configuration", height=330, key="evidence_yaml_editor")
 
     if run_clicked:
@@ -523,6 +536,10 @@ def run_mvp_dashboard():
                     cfg=cfg,
                     validation=validation,
                 )
+                record = annotate(record,
+                    version=st.session_state.get("experiment_version", ""),
+                    hypothesis=st.session_state.get("experiment_hypothesis", ""),
+                    parent_record_hash=st.session_state.get("experiment_parent"))
                 persistence = _persist_research_record(record)
 
                 st.session_state["bt_result"] = {

@@ -175,7 +175,9 @@ class SupabaseAccessClient:
             params={
                 "select": (
                     "id,record_hash,strategy_name,market,timeframe,validation_status,"
-                    "validation_passed,data_start,data_end,created_at"
+                    "validation_passed,data_start,data_end,created_at,data_bars,"
+                    "execution_assumptions,full_metrics,development_metrics,holdout_metrics,"
+                    "rules_fingerprint,evidence_engine_version,strategy_yaml"
                 ),
                 "user_id": f"eq.{session.user_id}",
                 "order": "created_at.desc",
@@ -184,6 +186,18 @@ class SupabaseAccessClient:
         )
         rows = response.json()
         return rows if isinstance(rows, list) else []
+
+    def research_record(self, session: AuthSession, record_hash: str) -> dict:
+        response = self._request(
+            "GET", f"{self.url}/rest/v1/research_records",
+            headers={**self.public_headers, "Authorization": f"Bearer {session.access_token}"},
+            params={"select": "*", "user_id": f"eq.{session.user_id}",
+                    "record_hash": f"eq.{record_hash}", "limit": "1"},
+        )
+        rows = response.json()
+        if not isinstance(rows, list) or not rows:
+            raise AccessServiceError("Saved research record could not be loaded.")
+        return dict(rows[0])
 
     def invoke(self, function_name: str, session: AuthSession) -> str:
         response = self._request(
