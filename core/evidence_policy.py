@@ -8,7 +8,7 @@ from typing import Any
 
 MIN_SCORABLE_TRADES = 30
 MIN_DEMONSTRATED_PROFIT_FACTOR = 1.10
-RESEARCH_ENGINE_VERSION = "strategy-contract-1.2-validation-3"
+RESEARCH_ENGINE_VERSION = "strategy-contract-1.2-next-open-4"
 
 _STALE_RESEARCH_KEYS = (
     "blueprint_yaml",

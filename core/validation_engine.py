@@ -8,6 +8,7 @@ import pandas as pd
 
 from core.backtester_adapter import ExecutionCostModel, run_backtest_v2
 from core.evidence_policy import MIN_SCORABLE_TRADES, baseline_edge_is_demonstrated
+from core.monthly_activity import monthly_activity
 
 
 MIN_ADVERSE_HOLDOUT_TRADES = 10
@@ -113,6 +114,10 @@ def run_chronological_validation(
         development_df, cfg, cost_model
     )
     holdout_metrics, _, _, holdout_trades = run_backtest_v2(holdout_df, cfg, cost_model)
+    for frame, metrics, ledger in ((df, full_metrics, trades),
+                                  (development_df, development_metrics, development_trades),
+                                  (holdout_df, holdout_metrics, holdout_trades)):
+        metrics['monthly_activity'] = monthly_activity(frame.index, ledger)
     outcome = _comparison_status(
         development_metrics,
         holdout_metrics,

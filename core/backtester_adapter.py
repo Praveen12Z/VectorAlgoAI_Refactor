@@ -13,6 +13,7 @@ from .strategy_config import StrategyConfig
 
 @dataclass
 class Position:
+    signal_time: pd.Timestamp
     direction: str          # "long" or "short"
     entry_time: pd.Timestamp
     entry_price: float
@@ -168,6 +169,10 @@ def _resolve_bar_exit(position: Position, row: pd.Series) -> Tuple[str | None, f
     open_price = float(row["open"])
 
     if position.direction == "long":
+        if position.sl is not None and open_price <= position.sl:
+            return "SL", open_price
+        if position.tp is not None and open_price >= position.tp:
+            return "TP", float(position.tp)
         stop_hit = position.sl is not None and low <= position.sl
         target_hit = position.tp is not None and high >= position.tp
         if stop_hit:
@@ -175,6 +180,10 @@ def _resolve_bar_exit(position: Position, row: pd.Series) -> Tuple[str | None, f
         if target_hit:
             return "TP", float(position.tp)
     else:
+        if position.sl is not None and open_price >= position.sl:
+            return "SL", open_price
+        if position.tp is not None and open_price <= position.tp:
+            return "TP", float(position.tp)
         stop_hit = position.sl is not None and high >= position.sl
         target_hit = position.tp is not None and low <= position.tp
         if stop_hit:
@@ -192,6 +201,7 @@ def _open_position(
     ts: pd.Timestamp,
     equity: float,
     cost_model: ExecutionCostModel,
+    signal_time: pd.Timestamp | None = None,
 ) -> Position:
     sl, tp, risk_per_unit = _build_exits(row, cfg, side)
     if risk_per_unit is None or not np.isfinite(risk_per_unit) or risk_per_unit <= 0:
@@ -213,6 +223,7 @@ def _open_position(
     risk_cash_per_unit = risk_per_unit * point_value + trading_cost_per_unit
     size = risk_amount / risk_cash_per_unit
     return Position(
+        signal_time=signal_time if signal_time is not None else ts,
         direction=side,
         entry_time=ts,
         entry_price=float(row["close"]),
@@ -246,8 +257,9 @@ def run_backtest_v2(
     """
     Very simple bar-by-bar backtester using YAML conditions.
     - Only supports one open position at a time.
-    - Evaluates entries at close.
-    - Resolves protective exits from the following candles' OHLC range.
+    - Signals use the preceding completed bar; entries use this bar's open.
+    - ATR distances use signal-bar values, anchored to the actual entry open.
+    - Protective exits are active on the entry bar.
     - Assumes the stop was hit first when stop and target occur in one candle.
     """
     raw = cfg.raw or {}
@@ -265,9 +277,33 @@ def run_backtest_v2(
     position: Position | None = None
     trades: List[Dict] = []
     current_equity = capital
+    marked_equity = [capital]
+
+    if not isinstance(df.index, pd.DatetimeIndex) or not df.index.is_monotonic_increasing or df.index.has_duplicates:
+        raise ValueError("Backtest requires unique chronological timestamps.")
+    prices = df[["open", "high", "low", "close"]].to_numpy(dtype=float)
+    if not np.isfinite(prices).all() or (prices <= 0).any():
+        raise ValueError("OHLC prices must be finite and positive.")
+    if ((df['high'] < df[['open', 'close', 'low']].max(axis=1)) |
+            (df['low'] > df[['open', 'close', 'high']].min(axis=1))).any():
+        raise ValueError("Invalid OHLC bar range.")
 
     for row_index, (ts, row) in enumerate(df.iterrows()):
         previous_row = df.iloc[row_index - 1] if row_index > 0 else None
+        # Evaluate the signal at the preceding close, never using this bar's
+        # close/high/low/indicators to decide or size the entry at its open.
+        if position is None and previous_row is not None and current_equity > 0:
+            before_signal = df.iloc[row_index - 2] if row_index > 1 else None
+            side = None
+            if _check_conditions(previous_row, long_conds, before_signal):
+                side = "long"
+            elif _check_conditions(previous_row, short_conds, before_signal):
+                side = "short"
+            if side:
+                entry_inputs = previous_row.copy()
+                entry_inputs['close'] = float(row['open'])
+                position = _open_position(entry_inputs, cfg, side, ts, current_equity,
+                                          cost_model, signal_time=df.index[row_index - 1])
         # close existing position?
         if position is not None:
             exit_reason, exit_price = _resolve_bar_exit(position, row)
@@ -291,6 +327,7 @@ def run_backtest_v2(
 
                 trades.append(
                     {
+                        "signal_time": position.signal_time,
                         "entry_time": position.entry_time,
                         "exit_time": ts,
                         "direction": position.direction,
@@ -298,6 +335,9 @@ def run_backtest_v2(
                         "exit_price": exit_price,
                         "size": position.size,
                         "risk_amount": position.risk_amount,
+                        "initial_stop": position.sl,
+                        "initial_target": position.tp,
+                        "stop_distance": position.risk_per_unit,
                         "point_value": position.point_value,
                         "gross_pnl": gross_pnl,
                         "trading_cost": trading_cost,
@@ -307,16 +347,17 @@ def run_backtest_v2(
                     }
                 )
                 position = None
+                marked_equity.append(current_equity)
 
                 # after closing, continue to next loop iteration to allow re-entry
                 continue
 
-        # if flat, check for entries
-        if position is None:
-            if _check_conditions(row, long_conds, previous_row):
-                position = _open_position(row, cfg, "long", ts, current_equity, cost_model)
-            elif _check_conditions(row, short_conds, previous_row):
-                position = _open_position(row, cfg, "short", ts, current_equity, cost_model)
+        mark = current_equity
+        if position is not None:
+            direction = 1 if position.direction == "long" else -1
+            mark += (direction * (float(row['close']) - position.entry_price) * position.point_value
+                     - position.trading_cost_per_unit) * position.size
+        marked_equity.append(mark)
 
     trades_df = pd.DataFrame(trades)
     if trades_df.empty:
@@ -327,7 +368,9 @@ def run_backtest_v2(
             "max_drawdown_pct": 0.0,
             "num_trades": 0,
             "grade": "D",
-            "execution_model": "ohlc_stop_first",
+            "execution_model": "next_open_signal_atr_stop_first_v1",
+            "drawdown_basis": "bar_close_equity_including_estimated_exit_costs",
+            "position_size_model": "fractional_units_no_margin_or_lot_constraints",
             "risk_sizing_applied": False,
             "costs_included": cost_model.enabled,
             "cost_model": cost_model.as_dict(),
@@ -341,8 +384,9 @@ def run_backtest_v2(
     # equity & metrics
     pnl = trades_df["pnl"].values
     equity = capital + np.cumsum(pnl)
-    peak = np.maximum.accumulate(equity)
-    dd = (equity - peak) / peak
+    marked_equity = np.asarray(marked_equity)
+    peak = np.maximum.accumulate(marked_equity)
+    dd = (marked_equity - peak) / peak
     max_dd_pct = float(dd.min() * 100.0)
 
     gross_profit = trades_df.loc[trades_df["pnl"] > 0, "pnl"].sum()
@@ -365,7 +409,9 @@ def run_backtest_v2(
         "max_drawdown_pct": max_dd_pct,
         "num_trades": num_trades,
         "grade": grade,
-        "execution_model": "ohlc_stop_first",
+        "execution_model": "next_open_signal_atr_stop_first_v1",
+        "drawdown_basis": "bar_close_equity_including_estimated_exit_costs",
+        "position_size_model": "fractional_units_no_margin_or_lot_constraints",
         "risk_sizing_applied": True,
         "costs_included": cost_model.enabled,
         "cost_model": cost_model.as_dict(),
@@ -380,8 +426,8 @@ def run_backtest_v2(
         weaknesses.append("Too few trades to determine stability (sample < 20).")
         suggestions.append("Test on more history or trade more frequently.")
     if pf < 1.10:
-        weaknesses.append("No demonstrated baseline edge (profit factor < 1.10 before costs).")
-        suggestions.append("Test one entry or exit change at a time, then add realistic costs.")
+        weaknesses.append("No demonstrated baseline edge (profit factor < 1.10 under selected costs).")
+        suggestions.append("Test one entry or exit hypothesis at a time on development data; preserve unseen validation data.")
     if win_rate_pct < 45 and pf < 1.10:
         weaknesses.append("Low win rate is not being offset by sufficient winner size.")
         suggestions.append("Test entry selectivity separately from stop and target changes.")

@@ -27,7 +27,7 @@ def render_strategy_catalog():
         st.warning("Automated testing blocked: " + "; ".join(item['implementation_gaps']) + ".")
     with st.expander("Shared research and execution protocol"):
         st.write(COMMON_PROTOCOL)
-        st.caption("VA-001 uses the existing signal-close baseline, as disclosed in its rules. Other templates require next-open execution before testing.")
+        st.caption("VA-001 supports next-open research execution. Other templates still need their specified triggers, exits and data components connected and tested.")
     st.download_button("Download research specification", json.dumps(catalog_export(item), indent=2),
         file_name=f"{item['id']}-v{item['version']}.json", mime="application/json")
     if not item['implementation_gaps']:
@@ -35,4 +35,3 @@ def render_strategy_catalog():
         if st.button("Open as new research draft", key=f"load_{item['id']}"):
             load_template(st.session_state, item)
             st.rerun()
-
