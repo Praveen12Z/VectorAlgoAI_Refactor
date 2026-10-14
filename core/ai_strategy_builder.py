@@ -40,6 +40,13 @@ def build_strategy_from_text(text: str) -> dict:
             _assume(assumptions, "EMA periods", "50 and 200", "Two EMA periods were not supplied.")
         schema.add_component("trend", "ema_trend", {"periods": ema_periods})
 
+    crossover = re.search(r"\bema\s*(\d{1,3})\s*(?:crosses|crossed|cross)\s*(?:above|over)\s*ema\s*(\d{1,3})\b", txt)
+    if crossover:
+        schema.add_component("entry", "ema_cross_entry", {
+            "fast": int(crossover.group(1)),
+            "slow": int(crossover.group(2)),
+        })
+
     if "trendline" in txt:
         schema.add_component("trend", "trendline")
     reclaim_match = re.search(
