@@ -16,6 +16,15 @@ def build_strategy_from_text(text: str) -> dict:
     if not ema_match or not rsi_match:
         raise ValueError("Use EMA 20 above EMA 50 and RSI above 50.")
 
+    # MVP is deliberately strict: any extra words must be understood.
+    remainder = txt
+    for match in sorted((ema_match, rsi_match), key=lambda m: m.start(), reverse=True):
+        remainder = remainder[:match.start()] + " " + remainder[match.end():]
+    remainder = re.sub(r"\\b(?:buy|long|when|if|and|the|is|on|nasdaq|mnq|with|a|strategy|only)\\b", " ", remainder)
+    remainder = re.sub(r"[.,:;!?]", " ", remainder)
+    if remainder.strip():
+        raise ValueError("Unrecognized strategy instructions: " + remainder.strip())
+
     # ----------------------------------
     # TREND
     # ----------------------------------
