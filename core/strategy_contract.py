@@ -55,6 +55,7 @@ CAPABILITIES: dict[str, dict[str, str]] = {
         "executor": "atr_protective_stop",
         "reason": "ATR stop distance is supported by the backtest execution model.",
     },
+    "atr_target": {"status": "executable", "executor": "atr_profit_target", "reason": "An explicit ATR-multiple take-profit is supported."},
     "rr_target": {
         "status": "executable",
         "executor": "risk_reward_target",
@@ -180,6 +181,8 @@ def _classify(component: dict[str, Any], component_names: set[str]) -> dict[str,
         capability.update(status="ambiguous", executor="none", reason="ATR period, average period and comparison are required.")
     elif name == "atr_stop" and not {"period", "multiple"}.issubset(params):
         capability.update(status="ambiguous", executor="none", reason="ATR period and stop multiple are required.")
+    elif name == "atr_target" and (not {"period", "multiple"}.issubset(params) or float(params.get("multiple", 0)) <= 0):
+        capability.update(status="ambiguous", executor="none", reason="ATR profit target requires a positive multiple and period.")
     elif name == "rr_target" and "atr_stop" not in component_names:
         capability.update(status="ambiguous", executor="none", reason="A target in R requires an executable protective stop.")
     return capability
