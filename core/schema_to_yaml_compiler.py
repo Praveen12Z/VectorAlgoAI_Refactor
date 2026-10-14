@@ -30,6 +30,15 @@ def compile_schema_to_yaml(schema: dict, market="XAUUSD", timeframe="1h") -> str
         for fast, slow in zip(ema_periods, ema_periods[1:]):
             entry_long.append({"left": f"ema{fast}", "op": ">", "right": f"ema{slow}"})
 
+    cross = _component(components, "ema_cross_entry")
+    if cross and "ema_cross_entry" in executable_components:
+        fast = int(cross["params"]["fast"])
+        slow = int(cross["params"]["slow"])
+        for period in (fast, slow):
+            if not any(item["name"] == f"ema{period}" for item in indicators):
+                indicators.append({"name": f"ema{period}", "type": "ema", "period": period, "source": "close"})
+        entry_long.append({"type": "cross_above", "left": f"ema{fast}", "right": f"ema{slow}"})
+
     if "pullback_entry" in executable_components and ema_periods:
         entry_long.append({"left": "close", "op": "<", "right": f"ema{ema_periods[0]}"})
 
