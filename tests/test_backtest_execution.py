@@ -63,6 +63,8 @@ def test_costs_reduce_net_pnl():
 def test_no_trade_when_no_signal():
     data = candles().copy()
     data["close"] = [100,100,100,100]
+    data["high"] = data[["open", "high", "close"]].max(axis=1)
+    data["low"] = data[["open", "low", "close"]].min(axis=1)
     _, _, _, trades = run(data)
     assert trades.empty
 
