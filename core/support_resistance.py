@@ -17,8 +17,8 @@ def add_support_resistance(df, lookback=20, tolerance=0.002):
     df["resistance_zone"] = df["resistance"] * (1 - tolerance)
 
     # Breakout uses the last completed candle's established level.
-    df["sr_breakout_long"] = (df["close"] > df["resistance"]) & (df["close"].shift(1) <= df["resistance"].shift(1))
-    df["sr_breakout_short"] = (df["close"] < df["support"]) & (df["close"].shift(1) >= df["support"].shift(1))
+    df["sr_breakout_long"] = (df["close"] > df["resistance"]) & (df["close"].shift(1) <= df["resistance"])
+    df["sr_breakout_short"] = (df["close"] < df["support"]) & (df["close"].shift(1) >= df["support"])
 
     # Rejection: intrabar touch of a previously known zone, followed by a close away.
     df["sr_support_rejection"] = (df["low"] <= df["support_zone"]) & (df["close"] > df["support_zone"])
