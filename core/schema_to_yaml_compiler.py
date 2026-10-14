@@ -4,6 +4,19 @@ import yaml
 def compile_schema_to_yaml(schema: dict, market="XAUUSD", timeframe="1h") -> str:
 
     components = schema.get("components", [])
+    supported = {"ema_trend", "rsi_filter", "atr_stop", "rr_target"}
+    unsupported = sorted({item.get("component") for item in components} - supported)
+    if unsupported:
+        raise ValueError("Unsupported strategy components: " + ", ".join(unsupported))
+    if not {"ema_trend", "rsi_filter"}.issubset({item.get("component") for item in components}):
+        raise ValueError("MVP requires EMA trend and RSI confirmation.")
+    ema_params = next(item["params"] for item in components if item["component"] == "ema_trend")
+    rsi_params = next(item["params"] for item in components if item["component"] == "rsi_filter")
+    fast = int(ema_params.get("fast", 20))
+    slow = int(ema_params.get("slow", 50))
+    threshold = float(rsi_params.get("threshold", 50))
+    if not 1 <= fast < slow or not 0 <= threshold <= 100:
+        raise ValueError("Invalid EMA periods or RSI threshold.")
 
     indicators = []
     entry_long = []
@@ -17,13 +30,11 @@ def compile_schema_to_yaml(schema: dict, market="XAUUSD", timeframe="1h") -> str
 
     if has_ema:
         indicators.extend([
-            {"name": "ema20", "type": "ema", "period": 20, "source": "close"},
-            {"name": "ema50", "type": "ema", "period": 50, "source": "close"},
-            {"name": "ema200", "type": "ema", "period": 200, "source": "close"},
+            {"name": "ema20", "type": "ema", "period": fast, "source": "close"},
+            {"name": "ema50", "type": "ema", "period": slow, "source": "close"},
         ])
 
         entry_long.extend([
-            {"left": "ema50", "op": ">", "right": "ema200"},
             {"left": "ema20", "op": ">", "right": "ema50"},
         ])
 
@@ -43,7 +54,7 @@ def compile_schema_to_yaml(schema: dict, market="XAUUSD", timeframe="1h") -> str
         )
 
         entry_long.append(
-            {"left": "rsi14", "op": ">", "right": 55}
+            {"left": "rsi14", "op": ">", "right": threshold}
         )
 
     if has_atr:

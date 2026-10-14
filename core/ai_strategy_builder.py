@@ -8,6 +8,13 @@ def build_strategy_from_text(text: str) -> dict:
     schema = UniversalStrategy()
 
     txt = text.lower()
+    import re
+    if re.search(r"\b(cross|crosses|crossover|short|sell|below)\b", txt):
+        raise ValueError("Unsupported crossover, short, or below rule.")
+    ema_match = re.search(r"ema\s*(\d+)\s*(?:is\s*)?(?:above|>)\s*ema\s*(\d+)", txt)
+    rsi_match = re.search(r"rsi(?:\s*14)?\s*(?:is\s*)?(?:above|>)\s*(\d+(?:\.\d+)?)", txt)
+    if not ema_match or not rsi_match:
+        raise ValueError("Use EMA 20 above EMA 50 and RSI above 50.")
 
     # ----------------------------------
     # TREND
@@ -22,8 +29,8 @@ def build_strategy_from_text(text: str) -> dict:
             "trend",
             "ema_trend",
             {
-                "fast": 50,
-                "slow": 200
+                "fast": int(ema_match.group(1)),
+                "slow": int(ema_match.group(2))
             }
         )
 
@@ -76,7 +83,7 @@ def build_strategy_from_text(text: str) -> dict:
             "confirmation",
             "rsi_filter",
             {
-                "threshold": 55
+                "threshold": float(rsi_match.group(1))
             }
         )
 

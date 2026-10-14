@@ -37,31 +37,18 @@ def render_ai_strategy_builder_panel():
             st.warning("Please enter a strategy.")
             return
 
-        schema = build_strategy_from_text(
-            strategy_text
-        )
+        try:
+            schema = build_strategy_from_text(strategy_text)
+            generated_yaml = compile_schema_to_yaml(
+                schema, market=market, timeframe=timeframe
+            )
+        except (ValueError, KeyError, TypeError) as exc:
+            st.error(f"Cannot compile this strategy safely: {exc}")
+            return
 
-        st.success(
-            "Universal Strategy Schema generated."
-        )
-
+        st.success("Strategy rules compiled. Review before backtesting.")
         st.json(schema)
-
-        generated_yaml = compile_schema_to_yaml(
-            schema,
-            market=market,
-            timeframe=timeframe
-        )
-
-        st.success(
-            "YAML strategy generated."
-        )
-
-        st.code(
-            generated_yaml,
-            language="yaml"
-        )
-
+        st.code(generated_yaml, language="yaml")
         st.session_state["strategy_yaml"] = generated_yaml
 
         st.info(
