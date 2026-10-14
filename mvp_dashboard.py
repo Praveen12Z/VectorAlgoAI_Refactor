@@ -303,7 +303,9 @@ def run_mvp_dashboard():
             st.info("Saving is disabled in this MVP. Export your YAML locally for now.")
 
     with col2:
-        run_clicked = st.button("🔴 Run Crash-Test", use_container_width=True)
+        st.warning("Review YAML before running. MVP uses long-only EMA/RSI, ATR exits and configured risk. NAS100 data is an NDX cash-index proxy, not MNQ futures.")
+        confirmed = st.checkbox("I reviewed the YAML and understand the data limitations", key="mvp_strategy_confirmed")
+        run_clicked = st.button("🔴 Run Crash-Test", use_container_width=True, disabled=not confirmed)
 
         if run_clicked:
             try:
