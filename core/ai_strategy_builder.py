@@ -30,7 +30,7 @@ def _extract_research_capital(text: str) -> float | None:
 
 def build_strategy_from_text(text: str) -> dict:
     schema = UniversalStrategy()
-    txt = text.lower()
+    txt = text.lower().replace("stop-loss", "stop loss").replace("take-profit", "target")
     assumptions: list[dict] = []
 
     ema_periods = sorted({int(v) for v in re.findall(r"\bema\s*[-:]?\s*(\d{1,3})\b", txt)})
