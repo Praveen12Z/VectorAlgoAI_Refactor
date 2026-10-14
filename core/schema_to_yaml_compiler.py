@@ -77,6 +77,7 @@ def compile_schema_to_yaml(schema: dict, market="XAUUSD", timeframe="1h") -> str
 
     stop = _component(components, "atr_stop")
     target = _component(components, "rr_target")
+    atr_target = _component(components, "atr_target")
     if stop and "atr_stop" in executable_components:
         params = stop.get("params", {})
         period = int(params["period"])
@@ -85,7 +86,13 @@ def compile_schema_to_yaml(schema: dict, market="XAUUSD", timeframe="1h") -> str
         if not any(item["name"] == atr_name for item in indicators):
             indicators.append({"name": atr_name, "type": "atr", "period": period})
         exit_long.append({"type": "atr_sl", "atr_col": atr_name, "multiple": multiple})
-        if target and "rr_target" in executable_components:
+        if atr_target and "atr_target" in executable_components:
+            target_params = atr_target["params"]
+            target_atr = f"atr{int(target_params['period'])}"
+            if not any(item["name"] == target_atr for item in indicators):
+                indicators.append({"name": target_atr, "type": "atr", "period": int(target_params["period"])})
+            exit_long.append({"type": "atr_tp", "atr_col": target_atr, "multiple": float(target_params["multiple"])})
+        elif target and "rr_target" in executable_components:
             rr = float(target.get("params", {})["rr"])
             exit_long.append({"type": "atr_tp", "atr_col": atr_name, "multiple": multiple * rr})
 
