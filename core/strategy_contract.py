@@ -24,6 +24,7 @@ CAPABILITIES: dict[str, dict[str, str]] = {
         "executor": "ema_alignment",
         "reason": "EMA periods and alignment are supported by the canonical rule engine.",
     },
+    "ema_cross_entry": {"status": "executable", "executor": "ema_cross_above", "reason": "EMA crossover is evaluated on completed candles and entered on the next bar."},
     "pullback_entry": {
         "status": "executable",
         "executor": "ema_pullback",
@@ -167,6 +168,8 @@ def _classify(component: dict[str, Any], component_names: set[str]) -> dict[str,
 
     if name == "ema_trend" and len(params.get("periods", [])) < 2:
         capability.update(status="ambiguous", executor="none", reason="At least two EMA periods are required.")
+    elif name == "ema_cross_entry" and (not {"fast", "slow"}.issubset(params) or int(params.get("fast", 0)) >= int(params.get("slow", 0))):
+        capability.update(status="ambiguous", executor="none", reason="EMA crossover requires valid fast and slow periods.")
     elif name == "pullback_entry" and "ema_trend" not in component_names:
         capability.update(status="ambiguous", executor="none", reason="The pullback reference level is not defined.")
     elif name == "ema_reclaim_entry" and "period" not in params:
