@@ -20,7 +20,7 @@ def build_strategy_from_text(text: str) -> dict:
     remainder = txt
     for match in sorted((ema_match, rsi_match), key=lambda m: m.start(), reverse=True):
         remainder = remainder[:match.start()] + " " + remainder[match.end():]
-    remainder = re.sub(r"\\b(?:buy|long|when|if|and|the|is|on|nasdaq|mnq|with|a|strategy|only)\\b", " ", remainder)
+    remainder = re.sub(r"\b(?:buy|long|when|if|and|the|is|on|nasdaq|mnq|with|a|strategy|only)\b", " ", remainder)
     remainder = re.sub(r"[.,:;!?]", " ", remainder)
     if remainder.strip():
         raise ValueError("Unrecognized strategy instructions: " + remainder.strip())
