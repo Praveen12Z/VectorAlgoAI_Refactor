@@ -155,11 +155,21 @@ def build_strategy_from_text(text: str) -> dict:
         schema.add_component("risk", "atr_stop", {"multiple": 2.0, "period": atr_period})
         _assume(assumptions, "Stop distance", "2 ATR", "No executable stop distance was supplied.")
 
+    # Distinguish an explicit ATR-distance target from a reward/risk multiple.
+    # "take-profit of 3 ATR" must never be silently rewritten as 2R.
+    atr_target = re.search(
+        r"(?:take\s*profit|profit\s*target|target|tp)\s*(?:of|at|=|:)??\s*(\d+(?:\.\d+)?)\s*(?:[x×]\s*)?atr\b",
+        txt,
+    )
     rr_match = re.search(r"\b(\d+(?:\.\d+)?)\s*r\b", txt)
     if not rr_match:
         rr_match = re.search(r"(?:rr|risk\s*reward)[^\d]{0,8}(?:1\s*[:/]\s*)?(\d+(?:\.\d+)?)", txt)
-    target_mentioned = any(term in txt for term in ("target", "rr", "risk reward"))
-    if rr_match:
+    target_mentioned = any(term in txt for term in ("target", "rr", "risk reward", "take profit", "take-profit"))
+    if atr_target and rr_match:
+        raise ValueError("Specify either an ATR take-profit or an R-multiple target, not both.")
+    if atr_target:
+        schema.add_component("risk", "atr_target", {"multiple": float(atr_target.group(1)), "period": atr_period})
+    elif rr_match:
         schema.add_component("risk", "rr_target", {"rr": float(rr_match.group(1))})
     elif target_mentioned:
         schema.add_component("risk", "rr_target", {"rr": 2.0})
