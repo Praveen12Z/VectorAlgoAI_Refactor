@@ -1,257 +1,169 @@
-# core/backtester_adapter.py
+"""Conservative bar-based backtester: close signals, next-open entries.
 
+Intrabar ambiguity resolves against the trader (stop before target).
+This is not tick-level simulation; explicitly configure contract multiplier and costs.
+"""
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Dict, List, Tuple
-
+import math
 import numpy as np
 import pandas as pd
 
 from .strategy_config import StrategyConfig
 
 
-@dataclass
-class Position:
-    direction: str          # "long" or "short"
-    entry_time: pd.Timestamp
-    entry_price: float
-    sl: float | None
-    tp: float | None
-    risk_per_unit: float | None  # distance to stop (for RR)
-    
-
-def _get_val(row: pd.Series, token):
-    if isinstance(token, (int, float)):
+def _value(row, token):
+    try:
         return float(token)
-    if isinstance(token, str):
-        try:
-            return float(token)
-        except ValueError:
-            return float(row[token])
-    return float(token)
+    except (ValueError, TypeError):
+        return float(row[token])
 
 
-def _check_conditions(row: pd.Series, conds: List[Dict]) -> bool:
-    if not conds:
+def _matches(row, rules):
+    if not rules:
         return False
-    for c in conds:
-        left = _get_val(row, c.get("left"))
-        right = _get_val(row, c.get("right"))
-        op = c.get("op", "==")
-        if op == ">":
-            ok = left > right
-        elif op == "<":
-            ok = left < right
-        elif op == ">=":
-            ok = left >= right
-        elif op == "<=":
-            ok = left <= right
-        elif op == "==":
-            ok = left == right
-        else:
-            ok = False
-        if not ok:
+    ops = {">": lambda a,b: a>b, "<": lambda a,b: a<b,
+           ">=": lambda a,b: a>=b, "<=": lambda a,b: a<=b,
+           "==": lambda a,b: a==b}
+    for rule in rules:
+        op = rule.get("op")
+        if op not in ops:
+            raise ValueError(f"Unsupported operator: {op}")
+        a, b = _value(row, rule["left"]), _value(row, rule["right"])
+        if not (math.isfinite(a) and math.isfinite(b) and ops[op](a,b)):
             return False
     return True
 
 
-def _build_exits(row: pd.Series, cfg: StrategyConfig, side: str) -> Tuple[float | None, float | None, float | None]:
-    """
-    Return (sl, tp, risk_per_unit) for the given side based on ATR rules.
-    """
-    exit_rules = (cfg.raw.get("exit", {}) or {}).get(side, []) or []
-    atr_val = None
-    entry_price = row["close"]
-    sl = tp = None
-
-    for rule in exit_rules:
-        if rule.get("type") in ("atr_sl", "atr_tp"):
-            atr_col = rule.get("atr_col")
-            mult = float(rule.get("multiple", 2.0))
-            if atr_col in row.index:
-                atr_val = float(row[atr_col])
-            else:
-                continue
-
-            if rule["type"] == "atr_sl":
-                if side == "long":
-                    sl = entry_price - mult * atr_val
-                else:
-                    sl = entry_price + mult * atr_val
-            elif rule["type"] == "atr_tp":
-                if side == "long":
-                    tp = entry_price + mult * atr_val
-                else:
-                    tp = entry_price - mult * atr_val
-
-    risk_per_unit = None
-    if sl is not None:
-        if side == "long":
-            risk_per_unit = entry_price - sl
+def _levels(signal, entry, cfg, side):
+    stop = target = None
+    direction = 1 if side == "long" else -1
+    for rule in (cfg.raw.get("exit", {}) or {}).get(side, []):
+        kind = rule.get("type")
+        if kind not in ("atr_sl", "atr_tp"):
+            raise ValueError(f"Unsupported exit rule: {kind}")
+        atr = float(signal[rule["atr_col"]])
+        mult = float(rule["multiple"])
+        if not math.isfinite(atr) or atr <= 0 or not math.isfinite(mult) or mult <= 0:
+            raise ValueError("ATR and exit multiple must be positive finite numbers")
+        if kind == "atr_sl":
+            stop = entry - direction * atr * mult
         else:
-            risk_per_unit = sl - entry_price
-
-    return sl, tp, risk_per_unit
-
-
-def _grade_strategy(total_ret: float, pf: float, win_rate: float, num_trades: int) -> str:
-    if num_trades < 10:
-        return "D"
-    if pf > 1.6 and total_ret > 15 and win_rate > 50:
-        return "A"
-    if pf > 1.3 and total_ret > 5:
-        return "B"
-    if pf > 1.05:
-        return "C"
-    return "D"
+            target = entry + direction * atr * mult
+    if stop is None:
+        raise ValueError("ATR stop required for risk sizing")
+    return stop, target
 
 
 def run_backtest_v2(df: pd.DataFrame, cfg: StrategyConfig):
-    """
-    Very simple bar-by-bar backtester using YAML conditions.
-    - Only supports one open position at a time.
-    - Uses close price for entry/exit.
-    """
+    if df.empty or not {"open","high","low","close"}.issubset(df):
+        raise ValueError("Nonempty OHLC data required")
+    if not df.index.is_monotonic_increasing or df.index.has_duplicates:
+        raise ValueError("OHLC timestamps must be unique and sorted")
     raw = cfg.raw or {}
-    entry_block = raw.get("entry", {}) or {}
+    risk = raw.get("risk", {}) or {}
+    capital = float(risk.get("capital", 10000))
+    risk_pct = float(risk.get("risk_per_trade_pct", 1))
+    multiplier = float(risk.get("contract_multiplier", 1))
+    commission = float(risk.get("commission_per_unit_per_side", 0))
+    slippage = float(risk.get("slippage_points_per_side", 0))
+    integer_units = bool(risk.get("integer_units", False))
+    if not all(map(math.isfinite, (capital,risk_pct,multiplier,commission,slippage))):
+        raise ValueError("Nonfinite risk parameters")
+    if capital <= 0 or not 0 < risk_pct <= 100 or multiplier <= 0 or commission < 0 or slippage < 0:
+        raise ValueError("Invalid risk parameters")
 
-    long_conds = entry_block.get("long", []) or []
-    short_conds = entry_block.get("short", []) or []
+    cash = capital
+    pending = None
+    position = None
+    trades = []
+    entries = raw.get("entry", {}) or {}
+    for i, (ts, row) in enumerate(df.iterrows()):
+        o, h, l, c = (float(row[k]) for k in ("open","high","low","close"))
+        if not all(map(math.isfinite, (o,h,l,c))) or l > min(o,c) or h < max(o,c) or h < l:
+            raise ValueError("Invalid OHLC bar")
 
-    risk_cfg = raw.get("risk", {}) or {}
-    capital = float(risk_cfg.get("capital", 10000.0))
+        if position is None and pending is not None:
+            side, signal = pending
+            pending = None
+            direction = 1 if side == "long" else -1
+            entry = o + direction * slippage
+            stop, target = _levels(signal, entry, cfg, side)
+            risk_per_unit = abs(entry-stop)*multiplier + 2*commission + 2*slippage*multiplier
+            if risk_per_unit > 0 and cash > 0:
+                quantity = cash*risk_pct/100/risk_per_unit
+                if integer_units:
+                    quantity = math.floor(quantity)
+                if quantity > 0:
+                    position = dict(side=side, direction=direction, entry=entry,
+                                    stop=stop, target=target, quantity=quantity,
+                                    entry_time=ts, risk=quantity*risk_per_unit)
 
-    position: Position | None = None
-    trades: List[Dict] = []
-
-    for ts, row in df.iterrows():
-        # close existing position?
         if position is not None:
-            price = float(row["close"])
-            exit_reason = None
-
-            if position.direction == "long":
-                if position.sl is not None and price <= position.sl:
-                    exit_reason = "SL"
-                if position.tp is not None and price >= position.tp:
-                    exit_reason = "TP"
-            else:  # short
-                if position.sl is not None and price >= position.sl:
-                    exit_reason = "SL"
-                if position.tp is not None and price <= position.tp:
-                    exit_reason = "TP"
-
-            # simple time-based fail-safe: close at last bar
-            is_last_bar = ts == df.index[-1]
-
-            if exit_reason is not None or is_last_bar:
-                exit_price = price
-                if position.direction == "long":
-                    pnl_per_unit = exit_price - position.entry_price
-                else:
-                    pnl_per_unit = position.entry_price - exit_price
-
-                risk = position.risk_per_unit or max(abs(pnl_per_unit), 1e-8)
-                rr = pnl_per_unit / risk
-
-                trades.append(
-                    {
-                        "entry_time": position.entry_time,
-                        "exit_time": ts,
-                        "direction": position.direction,
-                        "entry_price": position.entry_price,
-                        "exit_price": exit_price,
-                        "pnl": pnl_per_unit,
-                        "rr": rr,
-                        "exit_reason": exit_reason or "time_exit",
-                    }
-                )
+            p = position
+            direction = p["direction"]
+            if direction == 1:
+                stop_hit = l <= p["stop"]
+                target_hit = p["target"] is not None and h >= p["target"]
+                stop_fill = min(o, p["stop"])
+                target_fill = max(o, p["target"]) if p["target"] is not None else None
+            else:
+                stop_hit = h >= p["stop"]
+                target_hit = p["target"] is not None and l <= p["target"]
+                stop_fill = max(o, p["stop"])
+                target_fill = min(o, p["target"]) if p["target"] is not None else None
+            reason = "SL" if stop_hit else ("TP" if target_hit else None)
+            if i == len(df)-1 and reason is None:
+                reason = "time_exit"
+            if reason:
+                raw_exit = stop_fill if reason == "SL" else (target_fill if reason == "TP" else c)
+                exit_price = raw_exit - direction*slippage
+                gross = direction*(exit_price-p["entry"])*p["quantity"]*multiplier
+                fees = 2*commission*p["quantity"]
+                pnl = gross-fees
+                cash += pnl
+                trades.append(dict(entry_time=p["entry_time"], exit_time=ts,
+                    direction=p["side"], entry_price=p["entry"], exit_price=exit_price,
+                    quantity=p["quantity"], gross_pnl=gross, fees=fees,
+                    pnl=pnl, rr=pnl/p["risk"], exit_reason=reason))
                 position = None
-
-                # after closing, continue to next loop iteration to allow re-entry
                 continue
 
-        # if flat, check for entries
-        if position is None:
-            if _check_conditions(row, long_conds):
-                sl, tp, risk_per_unit = _build_exits(row, cfg, "long")
-                position = Position(
-                    direction="long",
-                    entry_time=ts,
-                    entry_price=float(row["close"]),
-                    sl=sl,
-                    tp=tp,
-                    risk_per_unit=risk_per_unit,
-                )
-            elif _check_conditions(row, short_conds):
-                sl, tp, risk_per_unit = _build_exits(row, cfg, "short")
-                position = Position(
-                    direction="short",
-                    entry_time=ts,
-                    entry_price=float(row["close"]),
-                    sl=sl,
-                    tp=tp,
-                    risk_per_unit=risk_per_unit,
-                )
+        if position is None and i < len(df)-1:
+            if _matches(row, entries.get("long", [])):
+                pending = ("long", row.copy())
+            elif _matches(row, entries.get("short", [])):
+                pending = ("short", row.copy())
 
-    trades_df = pd.DataFrame(trades)
+    trades_df = pd.DataFrame(trades, columns=["entry_time","exit_time","direction",
+        "entry_price","exit_price","quantity","gross_pnl","fees","pnl","rr","exit_reason"])
     if trades_df.empty:
-        metrics = {
-            "total_return_pct": 0.0,
-            "profit_factor": 0.0,
-            "win_rate_pct": 0.0,
-            "max_drawdown_pct": 0.0,
-            "num_trades": 0,
-            "grade": "D",
-        }
-        weaknesses = ["Too few trades to evaluate.", "Strategy might be over-filtered."]
-        suggestions = ["Relax entry conditions or test on more data."]
-        return metrics, weaknesses, suggestions, trades_df
-
-    # equity & metrics
-    pnl = trades_df["pnl"].values
-    equity = capital + np.cumsum(pnl)
-    peak = np.maximum.accumulate(equity)
-    dd = (equity - peak) / peak
-    max_dd_pct = float(dd.min() * 100.0)
-
-    gross_profit = trades_df.loc[trades_df["pnl"] > 0, "pnl"].sum()
-    gross_loss = -trades_df.loc[trades_df["pnl"] < 0, "pnl"].sum()
-    if gross_loss <= 0:
-        pf = float("inf") if gross_profit > 0 else 0.0
-    else:
-        pf = float(gross_profit / gross_loss)
-
-    total_return_pct = float((equity[-1] - capital) / capital * 100.0)
-    num_trades = len(trades_df)
-    win_rate_pct = float((trades_df["pnl"] > 0).mean() * 100.0)
-
-    grade = _grade_strategy(total_return_pct, pf, win_rate_pct, num_trades)
-
-    metrics = {
-        "total_return_pct": total_return_pct,
-        "profit_factor": pf,
-        "win_rate_pct": win_rate_pct,
-        "max_drawdown_pct": max_dd_pct,
-        "num_trades": num_trades,
-        "grade": grade,
-    }
-
-    weaknesses: List[str] = []
-    suggestions: List[str] = []
-
-    if num_trades < 20:
-        weaknesses.append("Too few trades to determine stability (sample < 20).")
-        suggestions.append("Test on more history or trade more frequently.")
-    if pf < 1.0:
-        weaknesses.append("Profit factor below 1 – strategy loses money net of costs.")
-        suggestions.append("Rebuild RR structure; aim for PF > 1.3 on robust samples.")
-    if win_rate_pct < 45:
-        weaknesses.append("Win rate is low (< 45%).")
-        suggestions.append("Improve confluence at entry and tighten stops.")
-    if max_dd_pct < -20:
-        weaknesses.append("Max drawdown deeper than -20%.")
-        suggestions.append("Reduce risk per trade or add volatility filters.")
-
+        return dict(total_return_pct=0.,profit_factor=0.,win_rate_pct=0.,
+                    max_drawdown_pct=0.,num_trades=0,grade="D"), [
+                    "Too few trades to evaluate."], ["Check signal rules and history."], trades_df
+    pnl = trades_df["pnl"].to_numpy()
+    equity = np.r_[capital, capital+np.cumsum(pnl)]
+    peaks = np.maximum.accumulate(equity)
+    dd = np.divide(equity-peaks, peaks, out=np.zeros_like(equity), where=peaks>0)
+    gains = float(pnl[pnl>0].sum())
+    losses = float(-pnl[pnl<0].sum())
+    pf = gains/losses if losses else (float("inf") if gains else 0.)
+    ret = float((equity[-1]/capital-1)*100)
+    wr = float(np.mean(pnl>0)*100)
+    n = len(pnl)
+    grade = ("A" if n>=30 and pf>1.6 and ret>15 and wr>50 else
+             "B" if n>=20 and pf>1.3 and ret>5 else
+             "C" if n>=10 and pf>1.05 else "D")
+    metrics = dict(total_return_pct=ret,profit_factor=pf,win_rate_pct=wr,
+                   max_drawdown_pct=float(dd.min()*100),num_trades=n,grade=grade)
+    weaknesses, suggestions = [], []
+    if n<20:
+        weaknesses.append("Fewer than 20 trades: insufficient evidence.")
+        suggestions.append("Test on more data.")
+    if pf<1:
+        weaknesses.append("Profit factor below 1 after configured costs.")
+        suggestions.append("Review expectancy and costs.")
+    if commission==0 and slippage==0:
+        weaknesses.append("No costs configured: results may be optimistic.")
+        suggestions.append("Set realistic commissions and slippage.")
     return metrics, weaknesses, suggestions, trades_df
