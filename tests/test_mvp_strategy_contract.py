@@ -56,3 +56,13 @@ def test_compiler_rejects_unsupported_schema_component():
     ]}
     with pytest.raises(ValueError, match="Unsupported"):
         compile_schema_to_yaml(schema)
+
+
+def test_connector_words_are_not_treated_as_unrecognized_rules():
+    strategy = compile_text("Buy when EMA 20 above EMA 50 and RSI above 50")
+    assert strategy["entry"]["long"][1]["right"] == 50
+
+
+def test_unsupported_extra_text_is_rejected():
+    with pytest.raises(ValueError, match="Unrecognized"):
+        compile_text("Buy when EMA 20 above EMA 50 and RSI above 50 with moon phase filter")
