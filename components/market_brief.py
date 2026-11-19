@@ -120,11 +120,78 @@ def _parse_bls_calendar(content, now):
     return sorted(events)[:8]
 
 
+# Verified against the BLS December 2026 release list on 19 Nov 2026.
+BLS_DECEMBER_2026 = (
+    ("2026-12-01 10:00", "Job Openings and Labor Turnover Survey"),
+    ("2026-12-04 08:30", "Employment Situation"),
+    ("2026-12-10 08:30", "Consumer Price Index"),
+    ("2026-12-15 08:30", "Producer Price Index"),
+)
+BLS_SNAPSHOT_END = "2026-12-31"
+
+
 @st.cache_data(ttl=900, show_spinner=False)
 def _calendar():
-    response = requests.get(BLS_CALENDAR_URL, timeout=8)
-    response.raise_for_status()
-    return _parse_bls_calendar(response.text, pd.Timestamp.now(tz="UTC"))
+    now = pd.Timestamp.now(tz="UTC")
+    urls = (BLS_CALENDAR_URL, BLS_CALENDAR_URL.replace("www.bls.gov", "blsmon1.bls.gov"))
+    for url in urls:
+        try:
+            response = requests.get(url, timeout=5)
+            response.raise_for_status()
+            return _parse_bls_calendar(response.text, now), "BLS schedule feed"
+        except (requests.RequestException, ValueError):
+            continue
+
+    if now >= pd.Timestamp(BLS_SNAPSHOT_END, tz="UTC"):
+        return [], None
+    events = [(pd.Timestamp(date, tz="America/New_York").tz_convert("UTC"), name)
+              for date, name in BLS_DECEMBER_2026]
+    upcoming = [(date, name) for date, name in events if now <= date < now + pd.Timedelta(days=30)]
+    return upcoming, "Published December BLS schedule · checked 19 Nov 2026 · times may change"
+
+
+CATALYST_CONTEXT = {
+    "Rates & inflation": (
+        "A surprise can change expectations for interest rates and move bond yields.",
+        "Check whether yields and the dollar move after the release, then see whether the instrument holds or reverses its first move.",
+    ),
+    "Jobs & growth": (
+        "Jobs and growth data can change both rate expectations and the outlook for demand.",
+        "Compare the actual release with expectations and check whether the initial move holds after the first few candles.",
+    ),
+    "Earnings": (
+        "Guidance and results can affect the reporting company and, for large constituents, the broader index.",
+        "Check which companies the story covers and whether the move is broad-based or confined to a few names.",
+    ),
+    "Index changes": (
+        "An official addition or removal can lead index-tracking funds to rebalance around the effective date.",
+        "Check whether the index provider has confirmed the change, the effective date, and whether price and volume react. A possible inclusion can remain speculative.",
+    ),
+    "Policy & risk": (
+        "A policy change can move prices if it alters expectations for costs, demand, or risk.",
+        "Distinguish an announcement from a proposal and watch whether the reaction persists through the next active session.",
+    ),
+}
+
+
+def _render_news_card(item, instrument):
+    topic = item["topic"]
+    with st.container(border=True):
+        st.caption(f"{topic or 'Background'} · {item['publisher']} · {item['published']:%d %b, %H:%M UTC}")
+        st.text(item["title"])
+        if item["preview"]:
+            st.markdown("**What the publisher reports**")
+            st.text(item["preview"])
+        else:
+            st.caption("The feed supplied a headline only.")
+        if topic:
+            relevance, watch = CATALYST_CONTEXT[topic]
+            st.markdown(f"**Why it could matter for {instrument}**")
+            st.write(relevance)
+            st.markdown("**What to check**")
+            st.write(watch)
+        else:
+            st.caption(f"Matched to {instrument}. No specific catalyst identified from the headline.")
 
 
 def render_market_brief(key):
@@ -186,23 +253,30 @@ def render_market_brief(key):
             st.write(f"**VA-002 entry condition:** {'Triggered on the latest close' if triggered else 'Waiting'} · prior 20-bar high {high:,.2f}.")
             st.caption("Checks the entry rule only. An existing position or execution constraints can block an entry.")
 
-    st.markdown("**Next scheduled US releases**")
-    try:
-        events = _calendar()
-        for date, name in events:
-            eastern = date.tz_convert("America/New_York")
-            st.text(f"{eastern:%d %b %H:%M %Z} · {name}")
-        if not events:
-            st.caption("No selected BLS releases are scheduled in the next 14 days.")
-    except (requests.RequestException, ValueError):
-        st.info("The BLS release calendar is temporarily unavailable.")
-    st.caption("Source: US Bureau of Labor Statistics. Covers selected BLS releases.")
+    st.subheader("US economic calendar")
+    events, source = _calendar()
+    if events:
+        upcoming, moment = st.columns([2, 1])
+        upcoming.metric("Next release", events[0][1])
+        moment.metric("Italy time", events[0][0].tz_convert("Europe/Rome").strftime("%d %b · %H:%M"))
+        st.dataframe(pd.DataFrame([{
+            "Release": name,
+            "Italy time": date.tz_convert("Europe/Rome").strftime("%a %d %b · %H:%M %Z"),
+            "New York time": date.tz_convert("America/New_York").strftime("%H:%M %Z"),
+        } for date, name in events]), hide_index=True, use_container_width=True)
+    elif source:
+        st.info("No upcoming selected releases in the available schedule window.")
+    else:
+        st.warning("The live BLS schedule is unavailable and the saved schedule has expired.")
+    if source:
+        st.caption(source)
+    st.caption("Selected US jobs and inflation releases from the Bureau of Labor Statistics.")
 
     try:
         config = st.secrets.get("market_brief", {})
     except FileNotFoundError:
         config = {}
-    st.markdown("**Catalyst watch**")
+    st.subheader("Catalyst watch")
     if news_key := config.get("marketaux_token"):
         try:
             news = _headlines(query, news_key)
@@ -211,18 +285,11 @@ def render_market_brief(key):
             if not catalysts:
                 st.info(f"No catalyst-tagged headlines for {query} in the latest feed results.")
             for item in catalysts:
-                with st.container(border=True):
-                    st.caption(item["topic"])
-                    st.text(item["title"])
-                    if item["preview"]:
-                        st.text(item["preview"])
-                    published = item["published"].strftime("%d %b, %H:%M UTC")
-                    st.caption(f"{item['publisher']} · {published}")
+                _render_news_card(item, instrument)
             if background:
                 with st.expander(f"Other matched headlines ({len(background)})"):
                     for item in background:
-                        st.text(item["title"])
-                        st.caption(f"{item['publisher']} · {item['published']:%d %b, %H:%M UTC}")
+                        _render_news_card(item, instrument)
         except (requests.RequestException, ValueError, TypeError, KeyError):
             st.info("The headline feed is temporarily unavailable.")
     else:
