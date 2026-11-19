@@ -47,6 +47,7 @@ from components.market_fit_panel import render_market_fit_panel
 from components.validation_panel import render_validation_panel
 from components.regime_panel import render_regime_panel
 from components.market_brief import render_market_brief
+from components.trade_chart import render_trade_chart
 from components.optimizer_panel import render_optimizer_panel
 from components.executive_summary_panel import (
     render_executive_summary
@@ -425,6 +426,8 @@ def _render_research_tools(stage: str) -> None:
         st.info("This backtest has no recorded trades.")
         return
     st.caption(f"{record['market']} · {record['timeframe']} · {len(ledger)} recorded trades")
+    current_bars = (st.session_state.get("bt_result") or {}).get("df_feat") if selected == current_hash else None
+    render_trade_chart(current_bars, ledger, key="journal")
     st.dataframe(ledger, hide_index=True, use_container_width=True)
     st.download_button("Download trades CSV", ledger.to_csv(index=False),
                        f"{selected[:12]}_trades.csv", "text/csv")
@@ -804,131 +807,131 @@ def run_mvp_dashboard():
     else:
         st.info("Rerun this strategy to generate signal diagnostics; older evidence remains unchanged.")
 
-    st.markdown('<div class="va-section-title">Trade inspection</div>', unsafe_allow_html=True)
-    st.markdown('<div class="va-section-copy">Inspect the executed trades against the price series. Enable trade paths or R labels only when you need them.</div>', unsafe_allow_html=True)
+    render_trade_chart(df_feat, trades_df, key="evidence")
 
-    fig = go.Figure()
-    fig.add_trace(
-        go.Candlestick(
-            x=df_feat.index,
-            open=df_feat["open"],
-            high=df_feat["high"],
-            low=df_feat["low"],
-            close=df_feat["close"],
-            name="Price",
-            increasing_line_width=2,
-            decreasing_line_width=2,
-            increasing_line_color="#0f9f9a",
-            decreasing_line_color="#d05268",
-            increasing_fillcolor="rgba(15,159,154,0.62)",
-            decreasing_fillcolor="rgba(208,82,104,0.62)",
+    with st.expander("Full backtest chart"):
+        fig = go.Figure()
+        fig.add_trace(
+            go.Candlestick(
+                x=df_feat.index,
+                open=df_feat["open"],
+                high=df_feat["high"],
+                low=df_feat["low"],
+                close=df_feat["close"],
+                name="Price",
+                increasing_line_width=2,
+                decreasing_line_width=2,
+                increasing_line_color="#0f9f9a",
+                decreasing_line_color="#d05268",
+                increasing_fillcolor="rgba(15,159,154,0.62)",
+                decreasing_fillcolor="rgba(208,82,104,0.62)",
+            )
         )
-    )
 
-    for col, label in [("ema20", "EMA 20"), ("ema50", "EMA 50"), ("ema200", "EMA 200")]:
-        if col in df_feat.columns:
-            fig.add_trace(go.Scatter(x=df_feat.index, y=df_feat[col], mode="lines", name=label, line=dict(width=1.3)))
+        for col, label in [("ema20", "EMA 20"), ("ema50", "EMA 50"), ("ema200", "EMA 200")]:
+            if col in df_feat.columns:
+                fig.add_trace(go.Scatter(x=df_feat.index, y=df_feat[col], mode="lines", name=label, line=dict(width=1.3)))
 
-    if isinstance(trades_df, pd.DataFrame) and (not trades_df.empty):
-        closed = trades_df.dropna(subset=["exit_time"]).copy()
-        wins = closed[closed["pnl"] > 0]
-        losses = closed[closed["pnl"] <= 0]
+        if isinstance(trades_df, pd.DataFrame) and (not trades_df.empty):
+            closed = trades_df.dropna(subset=["exit_time"]).copy()
+            wins = closed[closed["pnl"] > 0]
+            losses = closed[closed["pnl"] <= 0]
 
-        win_long = wins[wins["direction"] == "long"]
-        win_short = wins[wins["direction"] == "short"]
-        loss_long = losses[losses["direction"] == "long"]
-        loss_short = losses[losses["direction"] == "short"]
+            win_long = wins[wins["direction"] == "long"]
+            win_short = wins[wins["direction"] == "short"]
+            loss_long = losses[losses["direction"] == "long"]
+            loss_short = losses[losses["direction"] == "short"]
 
-        entry_size = 9
-        exit_size = 8
+            entry_size = 9
+            exit_size = 8
 
-        if not win_long.empty:
-            fig.add_trace(go.Scatter(x=win_long["entry_time"], y=win_long["entry_price"], mode="markers",
-                                     marker_symbol="triangle-up", marker_size=entry_size,
-                                     marker_color="rgba(15,159,154,0.92)", name="Long Entry (Win)"))
-        if not loss_long.empty:
-            fig.add_trace(go.Scatter(x=loss_long["entry_time"], y=loss_long["entry_price"], mode="markers",
-                                     marker_symbol="triangle-up", marker_size=entry_size,
-                                     marker_color="rgba(208,82,104,0.95)", name="Long Entry (Loss)"))
-        if not win_short.empty:
-            fig.add_trace(go.Scatter(x=win_short["entry_time"], y=win_short["entry_price"], mode="markers",
-                                     marker_symbol="triangle-down", marker_size=entry_size,
-                                     marker_color="rgba(15,159,154,0.92)", name="Short Entry (Win)"))
-        if not loss_short.empty:
-            fig.add_trace(go.Scatter(x=loss_short["entry_time"], y=loss_short["entry_price"], mode="markers",
-                                     marker_symbol="triangle-down", marker_size=entry_size,
-                                     marker_color="rgba(208,82,104,0.95)", name="Short Entry (Loss)"))
+            if not win_long.empty:
+                fig.add_trace(go.Scatter(x=win_long["entry_time"], y=win_long["entry_price"], mode="markers",
+                                         marker_symbol="triangle-up", marker_size=entry_size,
+                                         marker_color="rgba(15,159,154,0.92)", name="Long Entry (Win)"))
+            if not loss_long.empty:
+                fig.add_trace(go.Scatter(x=loss_long["entry_time"], y=loss_long["entry_price"], mode="markers",
+                                         marker_symbol="triangle-up", marker_size=entry_size,
+                                         marker_color="rgba(208,82,104,0.95)", name="Long Entry (Loss)"))
+            if not win_short.empty:
+                fig.add_trace(go.Scatter(x=win_short["entry_time"], y=win_short["entry_price"], mode="markers",
+                                         marker_symbol="triangle-down", marker_size=entry_size,
+                                         marker_color="rgba(15,159,154,0.92)", name="Short Entry (Win)"))
+            if not loss_short.empty:
+                fig.add_trace(go.Scatter(x=loss_short["entry_time"], y=loss_short["entry_price"], mode="markers",
+                                         marker_symbol="triangle-down", marker_size=entry_size,
+                                         marker_color="rgba(208,82,104,0.95)", name="Short Entry (Loss)"))
 
-        if not wins.empty:
-            fig.add_trace(go.Scatter(x=wins["exit_time"], y=wins["exit_price"], mode="markers",
-                                     marker_symbol="x", marker_size=exit_size,
-                                     marker_color="rgba(15,159,154,0.92)", name="Exit (Win)"))
-        if not losses.empty:
-            fig.add_trace(go.Scatter(x=losses["exit_time"], y=losses["exit_price"], mode="markers",
-                                     marker_symbol="x", marker_size=exit_size,
-                                     marker_color="rgba(208,82,104,0.95)", name="Exit (Loss)"))
+            if not wins.empty:
+                fig.add_trace(go.Scatter(x=wins["exit_time"], y=wins["exit_price"], mode="markers",
+                                         marker_symbol="x", marker_size=exit_size,
+                                         marker_color="rgba(15,159,154,0.92)", name="Exit (Win)"))
+            if not losses.empty:
+                fig.add_trace(go.Scatter(x=losses["exit_time"], y=losses["exit_price"], mode="markers",
+                                         marker_symbol="x", marker_size=exit_size,
+                                         marker_color="rgba(208,82,104,0.95)", name="Exit (Loss)"))
 
-        if show_trade_lines and not closed.empty:
-            closed_for_lines = closed.tail(10)
-            wins_for_lines = closed_for_lines[closed_for_lines["pnl"] > 0]
-            losses_for_lines = closed_for_lines[closed_for_lines["pnl"] <= 0]
+            if show_trade_lines and not closed.empty:
+                closed_for_lines = closed.tail(10)
+                wins_for_lines = closed_for_lines[closed_for_lines["pnl"] > 0]
+                losses_for_lines = closed_for_lines[closed_for_lines["pnl"] <= 0]
 
-            added_win_legend = False
-            added_loss_legend = False
+                added_win_legend = False
+                added_loss_legend = False
 
-            for _, row in wins_for_lines.iterrows():
+                for _, row in wins_for_lines.iterrows():
+                    fig.add_trace(go.Scatter(
+                        x=[row["entry_time"], row["exit_time"]],
+                        y=[row["entry_price"], row["exit_price"]],
+                        mode="lines",
+                        line=dict(color="rgba(15,159,154,0.72)", width=1.5),
+                        name="Winning Trade" if not added_win_legend else "",
+                        showlegend=not added_win_legend,
+                    ))
+                    added_win_legend = True
+
+                for _, row in losses_for_lines.iterrows():
+                    fig.add_trace(go.Scatter(
+                        x=[row["entry_time"], row["exit_time"]],
+                        y=[row["entry_price"], row["exit_price"]],
+                        mode="lines",
+                        line=dict(color="rgba(208,82,104,0.78)", width=1.5),
+                        name="Losing Trade" if not added_loss_legend else "",
+                        showlegend=not added_loss_legend,
+                    ))
+                    added_loss_legend = True
+
+            if show_rr_labels and ("rr" in closed.columns):
+                label_trades = closed.tail(10).copy()
+                texts = []
+                for rr in label_trades["rr"]:
+                    if pd.isna(rr):
+                        texts.append("")
+                    else:
+                        sign = "+" if rr > 0 else ""
+                        texts.append(f"RR {sign}{rr:.1f}")
+
                 fig.add_trace(go.Scatter(
-                    x=[row["entry_time"], row["exit_time"]],
-                    y=[row["entry_price"], row["exit_price"]],
-                    mode="lines",
-                    line=dict(color="rgba(15,159,154,0.72)", width=1.5),
-                    name="Winning Trade" if not added_win_legend else "",
-                    showlegend=not added_win_legend,
+                    x=label_trades["exit_time"], y=label_trades["exit_price"],
+                    mode="text", text=texts, textposition="top center",
+                    textfont=dict(size=9), name="RR", showlegend=False
                 ))
-                added_win_legend = True
 
-            for _, row in losses_for_lines.iterrows():
-                fig.add_trace(go.Scatter(
-                    x=[row["entry_time"], row["exit_time"]],
-                    y=[row["entry_price"], row["exit_price"]],
-                    mode="lines",
-                    line=dict(color="rgba(208,82,104,0.78)", width=1.5),
-                    name="Losing Trade" if not added_loss_legend else "",
-                    showlegend=not added_loss_legend,
-                ))
-                added_loss_legend = True
+        fig.update_layout(
+            dragmode="pan",
+            hovermode="x unified",
+            xaxis_rangeslider_visible=False,
+            margin=dict(l=0, r=0, t=30, b=0),
+            height=520,
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="#fbfdff",
+            font=dict(color="#5c6f86"),
+            colorway=["#2563eb", "#0f9f9a", "#7c8ba1"],
+            xaxis=dict(gridcolor="#e9eff5", zerolinecolor="#dbe4ee"),
+            yaxis=dict(gridcolor="#e9eff5", zerolinecolor="#dbe4ee"),
+        )
 
-        if show_rr_labels and ("rr" in closed.columns):
-            label_trades = closed.tail(10).copy()
-            texts = []
-            for rr in label_trades["rr"]:
-                if pd.isna(rr):
-                    texts.append("")
-                else:
-                    sign = "+" if rr > 0 else ""
-                    texts.append(f"RR {sign}{rr:.1f}")
-
-            fig.add_trace(go.Scatter(
-                x=label_trades["exit_time"], y=label_trades["exit_price"],
-                mode="text", text=texts, textposition="top center",
-                textfont=dict(size=9), name="RR", showlegend=False
-            ))
-
-    fig.update_layout(
-        dragmode="pan",
-        hovermode="x unified",
-        xaxis_rangeslider_visible=False,
-        margin=dict(l=0, r=0, t=30, b=0),
-        height=520,
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="#fbfdff",
-        font=dict(color="#5c6f86"),
-        colorway=["#2563eb", "#0f9f9a", "#7c8ba1"],
-        xaxis=dict(gridcolor="#e9eff5", zerolinecolor="#dbe4ee"),
-        yaxis=dict(gridcolor="#e9eff5", zerolinecolor="#dbe4ee"),
-    )
-
-    st.plotly_chart(fig, use_container_width=True, config={"scrollZoom": True, "displaylogo": False})
+        st.plotly_chart(fig, use_container_width=True, config={"scrollZoom": True, "displaylogo": False})
 
     st.markdown('<div class="va-section-title">Closed-trade cumulative P&L</div>', unsafe_allow_html=True)
     st.caption("This chart shows realized trade P&L. Reported drawdown also includes unrealized losses at bar closes.")
