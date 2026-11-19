@@ -4,6 +4,7 @@ Source concepts are paraphrased. All numeric adaptations are VectorAlgoAI
 research choices, not performance claims or faithful replications.
 """
 from copy import deepcopy
+from core.published_research_catalog import PUBLISHED_RESEARCH
 
 REVIEWED_ON = "2026-09-16"
 COMMON_PROTOCOL = (
@@ -112,6 +113,8 @@ CATALOG = [
 ]
 
 
+CATALOG.extend(PUBLISHED_RESEARCH)
+
 def catalog_origin(source_text):
     for item in CATALOG:
         if item['prompt'] and source_text.strip() == item['prompt']:
@@ -132,4 +135,4 @@ def load_template(state, item):
 
 
 def catalog_export(item):
-    return {**deepcopy(item), 'research_protocol': COMMON_PROTOCOL, 'validation_status': 'NOT TESTED'}
+    return {**deepcopy(item), 'research_protocol': item.get('research_protocol', COMMON_PROTOCOL), 'validation_status': 'NOT TESTED'}

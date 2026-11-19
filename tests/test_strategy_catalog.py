@@ -7,9 +7,9 @@ from core.strategy_contract import contract_gate_issues
 
 
 class StrategyCatalogTests(unittest.TestCase):
-    def test_ten_unique_sourced_unvalidated_specifications(self):
-        self.assertEqual(len(CATALOG), 10)
-        self.assertEqual(len({x['id'] for x in CATALOG}), 10)
+    def test_unique_sourced_unvalidated_specifications(self):
+        self.assertEqual(len(CATALOG), 12)
+        self.assertEqual(len({x['id'] for x in CATALOG}), 12)
         for item in CATALOG:
             self.assertTrue(item['source_url'].startswith('https://'))
             self.assertTrue(item['rules'] and item['failure_modes'] and item['refinements'])
