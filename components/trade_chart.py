@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 
-def build_trade_chart(bars, trade, context_bars=12):
+def build_trade_chart(bars, trade, context_bars=12, *, full_run=False):
     """Plot exact execution candles and recorded prices without approximating missing bars."""
     entry = pd.Timestamp(trade["entry_time"])
     exit_ = pd.Timestamp(trade["exit_time"])
@@ -20,52 +20,81 @@ def build_trade_chart(bars, trade, context_bars=12):
     last = bars.index.get_loc(max(anchors))
     left = max(0, first - context_bars)
     right = min(len(bars) - 1, last + context_bars)
-    # Keep the full series loaded so the selected trade is a zoom target.
+    entry_bar = bars.index.get_loc(entry)
+    exit_bar = bars.index.get_loc(exit_)
+    signal_bar = bars.index.get_loc(signal) if pd.notna(signal) else None
+    if full_run:
+        left, right = 0, len(bars) - 1
+    visible = bars.iloc[left:right + 1]
+
+    def display_time(stamp):
+        if stamp.tzinfo is not None:
+            stamp = stamp.tz_convert("Europe/Rome")
+        return stamp.strftime("%d %b %Y · %H:%M %Z").strip()
+
+    prices = [trade["entry_price"], trade["exit_price"]]
     fig = go.Figure(go.Candlestick(
-        x=bars.index, open=bars["open"], high=bars["high"],
-        low=bars["low"], close=bars["close"], name="Price",
-        increasing_line_color="#0f766e", decreasing_line_color="#c24156",
+        x=list(range(len(bars))), open=bars["open"], high=bars["high"],
+        low=bars["low"], close=bars["close"], name="Price", showlegend=False,
+        text=[
+            f"{display_time(stamp)}<br>O {row.open:,.2f} · H {row.high:,.2f}<br>L {row.low:,.2f} · C {row.close:,.2f}"
+            for stamp, row in zip(bars.index, bars.itertuples())
+        ],
+        hoverinfo="text",
+        increasing_line_color="#0f766e", decreasing_line_color="#be3455",
+        increasing_fillcolor="#0f9987", decreasing_fillcolor="#e15b77",
     ))
-    spacing = bars.index.to_series().diff().dropna().min() / 2 if len(bars) > 1 else pd.Timedelta(minutes=1)
-    fig.add_vrect(x0=entry - spacing, x1=exit_ + spacing,
-                  fillcolor="#dbeafe", opacity=0.5, line_width=0, layer="below")
+    fig.add_vrect(x0=entry_bar - 0.45, x1=exit_bar + 0.45,
+                  fillcolor="#bfdbfe", opacity=0.32, line_width=0, layer="below")
 
     markers = [
-        ("Entry fill", entry, trade["entry_price"], "#1d4ed8",
-         "triangle-down" if trade.get("direction") == "short" else "triangle-up", "top center"),
-        ("Exit fill", exit_, trade["exit_price"], "#9333ea", "x", "bottom center"),
+        ("Entry", entry_bar, trade["entry_price"], "#1d4ed8",
+         "triangle-down" if trade.get("direction") == "short" else "triangle-up"),
+        ("Exit", exit_bar, trade["exit_price"], "#9333ea", "x"),
     ]
-    if pd.notna(signal):
-        markers.insert(0, ("Signal close", signal, bars.at[signal, "close"],
-                           "#b45309", "diamond", "top left"))
-    for label, timestamp, price, color, symbol, position in markers:
+    if signal_bar is not None:
+        markers.insert(0, ("Signal", signal_bar, bars.at[signal, "close"], "#a45309", "diamond"))
+    for label, bar, price, color, symbol in markers:
         fig.add_scatter(
-            x=[timestamp], y=[price], text=[label], textposition=position,
-            customdata=[timestamp.isoformat(sep=" ", timespec="minutes")], mode="markers+text", name=label,
-            marker={"size": 12, "symbol": symbol, "color": color},
-            hovertemplate="%{customdata}<br>%{y:,.4f}<extra>%{fullData.name}</extra>",
+            x=[bar], y=[price], customdata=[display_time(bars.index[bar])],
+            mode="markers", name=label,
+            marker={"size": 13, "symbol": symbol, "color": color,
+                    "line": {"width": 1, "color": "#ffffff"}},
+            hovertemplate="%{customdata}<br>%{y:,.2f}<extra>%{fullData.name}</extra>",
         )
 
     for field, label, color in (
-        ("initial_stop", "Initial stop", "#c24156"),
-        ("initial_target", "Initial target", "#0f766e"),
+        ("initial_stop", "Stop", "#c24156"),
+        ("initial_target", "Target", "#0f766e"),
     ):
         price = trade.get(field)
         if pd.notna(price):
-            fig.add_scatter(x=[entry - spacing, exit_ + spacing],
+            prices.append(price)
+            fig.add_scatter(x=[entry_bar - 0.45, exit_bar + 0.45],
                             y=[price, price], mode="lines", name=label,
-                            line={"color": color, "dash": "dash", "width": 1.5})
+                            line={"color": color, "dash": "dash", "width": 1.5},
+                            hovertemplate="%{y:,.2f}<extra>%{fullData.name}</extra>")
 
+    low = min(visible["low"].min(), *prices)
+    high = max(visible["high"].max(), *prices)
+    padding = max((high - low) * 0.12, abs(high) * 0.0001, 0.01)
+    # Sparse labels on both sides of the focus preserve context when panning.
+    ticks = set(range(0, len(bars), max(1, len(bars) // 10)))
+    ticks = {i for i in ticks if not left <= i <= right}
+    ticks.update(range(left, right + 1, max(1, (right - left + 1) // 7)))
+    ticks = sorted(ticks)
+    axis_dates = bars.index.tz_convert("Europe/Rome") if bars.index.tz is not None else bars.index
     fig.update_layout(
-        height=460, dragmode="pan", hovermode="closest",
+        height=485, dragmode="pan", hovermode="closest",
         plot_bgcolor="#fbfdff", paper_bgcolor="rgba(0,0,0,0)",
-        font={"color": "#334155"},
-        margin={"l": 8, "r": 10, "t": 25, "b": 15},
+        font={"color": "#334155"}, margin={"l": 12, "r": 20, "t": 46, "b": 30},
         xaxis={"rangeslider_visible": False, "gridcolor": "#e8eef6",
-               "range": [bars.index[left] - spacing, bars.index[right] + spacing],
+               "range": [left - 0.8, right + 0.8], "tickvals": ticks,
+               "ticktext": [axis_dates[i].strftime("%d %b<br>%H:%M") for i in ticks],
                "showspikes": True, "spikemode": "across", "spikesnap": "cursor"},
-        yaxis={"side": "right", "title": "Price", "gridcolor": "#e8eef6"},
-        legend={"orientation": "h", "y": 1.10},
+        yaxis={"side": "right", "gridcolor": "#e8eef6", "range": [low - padding, high + padding],
+               "tickformat": ",.2f"},
+        legend={"orientation": "h", "yanchor": "bottom", "y": 1.02},
     )
     return fig
 
@@ -112,14 +141,16 @@ def render_trade_chart(bars, trades, key):
     if bars is None or bars.empty:
         st.info("This saved record includes execution times and prices. Rerun the backtest to inspect its candles.")
         return
+    view = st.radio("Chart view", ("Trade focus", "Full run"), horizontal=True,
+                    key=f"{key}_trade_view_{selected}")
     try:
-        figure = build_trade_chart(bars, trade)
+        figure = build_trade_chart(bars, trade, full_run=view == "Full run")
     except ValueError as exc:
         st.warning(str(exc))
         return
-    st.plotly_chart(figure, use_container_width=True, key=f"{key}_trade_chart_{selected}",
+    st.plotly_chart(figure, use_container_width=True, key=f"{key}_trade_chart_{selected}_{view}",
                     config={"scrollZoom": True, "displaylogo": False})
     if pd.notna(reason := trade.get("exit_reason")):
         description = {"TP": "Target hit", "SL": "Stop hit", "TIME": "Time exit"}.get(str(reason), str(reason))
         st.caption(f"Exit reason: {description}")
-    st.caption("Drag to pan through the run or scroll to zoom. Select another trade to jump to it. Fill markers show the backtest price and candle.")
+    st.caption("Candles are shown side by side. Hover for the original bar data. Drag to pan, scroll to zoom, or switch to Full run to reset the price scale.")
