@@ -10,7 +10,7 @@ import plotly.graph_objects as go
 import streamlit as st
 import yaml
 
-from core.data_loader import load_ohlcv, get_symbol
+from core.data_loader import describe_coverage, load_ohlcv, get_symbol
 from core.indicators import apply_all_indicators
 from core.strategy_config import parse_strategy_yaml, StrategyConfig
 from core.backtester_adapter import ExecutionCostModel, run_backtest_v2
@@ -331,20 +331,30 @@ def _render_workspace_landing(view: str) -> None:
         )
     elif view == "library":
         st.markdown('<div class="va-page-kicker">Strategy library</div><div class="va-title">Saved research and experiments</div><div class="va-subtitle">Review versions, record decisions and compare historical evidence.</div>', unsafe_allow_html=True)
-        render_strategy_catalog()
-        st.divider()
-        st.subheader("Your saved research")
+        section = st.radio(
+            "Strategy Library view", ("Strategy catalog", "Your saved research"),
+            horizontal=True, label_visibility="collapsed",
+        )
+        evidence_available = True
         try:
             records = _load_research_records()
         except AccessServiceError:
-            st.warning("Permanent Strategy Library storage is not ready yet.")
-            return
-        if not records:
-            st.info("No permanent research records yet. Run an approved evidence test to create one.")
-            return
+            records = []
+            evidence_available = False
+
         def load_record(record_hash):
             client, session = _research_storage_client()
             return client.research_record(session, record_hash)
+
+        if section == "Strategy catalog":
+            render_strategy_catalog(records, load_record, evidence_available)
+            return
+        if not evidence_available:
+            st.warning("Saved research storage is unavailable.")
+            return
+        if not records:
+            st.info("No saved research yet. Run an approved backtest to save its results and trades.")
+            return
         try:
             render_experiment_library(records, load_record, _persist_research_record)
         except AccessServiceError:
@@ -531,6 +541,12 @@ def run_mvp_dashboard():
                 validation["regime_analysis"] = regime_analysis
                 full_result = validation["full"]
                 metrics = full_result["metrics"]
+                metrics["data_coverage"] = describe_coverage(df_price, cfg.market, cfg.timeframe, years)
+                metrics["session_filter"] = {
+                    "applied": False,
+                    "bars_before": len(df_price),
+                    "bars_after": len(df_price),
+                }
                 weaknesses = full_result["weaknesses"]
                 suggestions = full_result["suggestions"]
                 trades_df = full_result["trades"]
@@ -642,7 +658,7 @@ def run_mvp_dashboard():
     if validation:
         render_validation_panel(validation)
         render_monthly_activity(validation)
-    st.caption("Execution: signal on completed bar, entry at next available open; protective exits active immediately. Costs are deducted as round-trip cash charges. Drawdown uses bar-close equity, not worst intrabar equity. Sizing uses fractional units without broker lot or margin constraints.")
+    st.caption("Execution: signal on completed bar, entry at next available open; protective exits active immediately. Stop and target anchors follow the approved rules. Costs are deducted as round-trip cash charges. Drawdown uses bar-close equity, not worst intrabar equity. Sizing uses fractional units without broker lot or margin constraints.")
     if persistence.get("saved"):
         st.success(
             f"Permanent evidence record saved · {persistence.get('record_hash', '')[:12]}"
@@ -661,15 +677,49 @@ def run_mvp_dashboard():
     if diagnostics:
         with st.expander("Why this many trades?", expanded=True):
             st.caption("Counts refer to completed bars, not unique setups. The engine gives long signals priority when both directions qualify. A position open at the next bar's start blocks a new entry, even if it closes later in that bar.")
-            counts = {"Price bars loaded": "bars_loaded",
+            coverage = metrics.get("data_coverage")
+            if coverage:
+                st.caption(
+                    f"{coverage['source']} · {coverage['symbol']} · {coverage['bar_interval']} · "
+                    f"Timestamp timezone: {coverage['timezone']}"
+                )
+                st.caption(
+                    f"Requested history: {coverage['requested_years']} years. Configured download period: "
+                    f"{coverage['configured_download_period']}. Loaded: {coverage['first_bar']} through "
+                    f"{coverage['last_bar']}."
+                )
+                st.caption(
+                    f"Intervals longer than one bar: {coverage['intervals_longer_than_bar']}. "
+                    f"Largest interval: {coverage['largest_interval'] or 'unavailable'}. "
+                    "These intervals include scheduled market closures."
+                )
+                st.dataframe(
+                    pd.DataFrame([{"Month": month, "Loaded bars": count}
+                                  for month, count in coverage["bars_by_month"].items()]),
+                    hide_index=True, use_container_width=True,
+                )
+            session_filter = metrics.get("session_filter")
+            if session_filter:
+                st.caption(
+                    f"No session filter applied · {session_filter['bars_before']} input bars → "
+                    f"{session_filter['bars_after']} bars after the session stage."
+                )
+            counts = {"Bars evaluated by the backtester": "bars_loaded",
                       "Signal bars with a following open": "signal_bars_with_next_open",
                       "Bars passing all entry rules": "qualifying_signal_bars",
                       "Blocked by an existing position": "blocked_open_position",
                       "Blocked by exhausted capital": "blocked_nonpositive_equity",
+                      "Blocked by invalid stop at entry": "blocked_invalid_entry_stop",
                       "Entries executed": "entries_executed",
                       "Final-bar signal with no following open": "final_bar_signal_without_next_open"}
-            st.dataframe(pd.DataFrame([{"Stage": label, "Count": diagnostics[key]}
-                                       for label, key in counts.items()]),
+            stage_counts = [{"Stage": label, "Count": diagnostics.get(key, 0)}
+                            for label, key in counts.items()]
+            stage_counts.insert(2, {
+                "Stage": "Bars with a following open that failed entry rules",
+                "Count": diagnostics["signal_bars_with_next_open"] - diagnostics["qualifying_signal_bars"],
+            })
+            stage_counts.append({"Stage": "Closed trades", "Count": metrics["num_trades"]})
+            st.dataframe(pd.DataFrame(stage_counts),
                          hide_index=True, use_container_width=True)
             rows = [{**rule, "rule": json.dumps(rule["rule"], sort_keys=True)}
                     for rule in diagnostics["rules"]]

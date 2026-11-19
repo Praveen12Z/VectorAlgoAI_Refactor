@@ -3,11 +3,13 @@ import json
 import streamlit as st
 import pandas as pd
 from io import BytesIO
+from components.experiment_library_panel import label, render_saved_evidence
+from core.auth import AccessServiceError
 from core.orb_research import screen_opening_range, selection_record
 from core.strategy_catalog import CATALOG, COMMON_PROTOCOL, catalog_export, load_template
 
 
-def render_strategy_catalog():
+def render_strategy_catalog(records, load_record, evidence_available):
     st.subheader("Sourced strategy starters")
     st.caption(f"{len(CATALOG)} research specifications · implementation status shown separately · none validated")
     st.write("Refined means the rules are more explicit, not that returns have improved. Sources explain the underlying concepts; VectorAlgoAI's thresholds and risk rules are research adaptations.")
@@ -17,6 +19,11 @@ def render_strategy_catalog():
     st.markdown(f"**{item['name']} · v{item['version']}**")
     st.caption(f"{item['family']} · Proposed market: {item['market']} · {item['timeframe']}")
     st.info(item['status'])
+    if st.button("Open as new research draft", key=f"load_{item['id']}", type="primary"):
+        load_template(st.session_state, item)
+        st.rerun()
+    st.caption("Opening a strategy replaces the current unsaved draft and session result.")
+    render_catalog_evidence(item, records, load_record, evidence_available)
     st.markdown(f"[Read original concept]({item['source_url']}) · Reviewed {item['reviewed_on']}")
     st.write(item['source_concept'])
     st.markdown("**Proposed rules**")
@@ -35,11 +42,35 @@ def render_strategy_catalog():
         file_name=f"{item['id']}-v{item['version']}.json", mime="application/json")
     if item['id'] == 'PR-002':
         render_orb_selection()
-    if not item['implementation_gaps']:
-        st.caption("Opening a starter replaces the current unsaved draft and session result. Saved research remains intact; approval is required again.")
-        if st.button("Open as new research draft", key=f"load_{item['id']}"):
-            load_template(st.session_state, item)
-            st.rerun()
+
+
+def render_catalog_evidence(item, records, load_record, evidence_available):
+    matches = {}
+    for record in records:
+        origin = (record.get("execution_assumptions") or {}).get("catalog_origin") or {}
+        if origin.get("id") == item["id"] and origin.get("version") == item["version"]:
+            matches[record["record_hash"]] = record
+    if matches:
+        with st.expander("View results and trades", expanded=True):
+            selected = st.selectbox(
+                "Choose a backtest or review", list(matches),
+                format_func=lambda record_hash: label(matches[record_hash]),
+                key=f"catalog_evidence_{item['id']}",
+            )
+            try:
+                render_saved_evidence(load_record(selected), key=f"catalog_{item['id']}")
+            except AccessServiceError:
+                st.error("Could not load the saved evidence. Please retry.")
+    elif item["id"] == "PR-001":
+        st.info("The linked paper reports the authors' results. VectorAlgoAI replication is pending, so there is no VectorAlgoAI backtest or trade ledger for this strategy.")
+    elif item["id"] == "PR-002":
+        st.info("The screener below shows qualifying stock candidates. Backtest results and a trade ledger require implementing order execution.")
+    elif item["implementation_gaps"]:
+        st.info("Backtest results will be available once this strategy's rules can run in the backtester.")
+    elif evidence_available:
+        st.info("No matching run in your recent saved research. Open this starter as a draft, approve the rules, and run a backtest to generate results and trades.")
+    else:
+        st.warning("Saved backtests could not be checked. You can still open this starter as a research draft.")
 
 
 def render_orb_selection():

@@ -3,6 +3,8 @@ from html import escape
 import streamlit as st
 import yaml
 
+from components.strategy_catalog_panel import render_orb_selection
+
 from core.ai_strategy_builder import build_strategy_from_text
 from core.schema_to_yaml_compiler import compile_schema_to_yaml
 from core.research_contract import strategy_contract_issues
@@ -20,6 +22,10 @@ def render_ai_strategy_builder_panel(active_stage: str = "thesis"):
 
 
 def _render_thesis_editor():
+    specification = st.session_state.get("catalog_specification")
+    if specification:
+        _render_catalog_specification(specification)
+        return
     st.markdown('<div class="va-page-kicker">Strategy Brief</div><div class="va-title">Turn your trading idea into testable rules</div><div class="va-subtitle">Describe the edge as you trade it. VectorAlgoAI will expose every assumption before testing.</div>', unsafe_allow_html=True)
     reset_notice = st.session_state.pop("research_reset_notice", None)
     if reset_notice:
@@ -66,6 +72,28 @@ def _render_thesis_editor():
         st.session_state["blueprint_approved"] = False
         st.session_state["active_workspace_stage"] = "blueprint"
         st.rerun()
+
+
+def _render_catalog_specification(specification):
+    st.caption(f"Strategy Brief · {specification['id']} · v{specification['version']}")
+    st.title(specification["name"])
+    st.caption(f"{specification['market']} · {specification['timeframe']}")
+    st.info(specification["status"])
+    st.subheader("Strategy rules")
+    for rule in specification["rules"]:
+        st.write(rule)
+    st.subheader("What the backtest still needs")
+    for gap in specification["implementation_gaps"]:
+        st.write(f"• {gap}")
+    st.link_button("Open research source", specification["source_url"])
+    if st.button("Start a custom strategy draft"):
+        st.session_state.pop("catalog_specification", None)
+        for key in ("ai_text", "ai_market", "ai_timeframe", "current_strategy_name",
+                    "experiment_version", "experiment_hypothesis"):
+            st.session_state.pop(key, None)
+        st.rerun()
+    if specification["id"] == "PR-002":
+        render_orb_selection()
 
 
 def _render_blueprint():

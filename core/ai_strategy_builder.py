@@ -29,6 +29,62 @@ def _extract_research_capital(text: str) -> float | None:
 
 
 def build_strategy_from_text(text: str) -> dict:
+    retest_models = {
+        "VA-006: Resistance break and first retest": (
+            "resistance_retest", {"pivot_wing": 2, "pivot_max_age": 50, "retest_bars": 10,
+                                 "atr_period": 14, "atr_tolerance": 0.25},
+        ),
+        "VA-008: Fresh demand-zone first retest": (
+            "demand_zone_retest", {"base_bars": 3, "departure_atr": 1.5, "retest_bars": 20,
+                                  "atr_period": 14, "stop_buffer_atr": 0.25},
+        ),
+    }
+    if text.strip() in retest_models:
+        component, params = retest_models[text.strip()]
+        return {
+            "source_text": text.strip(),
+            "risk": {"capital": 25000, "risk_per_trade_pct": 0.5},
+            "components": [
+                {"category": "entry", "component": component, "params": params},
+                {"category": "risk", "component": "structural_stop",
+                 "params": {"buffer_atr": 0.25, "target_r": 2}},
+            ],
+        }
+    catalog_models = {
+        "VA-002: 20-bar channel breakout": ("channel_breakout", {"period": 20}, 2.0, 3.0),
+        "VA-004: Bollinger squeeze breakout": ("bollinger_squeeze", {
+            "period": 20, "stddev": 2, "width_lookback": 120, "quantile": 0.20,
+        }, 1.5, 2.0),
+    }
+    if text.strip() == "VA-003: RSI2 pullback in a long-term uptrend":
+        return {
+            "source_text": text.strip(),
+            "risk": {"capital": 25000, "risk_per_trade_pct": 0.5},
+            "assumptions": [{"field": "RSI smoothing", "value": "Wilder",
+                             "reason": "The catalog specifies RSI2 without a smoothing convention."}],
+            "components": [
+                {"category": "entry", "component": "rsi_pullback",
+                 "params": {"trend_sma": 200, "rsi_period": 2, "threshold": 10}},
+                {"category": "exit", "component": "next_open_exit",
+                 "params": {"exit_sma": 5, "max_holding_bars": 10}},
+                {"category": "risk", "component": "atr_stop", "params": {
+                    "period": 14, "multiple": 2.0, "smoothing": "wilder", "anchor": "signal_close",
+                }},
+            ],
+        }
+    if text.strip() in catalog_models:
+        component, params, stop, target = catalog_models[text.strip()]
+        return {
+            "source_text": text.strip(),
+            "risk": {"capital": 25000, "risk_per_trade_pct": 0.5},
+            "components": [
+                {"category": "entry", "component": component, "params": params},
+                {"category": "risk", "component": "atr_stop", "params": {
+                    "period": 14, "multiple": stop, "smoothing": "wilder", "anchor": "signal_close",
+                }},
+                {"category": "risk", "component": "rr_target", "params": {"rr": target}},
+            ],
+        }
     schema = UniversalStrategy()
     txt = text.lower().replace("stop-loss", "stop loss").replace("take-profit", "target")
     assumptions: list[dict] = []

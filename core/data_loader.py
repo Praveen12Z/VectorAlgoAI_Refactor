@@ -277,6 +277,7 @@ def load_ohlcv(symbol: str, timeframe: str, years: int = 2) -> pd.DataFrame:
 
     cached = _read_cache(path)
     if cached is not None and not cached.empty:
+        cached.attrs["price_source"] = "Local Yahoo Finance cache"
         return cached
 
     try:
@@ -295,6 +296,7 @@ def load_ohlcv(symbol: str, timeframe: str, years: int = 2) -> pd.DataFrame:
         )
 
     _write_cache(path, df)
+    df.attrs["price_source"] = "Yahoo Finance download"
     return df
 
 
@@ -303,3 +305,30 @@ def supported_markets() -> Tuple[str, ...]:
     Optional helper for future UI dropdowns.
     """
     return tuple(YF_SYMBOL_MAP.keys())
+
+
+def describe_coverage(df: pd.DataFrame, symbol: str, timeframe: str, years: int) -> dict:
+    """Describe the loaded bars without assuming an exchange calendar."""
+    index = df.index
+    timeframe = _normalize_timeframe(timeframe)
+    interval = pd.Timedelta(timeframe)
+    gaps = index.to_series().diff().dropna()
+    monthly = pd.Series(1, index=index.strftime("%Y-%m")).groupby(level=0).sum()
+    by_month = {month: int(count) for month, count in monthly.items()}
+    if len(index):
+        months = pd.period_range(index[0].strftime("%Y-%m"), index[-1].strftime("%Y-%m"), freq="M")
+        by_month = {str(month): by_month.get(str(month), 0) for month in months}
+    return {
+        "source": df.attrs.get("price_source", "Unknown"),
+        "symbol": get_symbol(symbol),
+        "requested_years": years,
+        "configured_download_period": _safe_period(timeframe, years),
+        "bar_interval": timeframe,
+        "timezone": str(index.tz) if index.tz is not None else "Unknown",
+        "first_bar": index[0].isoformat() if len(index) else None,
+        "last_bar": index[-1].isoformat() if len(index) else None,
+        "bars_loaded": len(index),
+        "bars_by_month": by_month,
+        "intervals_longer_than_bar": int((gaps > interval).sum()),
+        "largest_interval": str(gaps.max()) if not gaps.empty else None,
+    }

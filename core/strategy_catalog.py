@@ -46,14 +46,16 @@ CATALOG = [
         ["At close t, close[t] > maximum high of bars t-20 through t-1; close[t-1] <= that same level.",
          "Stop = signal close minus 2 ATR14; target 3R. No trailing exit or pyramiding."],
         "Excluded the signal bar from the channel and specified entry, stop and target; this is not the complete Turtle system.",
-        ["Past-only channel trigger", "Next-open entry"], "False breaks and prolonged sideways markets."),
+        [], "False breaks and prolonged sideways markets.",
+        "VA-002: 20-bar channel breakout"),
     _item("VA-003", "RSI2 pullback in a long-term uptrend", "Mean reversion", "NAS100", "1d",
         "https://chartschool.stockcharts.com/table-of-contents/trading-strategies-and-models/trading-strategies/rsi-2",
         "Connors-style RSI2 research combines a long-term trend filter with short-term oversold conditions.",
         ["Close > SMA200 and RSI2 < 10 at the completed daily close.",
          "Stop = signal close minus 2 ATR14. Exit next open after a close > SMA5, or after 10 completed holding bars, whichever occurs first; protective stop remains active."],
         "Added a protective stop and ten-bar time exit. These materially change the published concept and require fresh validation.",
-        ["SMA trend and price trigger", "Indicator/time exits", "Next-open entry"], "Buying into a persistent decline; overnight gap risk."),
+        [], "Buying into a persistent decline; overnight gap risk.",
+        "VA-003: RSI2 pullback in a long-term uptrend"),
     _item("VA-004", "Bollinger squeeze breakout", "Volatility expansion", "NAS100", "1h",
         "https://chartschool.stockcharts.com/table-of-contents/trading-strategies-and-models/trading-strategies/bollinger-band-squeeze",
         "A narrowing Bollinger envelope can precede expansion; the break determines direction.",
@@ -61,7 +63,8 @@ CATALOG = [
          "Previous bar width <= the 20th percentile of the 120 widths ending on that bar. Current close > upper band and previous close <= previous upper band.",
          "Stop = signal close minus 1.5 ATR14; target 2R."],
         "Defined a past-only percentile squeeze threshold and a close-confirmed long breakout.",
-        ["Bollinger calculation and squeeze state", "Next-open entry"], "Expansion may reverse; percentile and lookback sensitivity."),
+        [], "Expansion may reverse; percentile and lookback sensitivity.",
+        "VA-004: Bollinger squeeze breakout"),
     _item("VA-005", "New York opening-range breakout", "Session breakout", "NAS100", "5m",
         "https://fxopen.com/blog/en/opening-range-breakout-strategy/",
         "Opening-range strategies trade a break of the early session high or low.",
@@ -77,7 +80,8 @@ CATALOG = [
          "After a close above that pivot, freeze its level and ATR14. Within the next 10 bars, first low within +/-0.25 frozen ATR of the level and close above it triggers entry. Cancel on close below level-0.25 ATR.",
          "Stop = retest-bar low minus 0.25 frozen ATR; target 2R. Retire level after one attempt."],
         "Specified pivot confirmation delay, tolerance, expiry and invalidation to avoid hindsight-drawn levels.",
-        ["Confirmed pivot state", "Break/retest lifecycle", "Structural stop and next-open entry"], "Unstable levels; parameter sensitivity; delayed pivot recognition."),
+        [], "Unstable levels; parameter sensitivity; delayed pivot recognition.",
+        "VA-006: Resistance break and first retest"),
     _item("VA-007", "Previous-day low sweep and reclaim", "False breakout", "NAS100", "15m",
         "https://academy.ftmo.com/lesson/how-to-spot-breakouts-and-fakeouts/",
         "A failed break returns inside a previously established price boundary.",
@@ -93,7 +97,8 @@ CATALOG = [
          "Use newest zone only. First later bar touching zone within 20 bars must close above zone high to signal; otherwise retire the touched zone. Invalidate on close below zone low.",
          "Stop = zone low minus 0.25 frozen ATR; target 2R. One attempt per zone."],
         "Made base size, departure strength, freshness and invalidation measurable; long demand variant only, supply-side shorts are not included.",
-        ["Zone construction and lifecycle", "Structural stop and next-open entry"], "Zones can reflect noise; no evidence that a zone contains unfilled institutional orders."),
+        [], "Zones can reflect noise; no evidence that a zone contains unfilled institutional orders.",
+        "VA-008: Fresh demand-zone first retest"),
     _item("VA-009", "Session VWAP pullback continuation", "Volume / price action", "NQ futures", "5m",
         "https://academy.ftmo.com/lesson/vwap-technical-indicator/",
         "VWAP pullback setups combine session price location with a return toward the volume-weighted mean.",
@@ -123,12 +128,15 @@ def catalog_origin(source_text):
 
 
 def load_template(state, item):
-    if item['implementation_gaps'] or not item['prompt']:
-        raise ValueError("This specification is not executable by the current engine.")
     for key in ('bt_result', 'blueprint_yaml', 'blueprint_schema', 'strategy_yaml',
                 'approved_strategy_yaml', 'evidence_yaml_editor', 'blueprint_assumptions_accepted'):
         state.pop(key, None)
-    state.update(ai_text=item['prompt'], ai_market=item['market'], ai_timeframe=item['timeframe'],
+    state.pop('catalog_specification', None)
+    if item['implementation_gaps'] or not item['prompt']:
+        state['catalog_specification'] = catalog_export(item)
+    else:
+        state.update(ai_text=item['prompt'], ai_market=item['market'], ai_timeframe=item['timeframe'])
+    state.update(
         blueprint_approved=False, active_workspace_stage='thesis',
         current_strategy_name=item['name'], experiment_version=item['version'],
         experiment_hypothesis=item['refinements'], experiment_parent=None)

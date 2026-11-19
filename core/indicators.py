@@ -2,6 +2,8 @@
 
 import pandas as pd
 
+from core.retest_signals import demand_zone_retest, resistance_retest
+
 from core.support_resistance import (
     add_support_resistance
 )
@@ -208,7 +210,59 @@ def bbands(
 # -------------------------------------------------------------
 # Registry
 # -------------------------------------------------------------
+def channel_breakout(df, name, params):
+    channel = df["high"].shift().rolling(params["length"]).max()
+    df[name] = (df["close"].gt(channel) & df["close"].shift().le(channel)).astype(int)
+    return df
+
+
+def bollinger_squeeze(df, name, params):
+    close = df["close"]
+    window = close.rolling(params["length"])
+    center = window.mean()
+    deviation = 2 * window.std(ddof=0)
+    upper = center + deviation
+    width = (2 * deviation) / center
+    threshold = width.rolling(120).quantile(0.20)
+    df[name] = (width.shift().le(threshold.shift()) & close.gt(upper)
+                & close.shift().le(upper.shift())).astype(int)
+    return df
+
+
+def wilder_atr(df, name, params):
+    length = params["length"]
+    previous = df["close"].shift()
+    ranges = pd.concat([df["high"] - df["low"], (df["high"] - previous).abs(),
+                       (df["low"] - previous).abs()], axis=1).max(axis=1)
+    df[name] = _wilder_average(ranges, length)
+    return df
+
+
+def _wilder_average(values, length):
+    seeded = values.copy()
+    seeded.iloc[:length] = float("nan")
+    if len(values) >= length:
+        seeded.iloc[length - 1] = values.iloc[:length].mean()
+    return seeded.ewm(alpha=1 / length, adjust=False).mean()
+
+
+def wilder_rsi(df, name, params):
+    length = params["length"]
+    change = df["close"].diff().iloc[1:]
+    gain = _wilder_average(change.clip(lower=0), length)
+    loss = _wilder_average(-change.clip(upper=0), length)
+    total = gain + loss
+    df[name] = (100 * gain / total).mask(total.eq(0), 50)
+    return df
+
+
 INDICATOR_REGISTRY = {
+    "resistance_retest": resistance_retest,
+    "demand_zone_retest": demand_zone_retest,
+    "channel_breakout": channel_breakout,
+    "bollinger_squeeze": bollinger_squeeze,
+    "wilder_atr": wilder_atr,
+    "wilder_rsi": wilder_rsi,
     "ema": ema,
     "sma": sma,
     "rsi": rsi,

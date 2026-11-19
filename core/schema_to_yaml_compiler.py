@@ -21,6 +21,42 @@ def compile_schema_to_yaml(schema: dict, market="XAUUSD", timeframe="1h") -> str
     entry_long: list[dict] = []
     exit_long: list[dict] = []
 
+    for name in ("channel_breakout", "bollinger_squeeze"):
+        if name in executable_components:
+            params = _component(components, name)["params"]
+            indicators.append({"name": name, "type": name, "period": params["period"]})
+            entry_long.append({"left": name, "op": "==", "right": 1})
+
+    for name in ("resistance_retest", "demand_zone_retest"):
+        if name in executable_components:
+            indicators.extend([
+                {"name": "wilder_atr", "type": "wilder_atr", "period": 14},
+                {"name": name, "type": name, "period": 14},
+            ])
+            entry_long.append({"left": name, "op": "==", "right": 1})
+    if "structural_stop" in executable_components:
+        params = _component(components, "structural_stop")["params"]
+        exit_long.extend([
+            {"type": "signal_price_sl", "column": "structural_stop"},
+            {"type": "fill_rr_tp", "multiple": params["target_r"]},
+        ])
+
+    if "rsi_pullback" in executable_components:
+        params = _component(components, "rsi_pullback")["params"]
+        indicators.extend([
+            {"name": "trend_sma", "type": "sma", "period": params["trend_sma"]},
+            {"name": "pullback_rsi", "type": "wilder_rsi", "period": params["rsi_period"]},
+        ])
+        entry_long.extend([
+            {"left": "close", "op": ">", "right": "trend_sma"},
+            {"left": "pullback_rsi", "op": "<", "right": params["threshold"]},
+        ])
+    if "next_open_exit" in executable_components:
+        params = _component(components, "next_open_exit")["params"]
+        indicators.append({"name": "exit_sma", "type": "sma", "period": params["exit_sma"]})
+        exit_long.append({"type": "next_open_exit", "max_holding_bars": params["max_holding_bars"],
+                          "condition": {"left": "close", "op": ">", "right": "exit_sma"}})
+
     ema = _component(components, "ema_trend")
     ema_periods: list[int] = []
     if ema and "ema_trend" in executable_components:
@@ -85,7 +121,11 @@ def compile_schema_to_yaml(schema: dict, market="XAUUSD", timeframe="1h") -> str
         atr_name = f"atr{period}"
         if not any(item["name"] == atr_name for item in indicators):
             indicators.append({"name": atr_name, "type": "atr", "period": period})
-        exit_long.append({"type": "atr_sl", "atr_col": atr_name, "multiple": multiple})
+        if params.get("anchor") == "signal_close":
+            indicators.append({"name": "wilder_atr", "type": "wilder_atr", "period": period})
+            exit_long.append({"type": "signal_atr_sl", "atr_col": "wilder_atr", "multiple": multiple})
+        else:
+            exit_long.append({"type": "atr_sl", "atr_col": atr_name, "multiple": multiple})
         if atr_target and "atr_target" in executable_components:
             target_params = atr_target["params"]
             target_atr = f"atr{int(target_params['period'])}"
@@ -94,7 +134,10 @@ def compile_schema_to_yaml(schema: dict, market="XAUUSD", timeframe="1h") -> str
             exit_long.append({"type": "atr_tp", "atr_col": target_atr, "multiple": float(target_params["multiple"])})
         elif target and "rr_target" in executable_components:
             rr = float(target.get("params", {})["rr"])
-            exit_long.append({"type": "atr_tp", "atr_col": atr_name, "multiple": multiple * rr})
+            if params.get("anchor") == "signal_close":
+                exit_long.append({"type": "fill_rr_tp", "multiple": rr})
+            else:
+                exit_long.append({"type": "atr_tp", "atr_col": atr_name, "multiple": multiple * rr})
 
     risk = schema.get("risk", {})
     strategy = {

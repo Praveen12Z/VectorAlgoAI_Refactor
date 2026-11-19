@@ -1,5 +1,6 @@
 """Saved experiment review and comparison."""
 import difflib
+import json
 import pandas as pd
 import streamlit as st
 from core.experiment_tracking import DECISIONS, annotate, comparison, metadata
@@ -8,6 +9,57 @@ from core.experiment_tracking import DECISIONS, annotate, comparison, metadata
 def label(record):
     meta = metadata(record)
     return f"{record['strategy_name']} · {meta.get('version') or 'Unversioned'} · {meta.get('kind', 'run')} · {record['record_hash'][:10]}"
+
+
+def render_saved_evidence(record, key):
+    st.subheader("Backtest results")
+    st.caption(
+        f"{record['market']} · {record['timeframe']} · {record['validation_status']} · "
+        f"{record.get('data_bars', 'Unknown')} bars"
+    )
+    if record.get("data_start") and record.get("data_end"):
+        st.write(f"{record['data_start']} through {record['data_end']}")
+
+    rows = []
+    for label_text, field in (
+        ("Full sample", "full_metrics"),
+        ("Development", "development_metrics"),
+        ("Holdout", "holdout_metrics"),
+    ):
+        metrics = record.get(field)
+        if metrics:
+            rows.append({
+                "Sample": label_text,
+                "Trades": metrics.get("num_trades"),
+                "Net return (%)": metrics.get("total_return_pct"),
+                "Win rate (%)": metrics.get("win_rate_pct"),
+                "Profit factor": metrics.get("profit_factor"),
+                "Max drawdown (%)": metrics.get("max_drawdown_pct"),
+            })
+    if rows:
+        st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+    with st.expander("Backtest rules and execution assumptions"):
+        st.code(record.get("strategy_yaml") or "Rules unavailable.", language="yaml")
+        st.json(record.get("execution_assumptions") or {})
+        coverage = (record.get("full_metrics") or {}).get("data_coverage")
+        if coverage:
+            st.json(coverage)
+
+    st.subheader("Full-sample trade ledger")
+    trades = record.get("trade_records")
+    if trades:
+        ledger = pd.DataFrame(trades)
+        st.dataframe(ledger, hide_index=True, use_container_width=True)
+        st.download_button("Download trades CSV", ledger.to_csv(index=False),
+                           "trades.csv", "text/csv", key=f"{key}_trades")
+    elif trades == [] and (record.get("full_metrics") or {}).get("num_trades") == 0:
+        st.info("The backtest closed zero trades.")
+    else:
+        st.info("This saved record has no available trade ledger.")
+    st.download_button(
+        "Download evidence JSON", json.dumps(record, indent=2, ensure_ascii=False, default=str),
+        f"{record['record_hash'][:12]}_evidence.json", "application/json", key=f"{key}_json",
+    )
 
 
 def render_experiment_library(records, load_record, persist):
@@ -19,7 +71,8 @@ def render_experiment_library(records, load_record, persist):
         "Validation": r['validation_status'], "Saved": r.get('created_at'),
     } for r in records]), hide_index=True, use_container_width=True)
     selected = st.selectbox("Review saved record", list(by_hash), format_func=lambda h: label(by_hash[h]))
-    record = by_hash[selected]
+    record = load_record(selected)
+    render_saved_evidence(record, key='saved_experiment')
     meta = metadata(record)
     st.caption(f"Parent version: {meta.get('parent_record_hash') or 'None'}")
     with st.form(f"review_{selected}"):
@@ -33,7 +86,7 @@ def render_experiment_library(records, load_record, persist):
         if not name.strip() or not version.strip():
             st.error("Enter a research name and version label.")
         else:
-            original = load_record(selected)
+            original = dict(record)
             original['strategy_name'] = name.strip()
             revision = annotate(original, version=version, hypothesis=hypothesis,
                 parent_record_hash=meta.get('parent_record_hash'), decision=decision, notes=notes, review=True)

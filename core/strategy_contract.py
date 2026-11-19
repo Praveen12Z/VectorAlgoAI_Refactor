@@ -19,6 +19,20 @@ VALID_STATUSES = {"executable", "manual", "ambiguous", "unsupported"}
 
 
 CAPABILITIES: dict[str, dict[str, str]] = {
+    "rsi_pullback": {"status": "executable", "executor": "rsi_pullback",
+                     "reason": "Compares the completed close to its SMA and Wilder RSI to a threshold."},
+    "next_open_exit": {"status": "executable", "executor": "next_open_exit",
+                       "reason": "Exits at the next open after the SMA or holding-bar condition."},
+    "resistance_retest": {"status": "executable", "executor": "resistance_retest",
+                          "reason": "Confirms pivots before tracking the breakout and retest."},
+    "demand_zone_retest": {"status": "executable", "executor": "demand_zone_retest",
+                           "reason": "Tracks the newest zone after a completed departure bar."},
+    "structural_stop": {"status": "executable", "executor": "signal_price_sl",
+                        "reason": "Uses the frozen structural stop and sizes from the next open."},
+    "channel_breakout": {"status": "executable", "executor": "channel_breakout",
+                         "reason": "Uses only highs before the signal and compares both closes to the same level."},
+    "bollinger_squeeze": {"status": "executable", "executor": "bollinger_squeeze",
+                         "reason": "Tests the previous width percentile and the current close-confirmed breakout."},
     "ema_trend": {
         "status": "executable",
         "executor": "ema_alignment",
@@ -298,7 +312,7 @@ def contract_gate_issues(strategy: dict[str, Any], require_approval: bool = Fals
 
     if not any(rule.get("domain") == "entry" and rule.get("status") == "executable" for rule in rules):
         issues.append("At least one executable entry trigger is required.")
-    if not any(rule.get("component") == "atr_stop" and rule.get("status") == "executable" for rule in rules):
+    if not any(rule.get("component") in {"atr_stop", "structural_stop"} and rule.get("status") == "executable" for rule in rules):
         issues.append("An executable protective stop is required for risk-sized testing.")
 
     approval = contract.get("approval", {}) or {}

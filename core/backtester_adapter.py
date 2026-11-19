@@ -24,6 +24,7 @@ class Position:
     risk_amount: float
     point_value: float
     trading_cost_per_unit: float
+    setup_level: float | None = None
 
 
 @dataclass(frozen=True)
@@ -128,6 +129,18 @@ def _build_exits(row: pd.Series, cfg: StrategyConfig, side: str) -> Tuple[float 
     sl = tp = None
 
     for rule in exit_rules:
+        if rule.get("type") == "signal_price_sl":
+            sl = float(row[rule["column"]])
+            continue
+        if rule.get("type") == "signal_atr_sl":
+            distance = float(rule["multiple"]) * float(row[rule["atr_col"]])
+            sl = row["signal_close"] - distance if side == "long" else row["signal_close"] + distance
+            continue
+        if rule.get("type") == "fill_rr_tp":
+            if sl is None:
+                raise ValueError("An R-multiple target requires a preceding stop rule.")
+            tp = entry_price + float(rule["multiple"]) * (entry_price - sl)
+            continue
         if rule.get("type") in ("atr_sl", "atr_tp"):
             atr_col = rule.get("atr_col")
             mult = float(rule.get("multiple", 2.0))
@@ -234,6 +247,7 @@ def _open_position(
         risk_amount=risk_amount,
         point_value=point_value,
         trading_cost_per_unit=trading_cost_per_unit,
+        setup_level=float(row["setup_level"]) if pd.notna(row.get("setup_level")) else None,
     )
 
 
@@ -293,12 +307,24 @@ def run_backtest_v2(
     diagnostics = {
         "bars_loaded": len(df), "signal_bars_with_next_open": max(0, len(df) - 1),
         "qualifying_signal_bars": 0, "blocked_open_position": 0,
-        "blocked_nonpositive_equity": 0, "entries_executed": 0,
+        "blocked_nonpositive_equity": 0, "blocked_invalid_entry_stop": 0, "entries_executed": 0,
         "final_bar_signal_without_next_open": 0,
         "rules": [{"side": side, "rule_number": i + 1, "rule": dict(rule),
                    "passed_alone": 0, "passed_cumulatively": 0}
                   for side, rules in (("long", long_conds), ("short", short_conds))
                   for i, rule in enumerate(rules)],
+    }
+
+    next_open_exits = {
+        side: rule for side in ("long", "short")
+        for rule in (raw.get("exit", {}) or {}).get(side, [])
+        if rule.get("type") == "next_open_exit"
+    }
+    entry_index = 0
+    signal_stop_sides = {
+        side for side in ("long", "short")
+        if any(rule.get("type") in {"signal_atr_sl", "signal_price_sl"}
+               for rule in (raw.get("exit", {}) or {}).get(side, []))
     }
 
     def audit_signal(row, before):
@@ -332,14 +358,36 @@ def run_backtest_v2(
                     diagnostics["blocked_nonpositive_equity"] += 1
         if position is None and previous_row is not None and current_equity > 0:
             if side:
-                diagnostics["entries_executed"] += 1
                 entry_inputs = previous_row.copy()
-                entry_inputs['close'] = float(row['open'])
-                position = _open_position(entry_inputs, cfg, side, ts, current_equity,
-                                          cost_model, signal_time=df.index[row_index - 1])
+                entry_inputs["signal_close"] = float(previous_row["close"])
+                entry_inputs["close"] = float(row["open"])
+                valid_stop = True
+                if side in signal_stop_sides:
+                    _, _, distance = _build_exits(entry_inputs, cfg, side)
+                    valid_stop = distance is not None and np.isfinite(distance) and distance > 0
+                if valid_stop:
+                    position = _open_position(entry_inputs, cfg, side, ts, current_equity,
+                                              cost_model, signal_time=df.index[row_index - 1])
+                    entry_index = row_index
+                    diagnostics["entries_executed"] += 1
+                else:
+                    diagnostics["blocked_invalid_entry_stop"] += 1
         # close existing position?
         if position is not None:
-            exit_reason, exit_price = _resolve_bar_exit(position, row)
+            scheduled = next_open_exits.get(position.direction)
+            exit_reason = exit_price = None
+            if scheduled and row_index > entry_index:
+                open_price = float(row["open"])
+                due_to_sma = _check_conditions(previous_row, [scheduled["condition"]])
+                due_to_time = row_index - entry_index >= scheduled["max_holding_bars"]
+                if due_to_sma or due_to_time:
+                    opening_bar = pd.Series({"open": open_price, "low": open_price, "high": open_price})
+                    exit_reason, exit_price = _resolve_bar_exit(position, opening_bar)
+                    if exit_reason is None:
+                        exit_reason = "indicator_exit" if due_to_sma else "holding_limit"
+                        exit_price = open_price
+            if exit_reason is None:
+                exit_reason, exit_price = _resolve_bar_exit(position, row)
 
             # simple time-based fail-safe: close at last bar
             is_last_bar = ts == df.index[-1]
@@ -368,6 +416,7 @@ def run_backtest_v2(
                         "exit_price": exit_price,
                         "size": position.size,
                         "risk_amount": position.risk_amount,
+                        **({"setup_level": position.setup_level} if position.setup_level is not None else {}),
                         "initial_stop": position.sl,
                         "initial_target": position.tp,
                         "stop_distance": position.risk_per_unit,
