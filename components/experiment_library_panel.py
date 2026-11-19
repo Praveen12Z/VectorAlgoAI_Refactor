@@ -96,7 +96,13 @@ def render_experiment_library(records, load_record, persist):
             "Kind": metadata(r).get('kind', 'run'), "Decision": metadata(r).get('decision', 'Not reviewed'),
             "Validation": r['validation_status'], "Saved": r.get('created_at'),
         } for r in records]), hide_index=True, use_container_width=True)
-    selected = st.selectbox("Review saved record", list(by_hash), format_func=lambda h: label(by_hash[h]))
+    preferred = st.session_state.pop("open_experiment_record", None)
+    choices = list(by_hash)
+    selector_key = "experiment_record" if persist is not None else "uploaded_experiment_record"
+    if preferred in by_hash:
+        st.session_state[selector_key] = preferred
+    selected = st.selectbox("Review saved record", choices, format_func=lambda h: label(by_hash[h]),
+                            key=selector_key)
     record = load_record(selected)
     results_tab, review_tab, comparison_tab = st.tabs(["Results", "Review decision", "Compare runs"])
     with results_tab:

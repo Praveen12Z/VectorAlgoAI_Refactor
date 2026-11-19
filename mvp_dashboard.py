@@ -46,6 +46,7 @@ from components.optimizer_panel import render_optimizer_panel
 from components.market_fit_panel import render_market_fit_panel
 from components.validation_panel import render_validation_panel
 from components.regime_panel import render_regime_panel
+from components.market_brief import render_market_brief
 from components.optimizer_panel import render_optimizer_panel
 from components.executive_summary_panel import (
     render_executive_summary
@@ -254,7 +255,12 @@ def _render_workspace_landing(view: str) -> None:
         has_evidence = bool(st.session_state.get("bt_result"))
         has_research = has_blueprint or has_evidence or bool(st.session_state.get("strategy_description"))
         stage = "Evidence review" if has_evidence else ("Rule blueprint" if has_blueprint else ("Strategy brief" if has_research else "No active research"))
-        evidence_count = "1" if has_evidence else "0"
+        try:
+            saved = _load_research_records()
+            evidence_count = str(len(saved))
+        except AccessServiceError:
+            saved = None
+            evidence_count = "Unavailable"
         capital_state = "Review required" if has_evidence else "Not assessed"
 
         st.markdown(
@@ -287,7 +293,7 @@ def _render_workspace_landing(view: str) -> None:
         st.markdown(
             f'<div class="va-summary-grid">'
             f'<div class="va-summary-card"><div class="va-summary-label">Active research</div><div class="va-summary-value">{stage}</div><div class="va-summary-meta">Current position in the research workflow</div></div>'
-            f'<div class="va-summary-card"><div class="va-summary-label">Evidence records</div><div class="va-summary-value">{evidence_count}</div><div class="va-summary-meta">Tests tied to approved rule contracts</div></div>'
+            f'<div class="va-summary-card"><div class="va-summary-label">Evidence records</div><div class="va-summary-value">{evidence_count}</div><div class="va-summary-meta">Recent records, including reviews</div></div>'
             f'<div class="va-summary-card"><div class="va-summary-label">Capital status</div><div class="va-summary-value">{capital_state}</div><div class="va-summary-meta">A verdict requires validated evidence</div></div>'
             f'</div>',
             unsafe_allow_html=True,
@@ -322,13 +328,18 @@ def _render_workspace_landing(view: str) -> None:
             unsafe_allow_html=True,
         )
 
-        st.markdown(
-            '<div class="va-section-title">Recent research</div>'
-            '<div class="va-empty-record"><div><strong>No completed research records yet</strong>'
-            '<span>Your approved strategies and evidence history will appear here.</span></div>'
-            '<div class="va-empty-badge">Awaiting first test</div></div>',
-            unsafe_allow_html=True,
-        )
+        st.subheader("Recent research")
+        if saved:
+            for record in saved[:5]:
+                if st.button(experiment_label(record), key=f"home_{record['record_hash']}"):
+                    st.session_state["open_experiment_record"] = record["record_hash"]
+                    st.session_state["active_workspace_stage"] = "experiments"
+                    st.rerun()
+        elif saved is None:
+            st.info("Saved research could not be loaded.")
+        else:
+            st.info("Completed backtests will appear here.")
+        render_market_brief("dashboard_brief")
     elif view == "library":
         st.markdown(
             '<div class="va-dashboard-head"><div><h1>Strategy Library</h1>'
@@ -357,6 +368,9 @@ def _render_research_tools(stage: str) -> None:
             st.rerun()
     else:
         st.title(titles[stage])
+    if stage == "regimes":
+        render_market_brief("regimes_brief")
+        st.subheader("Historical backtest regimes")
     current = (st.session_state.get("bt_result") or {}).get("research_record")
     try:
         records = {record["record_hash"]: record for record in _load_research_records()}
@@ -401,6 +415,8 @@ def _render_research_tools(stage: str) -> None:
         analysis = record.get("regime_analysis")
         if analysis:
             render_regime_panel(analysis)
+            if analysis.get("status") == "UNAVAILABLE":
+                st.caption("Run this strategy again with the updated regime analysis to add historical context to a new record.")
         else:
             st.info("This backtest has no market regime analysis.")
         return
