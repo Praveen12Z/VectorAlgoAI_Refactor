@@ -3,6 +3,7 @@ import json
 import streamlit as st
 import pandas as pd
 from io import BytesIO
+from urllib.parse import urlsplit
 from components.strategy_explainers import GUIDES, render_strategy_example
 from core.orb_research import screen_opening_range, selection_record
 from core.strategy_catalog import CATALOG, COMMON_PROTOCOL, catalog_export, load_template
@@ -12,7 +13,7 @@ PAPER_REFERENCES = {
     "PR-001": {
         "title": "Time Series Momentum",
         "citation": "Tobias J. Moskowitz, Yao Hua Ooi, and Lasse Heje Pedersen · Journal of Financial Economics 104(2), 228–250 · 2012",
-        "link": "https://doi.org/10.1016/j.jfineco.2011.11.003",
+        "identifier": "DOI 10.1016/j.jfineco.2011.11.003",
         "finding": (
             "The authors examined 58 futures and forward instruments across several asset classes. "
             "They found that past returns could persist for up to a year and that the effect "
@@ -22,7 +23,7 @@ PAPER_REFERENCES = {
     "PR-002": {
         "title": "A Profitable Day Trading Strategy for the U.S. Equity Market",
         "citation": "Carlo Zarattini, Andrea Barbon, and Andrew Aziz · Swiss Finance Institute Research Paper 24-98 · 2024",
-        "link": "https://www.sfi.ch/en/publications/n-24-98-a-profitable-day-trading-strategy-for-the-u.s.-equity-market",
+        "identifier": "SSRN 4729284",
         "finding": (
             "The authors studied five-minute opening-range breakouts across US stocks from 2016 to 2023. "
             "They reported better historical results when they focused on stocks with unusually "
@@ -77,10 +78,8 @@ def render_strategy_catalog():
             st.caption("This catalog entry is a VectorAlgoAI adaptation. Its reference explains the underlying concept.")
         st.markdown("**How VectorAlgoAI defines the setup**")
         st.write(item["refinements"])
-        url = paper["link"] if paper else item["source_url"]
-        text = "Publication record" if paper else "Concept reference"
-        st.caption(f"Reviewed {item['reviewed_on']}")
-        st.markdown(f"[{text}]({url})")
+        reference = paper["identifier"] if paper else urlsplit(item["source_url"]).hostname
+        st.caption(f"{reference} · Reviewed {item['reviewed_on']}")
 
     with st.expander("Exact rules and limitations"):
         st.markdown("**Proposed rules**")

@@ -85,7 +85,7 @@ def _render_catalog_specification(specification):
     st.subheader("What the backtest still needs")
     for gap in specification["implementation_gaps"]:
         st.write(f"• {gap}")
-    st.link_button("Open research source", specification["source_url"])
+    st.caption(specification["source_concept"])
     if st.button("Start a custom strategy draft"):
         st.session_state.pop("catalog_specification", None)
         for key in ("ai_text", "ai_market", "ai_timeframe", "current_strategy_name",

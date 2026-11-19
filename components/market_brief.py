@@ -3,7 +3,6 @@
 import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from urllib.parse import urlsplit
 
 import pandas as pd
 import requests
@@ -41,13 +40,38 @@ def _completed_bars(symbol, timeframe):
     return bars
 
 
+def _recent_headlines(items, now):
+    cutoff = now - pd.Timedelta(days=7)
+    recent = []
+    for item in items:
+        published = pd.to_datetime(item.get("published_at"), utc=True, errors="coerce")
+        title = (item.get("title") or "").strip()
+        if title and pd.notna(published) and cutoff <= published <= now:
+            recent.append({
+                "title": title,
+                "publisher": item.get("source") or "Publisher unavailable",
+                "published": published,
+                "preview": (item.get("description") or "").strip(),
+            })
+    recent.sort(key=lambda item: item["published"], reverse=True)
+    by_title = {}
+    for item in recent:
+        by_title.setdefault(item["title"].casefold(), item)
+    return list(by_title.values())[:3]
+
+
 @st.cache_data(ttl=300, show_spinner=False)
 def _headlines(query, token):
-    response = requests.get("https://api.marketaux.com/v1/news/all",
-                            params={"api_token": token, "search": query, "language": "en",
-                                    "limit": 3}, timeout=8)
+    now = pd.Timestamp.now(tz="UTC")
+    cutoff = now - pd.Timedelta(days=7)
+    response = requests.get(
+        "https://api.marketaux.com/v1/news/all",
+        params={"api_token": token, "search": query, "language": "en",
+                "published_after": cutoff.strftime("%Y-%m-%dT%H:%M:%S"), "limit": 3},
+        timeout=8,
+    )
     response.raise_for_status()
-    return response.json()["data"][:3]
+    return _recent_headlines(response.json()["data"], now)
 
 
 BLS_CALENDAR_URL = "https://www.bls.gov/schedule/news_release/bls.ics"
@@ -145,14 +169,16 @@ def render_market_brief(key):
     if news_key := config.get("marketaux_token"):
         try:
             news = _headlines(query, news_key)
-            st.caption(f"Marketaux · matched to {query} · publisher timestamps shown")
+            st.caption(f"Matched to {query} · past 7 days · newest first")
             for item in news:
-                st.text(f"{item['title']} · {item.get('source', 'Publisher')} · {item.get('published_at', '')}")
-                url = item.get("url", "")
-                if urlsplit(url).scheme in {"https", "http"}:
-                    st.link_button("Read source", url)
+                with st.container(border=True):
+                    st.text(item["title"])
+                    published = item["published"].strftime("%d %b %Y, %H:%M UTC")
+                    st.caption(f"{item['publisher']} · {published}")
+                    if item["preview"]:
+                        st.text(item["preview"])
             if not news:
-                st.caption("No matching headlines returned.")
+                st.info(f"No headlines matching {query} were found in the past 7 days.")
         except (requests.RequestException, ValueError, TypeError, KeyError):
             st.info("The headline feed is temporarily unavailable.")
     else:
