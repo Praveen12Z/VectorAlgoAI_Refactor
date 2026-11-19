@@ -330,14 +330,17 @@ def _render_workspace_landing(view: str) -> None:
             unsafe_allow_html=True,
         )
     elif view == "library":
-        st.markdown('<div class="va-page-kicker">Strategy library</div><div class="va-title">Saved research and experiments</div><div class="va-subtitle">Review versions, record decisions and compare historical evidence.</div>', unsafe_allow_html=True)
-        section = st.radio(
-            "Strategy Library view", ("Strategy catalog", "Your saved research"),
-            horizontal=True, label_visibility="collapsed",
+        st.markdown(
+            '<div class="va-dashboard-head"><div><h1>Strategy Library</h1>'
+            '<p>Browse starter strategies and open one as a research draft.</p></div></div>',
+            unsafe_allow_html=True,
         )
-        evidence_available = True
+        if st.button("Open saved research in Experiments", key="open_experiments_from_library"):
+            st.session_state["active_workspace_stage"] = "experiments"
+            st.rerun()
         try:
             records = _load_research_records()
+            evidence_available = True
         except AccessServiceError:
             records = []
             evidence_available = False
@@ -346,21 +349,7 @@ def _render_workspace_landing(view: str) -> None:
             client, session = _research_storage_client()
             return client.research_record(session, record_hash)
 
-        if section == "Strategy catalog":
-            render_strategy_catalog(records, load_record, evidence_available)
-            return
-        if not evidence_available:
-            st.warning("Saved research storage is unavailable.")
-            render_uploaded_evidence()
-            return
-        if not records:
-            st.info("No saved research yet. Run an approved backtest to save its results and trades.")
-            render_uploaded_evidence()
-            return
-        try:
-            render_experiment_library(records, load_record, _persist_research_record)
-        except AccessServiceError:
-            st.error("Could not load the saved evidence. Please retry.")
+        render_strategy_catalog(records, load_record, evidence_available)
     else:
         st.markdown('<div class="va-page-kicker">Settings</div><div class="va-title">Workspace settings</div><div class="va-subtitle">Account and research defaults will be configured here as the MVP grows.</div>', unsafe_allow_html=True)
         st.markdown('<div class="va-card"><div class="va-card-title">Current default</div><div class="va-card-value">NAS100 · 1h research timeframe</div></div>', unsafe_allow_html=True)
@@ -368,7 +357,17 @@ def _render_workspace_landing(view: str) -> None:
 
 def _render_research_tools(stage: str) -> None:
     titles = {"journal": "Trade Journal", "regimes": "Market Regimes", "experiments": "Experiments"}
-    st.title(titles[stage])
+    if stage == "experiments":
+        st.markdown(
+            '<div class="va-dashboard-head"><div><h1>Experiments</h1>'
+            '<p>Review backtest results, record decisions, and compare runs.</p></div></div>',
+            unsafe_allow_html=True,
+        )
+        if st.button("Browse strategy starters", key="open_library_from_experiments"):
+            st.session_state["active_workspace_stage"] = "library"
+            st.rerun()
+    else:
+        st.title(titles[stage])
     current = (st.session_state.get("bt_result") or {}).get("research_record")
     try:
         records = {record["record_hash"]: record for record in _load_research_records()}

@@ -10,22 +10,35 @@ from core.strategy_catalog import CATALOG, COMMON_PROTOCOL, catalog_export, load
 
 
 def render_strategy_catalog(records, load_record, evidence_available):
-    st.subheader("Sourced strategy starters")
-    st.caption(f"{len(CATALOG)} research specifications · implementation status shown separately · none validated")
-    st.write("Refined means the rules are more explicit, not that returns have improved. Sources explain the underlying concepts; VectorAlgoAI's thresholds and risk rules are research adaptations.")
-    selected = st.selectbox("Choose a strategy", [x['id'] for x in CATALOG],
-        format_func=lambda id: next(f"{x['id']} · {x['name']}" for x in CATALOG if x['id'] == id))
-    item = next(x for x in CATALOG if x['id'] == selected)
-    st.markdown(f"**{item['name']} · v{item['version']}**")
-    st.caption(f"{item['family']} · Proposed market: {item['market']} · {item['timeframe']}")
-    st.info(item['status'])
-    if st.button("Open as new research draft", key=f"load_{item['id']}", type="primary"):
-        load_template(st.session_state, item)
-        st.rerun()
-    st.caption("Opening a strategy replaces the current unsaved draft and session result.")
+    starters = {item["id"]: item for item in CATALOG}
+    mode = st.radio("Show", ("All strategies", "Ready to backtest", "Research only"),
+                    horizontal=True)
+    choices = [
+        key for key, item in starters.items()
+        if mode == "All strategies"
+        or (mode == "Ready to backtest" and not item["implementation_gaps"])
+        or (mode == "Research only" and item["implementation_gaps"])
+    ]
+    if not choices:
+        st.info("No strategies in this view.")
+        return
+    selected = st.selectbox("Choose a strategy", choices,
+                            format_func=lambda key: f"{key} · {starters[key]['name']}")
+    item = starters[selected]
+    with st.container(border=True):
+        st.subheader(item["name"])
+        st.caption(f"{item['id']} · v{item['version']} · {item['family']} · {item['market']} · {item['timeframe']}")
+        if item["implementation_gaps"]:
+            st.info(item["status"])
+        else:
+            st.success("Ready to backtest")
+        st.write(item["source_concept"])
+        if st.button("Open as new research draft", key=f"load_{item['id']}", type="primary"):
+            load_template(st.session_state, item)
+            st.rerun()
+        st.caption("Opening a strategy replaces the current unsaved draft and session result.")
     render_catalog_evidence(item, records, load_record, evidence_available)
     st.markdown(f"[Read original concept]({item['source_url']}) · Reviewed {item['reviewed_on']}")
-    st.write(item['source_concept'])
     st.markdown("**Proposed rules**")
     for rule in item['rules']:
         st.write(f"• {rule}")

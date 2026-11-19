@@ -90,14 +90,24 @@ def render_experiment_library(records, load_record, persist):
     by_hash = {r['record_hash']: r for r in records}
     if persist is not None:
         st.caption("Latest 25 records, including review revisions.")
-    st.dataframe(pd.DataFrame([{
-        "Name": r['strategy_name'], "Version": metadata(r).get('version', ''),
-        "Kind": metadata(r).get('kind', 'run'), "Decision": metadata(r).get('decision', 'Not reviewed'),
-        "Validation": r['validation_status'], "Saved": r.get('created_at'),
-    } for r in records]), hide_index=True, use_container_width=True)
+    with st.expander("Run history"):
+        st.dataframe(pd.DataFrame([{
+            "Name": r['strategy_name'], "Version": metadata(r).get('version', ''),
+            "Kind": metadata(r).get('kind', 'run'), "Decision": metadata(r).get('decision', 'Not reviewed'),
+            "Validation": r['validation_status'], "Saved": r.get('created_at'),
+        } for r in records]), hide_index=True, use_container_width=True)
     selected = st.selectbox("Review saved record", list(by_hash), format_func=lambda h: label(by_hash[h]))
     record = load_record(selected)
-    render_saved_evidence(record, key='saved_experiment')
+    results_tab, review_tab, comparison_tab = st.tabs(["Results", "Review decision", "Compare runs"])
+    with results_tab:
+        render_saved_evidence(record, key="saved_experiment")
+    with review_tab:
+        _render_review(record, selected, persist)
+    with comparison_tab:
+        _render_comparison(record, selected, by_hash)
+
+
+def _render_review(record, selected, persist):
     meta = metadata(record)
     st.caption(f"Parent version: {meta.get('parent_record_hash') or 'None'}")
     with st.form(f"review_{selected}"):
@@ -126,7 +136,11 @@ def render_experiment_library(records, load_record, persist):
     if persist is None and (revision := st.session_state.get(f"uploaded_review_{selected}")):
         st.download_button("Download review JSON", json.dumps(revision, indent=2),
                            f"{revision['record_hash'][:12]}_review.json", "application/json")
-    if len(records) < 2:
+
+
+def _render_comparison(record, selected, by_hash):
+    if len(by_hash) < 2:
+        st.info("Add another backtest to compare runs.")
         return
     st.subheader("Compare saved records")
     other = st.selectbox("Compare with", [h for h in by_hash if h != selected], format_func=lambda h: label(by_hash[h]))
