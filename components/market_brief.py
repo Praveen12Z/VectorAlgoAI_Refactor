@@ -1,6 +1,8 @@
 """On-demand market context and optional publisher feeds."""
 
-from datetime import timedelta
+import re
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from urllib.parse import urlsplit
 
 import pandas as pd
@@ -48,19 +50,39 @@ def _headlines(query, token):
     return response.json()["data"][:3]
 
 
+BLS_CALENDAR_URL = "https://www.bls.gov/schedule/news_release/bls.ics"
+BLS_RELEASES = (
+    "Consumer Price Index", "Producer Price Index", "Employment Situation",
+    "Job Openings and Labor Turnover", "Employment Cost Index",
+)
+
+
+def _parse_bls_calendar(content, now):
+    if "BEGIN:VCALENDAR" not in content:
+        raise ValueError("Invalid BLS calendar response.")
+    unfolded = re.sub(r"\r?\n[ \t]", "", content)
+    events = set()
+    for match in re.finditer(r"BEGIN:VEVENT\r?\n(.*?)END:VEVENT", unfolded, re.DOTALL):
+        event = match.group(1)
+        summary = re.search(r"^SUMMARY:([^\r\n]+)", event, re.MULTILINE)
+        start = re.search(r"^DTSTART;TZID=US-Eastern:(\d{8}T\d{6})", event, re.MULTILINE)
+        if not summary or not start or re.search(r"^STATUS:CANCELLED\s*$", event, re.MULTILINE):
+            continue
+        title = summary.group(1)
+        if not title.startswith(BLS_RELEASES):
+            continue
+        date = pd.Timestamp(datetime.strptime(start.group(1), "%Y%m%dT%H%M%S"),
+                            tz=ZoneInfo("America/New_York")).tz_convert("UTC")
+        if now <= date < now + pd.Timedelta(days=14):
+            events.add((date, title))
+    return sorted(events)[:8]
+
+
 @st.cache_data(ttl=900, show_spinner=False)
-def _calendar(token, today):
-    end = today + timedelta(days=7)
-    response = requests.get(f"https://api.tradingeconomics.com/calendar/country/united%20states/{today}/{end}",
-                            params={"c": token, "importance": 3}, timeout=8)
+def _calendar():
+    response = requests.get(BLS_CALENDAR_URL, timeout=8)
     response.raise_for_status()
-    now = pd.Timestamp.now(tz="UTC")
-    events = []
-    for event in response.json():
-        date = pd.to_datetime(event.get("Date"), utc=True, errors="coerce")
-        if pd.notna(date) and date >= now:
-            events.append((date, event.get("Event", "Economic release")))
-    return sorted(events)[:5]
+    return _parse_bls_calendar(response.text, pd.Timestamp.now(tz="UTC"))
 
 
 def render_market_brief(key):
@@ -136,16 +158,14 @@ def render_market_brief(key):
     else:
         st.caption("News feed is not configured.")
 
-    st.markdown("**Upcoming high-impact US releases**")
-    if calendar_key := config.get("trading_economics_key"):
-        try:
-            events = _calendar(calendar_key, pd.Timestamp.now(tz="UTC").date())
-            for date, name in events:
-                st.text(f"{date:%d %b %H:%M} UTC · {name}")
-            if not events:
-                st.caption("No matching releases returned for the next week.")
-            st.caption("Source: Trading Economics")
-        except (requests.RequestException, ValueError, TypeError, KeyError):
-            st.info("The economic calendar is temporarily unavailable.")
-    else:
-        st.caption("Economic calendar is not configured.")
+    st.markdown("**Upcoming US jobs and inflation releases**")
+    try:
+        events = _calendar()
+        for date, name in events:
+            eastern = date.tz_convert("America/New_York")
+            st.text(f"{eastern:%d %b %H:%M %Z} · {name}")
+        if not events:
+            st.caption("No selected BLS releases are scheduled in the next 14 days.")
+    except (requests.RequestException, ValueError):
+        st.info("The BLS release calendar is temporarily unavailable.")
+    st.caption("Source: US Bureau of Labor Statistics. Covers selected BLS releases.")
