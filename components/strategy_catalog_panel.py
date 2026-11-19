@@ -4,7 +4,9 @@ import streamlit as st
 import pandas as pd
 from io import BytesIO
 from urllib.parse import urlsplit
+from components.butler_research_panel import MODEL_LABELS
 from components.strategy_explainers import GUIDES, render_strategy_example
+from core.butler_research import PAUSE_RULES, RULES
 from core.orb_research import screen_opening_range, selection_record
 from core.strategy_catalog import CATALOG, COMMON_PROTOCOL, catalog_export, load_template
 
@@ -33,6 +35,35 @@ PAPER_REFERENCES = {
 }
 
 
+
+BUTLER_CATALOG_KEY = "butler_mnq_reversal"
+BUTLER_CATALOG_LABEL = "MNQ five-minute reversal · Butler adaptation"
+
+
+def _render_butler_catalog_entry():
+    with st.container(border=True):
+        st.subheader(BUTLER_CATALOG_LABEL)
+        st.caption("MNQ futures · 5-minute signals · Long and short")
+        st.write(
+            "The strategy watches for price to slow near support or resistance. "
+            "It waits for a candle to close past a recent swing, then looks for a pause "
+            "and a move back in the new direction before entering."
+        )
+        st.caption("Runnable research model · Upload MNQ minute bars in Experiments.")
+        model = st.radio("Base rule to test", tuple(MODEL_LABELS),
+                         format_func=MODEL_LABELS.__getitem__, key="library_butler_model")
+        if model == "one_candle":
+            st.caption("Defined after reviewing the original backtest. Fresh-sample validation is pending.")
+        if st.button("Open MNQ backtest in Experiments", key="library_open_butler", type="primary"):
+            st.session_state["open_butler_model"] = model
+            st.session_state["active_workspace_stage"] = "experiments"
+            st.rerun()
+    with st.expander("Exact rules and research source"):
+        st.caption("Adapted from Richard Butler’s Market Masters presentation, slides 4–18.")
+        for label, rule in {**RULES, "Base and entry": PAUSE_RULES[model]}.items():
+            st.markdown(f"**{label}** · {rule}")
+
+
 def render_strategy_catalog():
     starters = {item["id"]: item for item in CATALOG}
     mode = st.radio("Show", ("All strategies", "Ready to backtest", "Research only"),
@@ -43,11 +74,19 @@ def render_strategy_catalog():
         or (mode == "Ready to backtest" and not item["implementation_gaps"])
         or (mode == "Research only" and item["implementation_gaps"])
     ]
+    if mode != "Research only":
+        choices.append(BUTLER_CATALOG_KEY)
     if not choices:
         st.info("No strategies in this view.")
         return
-    selected = st.selectbox("Choose a strategy", choices,
-                            format_func=lambda key: f"{key} · {starters[key]['name']}")
+    selected = st.selectbox(
+        "Choose a strategy", choices,
+        format_func=lambda key: (BUTLER_CATALOG_LABEL if key == BUTLER_CATALOG_KEY
+                                 else f"{key} · {starters[key]['name']}"),
+    )
+    if selected == BUTLER_CATALOG_KEY:
+        _render_butler_catalog_entry()
+        return
     item = starters[selected]
     with st.container(border=True):
         st.subheader(item["name"])

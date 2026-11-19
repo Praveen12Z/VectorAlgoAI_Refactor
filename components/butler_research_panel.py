@@ -8,14 +8,22 @@ import streamlit as st
 from core.butler_research import PAUSE_RULES, RULES, run_butler_research
 
 
+MODEL_LABELS = {
+    "two_candle": "Original two-candle base",
+    "one_candle": "One-candle pullback comparison",
+}
+
+
 def render_butler_research():
-    with st.expander("MNQ five-minute reversal backtest"):
+    requested_model = st.session_state.pop("open_butler_model", None)
+    if requested_model in MODEL_LABELS:
+        st.session_state["butler_model"] = requested_model
+    with st.expander("MNQ five-minute reversal backtest", expanded=requested_model is not None):
         st.caption(
             "Exploratory rule translation from Richard Butler’s Market Masters presentation. "
             "The test defines the zones, momentum, base and session mechanically."
         )
-        versions = {"two_candle": "Original two-candle base", "one_candle": "One-candle pullback comparison"}
-        model = st.selectbox("Base rule", tuple(versions), format_func=versions.__getitem__, key="butler_model")
+        model = st.selectbox("Base rule", tuple(MODEL_LABELS), format_func=MODEL_LABELS.__getitem__, key="butler_model")
         if model == "one_candle":
             st.caption("This comparison was defined after reviewing the original results. It uses the same sample.")
         for label, rule in {**RULES, "Base and entry": PAUSE_RULES[model]}.items():
