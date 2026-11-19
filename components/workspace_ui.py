@@ -42,12 +42,13 @@ def inject_workspace_styles() -> None:
          create a second, empty product header above the workspace. */
       [data-testid="stHeader"] { background:transparent; height:0 !important; min-height:0 !important; }
       [data-testid="stHeader"] [data-testid="stToolbar"] { top:.45rem; right:.55rem; }
-      [data-testid="stSidebar"] { background:linear-gradient(180deg,#fbfdff 0%,var(--sidebar) 58%,#f3f8fa 100%); border-right:1px solid var(--line); min-width:224px; max-width:224px; }
+      /* Streamlit owns sidebar width and the collapsed offset. */
+      [data-testid="stSidebar"] { background:linear-gradient(180deg,#fbfdff 0%,var(--sidebar) 58%,#f3f8fa 100%); border-right:1px solid var(--line); }
       [data-testid="stSidebar"] [data-testid="stSidebarContent"] { padding:.85rem .65rem 1rem; display:flex; flex-direction:column; min-height:100%; }
       [data-testid="stSidebar"] .stButton { margin:.08rem 0; }
-      [data-testid="stMainBlockContainer"], .block-container { max-width:1380px; padding:0 42px 5rem !important; }
+      [data-testid="stMainBlockContainer"] { width:100%; max-width:1680px; margin-inline:0; box-sizing:border-box; padding:0 clamp(16px, 2.5vw, 40px) 4rem !important; }
       h1,h2,h3 { color:var(--text); letter-spacing:-.035em; }
-      .va-brand-wrap { display:flex; align-items:center; gap:.6rem; padding:.15rem .5rem 1.65rem; }
+      .va-brand-wrap { display:flex; align-items:center; gap:.6rem; padding:.15rem .5rem .75rem; }
       .va-mark { width:34px; height:34px; display:grid; place-items:center; color:#7f92f2; flex:0 0 34px; }
       .va-mark svg { width:100%; height:100%; display:block; }
       .va-brand { font-size:1rem; font-weight:760; color:var(--text); letter-spacing:-.025em; }
@@ -156,9 +157,8 @@ def inject_workspace_styles() -> None:
       .st-key-account_panel details summary { min-height:2.25rem; font-size:.72rem; color:#475467; }
       .st-key-account_panel [data-testid="stAlert"] { padding:.45rem !important; font-size:.66rem !important; }
       .st-key-account_panel [data-testid="stCaptionContainer"] p { font-size:.64rem !important; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-      [data-testid="stMainBlockContainer"], .block-container { max-width:1380px; padding:0 42px 5rem !important; }
       .va-crumb b { font-size:.88rem; letter-spacing:-.01em; }
-      .va-dashboard-head { position:relative;overflow:hidden;display:flex; align-items:center; justify-content:space-between; gap:2rem; padding:2.25rem 2.35rem; margin:1.55rem 0 1.25rem; border-radius:20px; background:linear-gradient(120deg,#102a56 0%,#17477b 60%,#137d7a 145%); box-shadow:0 20px 52px rgba(24,55,96,.18); }
+      .va-dashboard-head { position:relative;overflow:hidden;display:flex; align-items:center; justify-content:space-between; gap:2rem; padding:1.55rem clamp(1.1rem, 3vw, 2rem); margin:.85rem 0 1rem; border-radius:20px; background:linear-gradient(120deg,#102a56 0%,#17477b 60%,#137d7a 145%); box-shadow:0 20px 52px rgba(24,55,96,.18); }
       .va-dashboard-head::after{content:"";position:absolute;width:280px;height:280px;border-radius:50%;right:-105px;top:-155px;background:rgba(103,232,221,.10);border:1px solid rgba(180,244,238,.16)}
       .va-dashboard-head h1 { position:relative;z-index:1;margin:0; color:#fff;font-size:2.4rem; font-weight:760; letter-spacing:-.045em; }
       .va-dashboard-head p { position:relative;z-index:1;margin:.55rem 0 0; color:#d9e7f5; font-size:1.02rem;line-height:1.55;max-width:720px; }
@@ -188,7 +188,7 @@ def inject_workspace_styles() -> None:
       .va-empty-badge { color:#667085; background:#f2f4f7; border-radius:999px; padding:.28rem .55rem; font-size:.62rem; white-space:nowrap; }
       .va-section-title { margin:1.85rem 0 .55rem;font-size:1.22rem; }
       @media(max-width:700px){.va-dashboard-head{align-items:flex-start;flex-direction:column}.va-stage-track{grid-template-columns:1fr}.va-track-item{border-right:0;border-bottom:1px solid var(--line-soft)}.va-summary-grid{grid-template-columns:1fr}.va-empty-record{align-items:flex-start;flex-direction:column}.st-key-account_panel{position:static}[data-testid="stSidebar"] [data-testid="stSidebarContent"]{padding-bottom:1rem!important}}
-      @media(max-width:700px){[data-testid="stSidebar"]{min-width:0;max-width:none}[data-testid="stMainBlockContainer"],.block-container{padding:0 14px 3rem!important}.va-topbar{min-height:58px}.va-main-brand-copy,.va-top-divider{display:none}.va-dashboard-head{padding:1.6rem 1.35rem;align-items:flex-start;flex-direction:column}.va-dashboard-head h1{font-size:2rem}.va-draft{display:none}[class*="st-key-workflow_"] button{font-size:0!important}[class*="st-key-workflow_"] button::first-letter{font-size:.7rem}}
+      @media(max-width:700px){[data-testid="stMainBlockContainer"]{padding:0 14px 3rem!important}.va-topbar{min-height:58px}.va-main-brand-copy,.va-top-divider{display:none}.va-dashboard-head{padding:1.6rem 1.35rem;align-items:flex-start;flex-direction:column}.va-dashboard-head h1{font-size:2rem}.va-draft{display:none}[class*="st-key-workflow_"] button{font-size:0!important}[class*="st-key-workflow_"] button::first-letter{font-size:.7rem}}
     </style>
     """, unsafe_allow_html=True)
 
@@ -251,7 +251,7 @@ def render_workspace_sidebar(timeframe: str = "1h") -> tuple[int, bool, bool, di
                          type="primary" if active == destination else "secondary"):
                 _set_stage(destination)
                 st.rerun()
-        st.markdown('<div style="height:2.5rem"></div><div class="va-side-separator"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="va-side-separator"></div>', unsafe_allow_html=True)
         if st.button("Settings", key="nav_settings", use_container_width=True, type="primary" if active == "settings" else "secondary"):
             _set_stage("settings")
             st.rerun()
