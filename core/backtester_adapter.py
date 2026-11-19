@@ -288,18 +288,51 @@ def run_backtest_v2(
             (df['low'] > df[['open', 'close', 'high']].min(axis=1))).any():
         raise ValueError("Invalid OHLC bar range.")
 
+    # Count completed signal bars, not unique setups. Repeated qualifying bars
+    # are reported explicitly; rule order is contract order, not causal importance.
+    diagnostics = {
+        "bars_loaded": len(df), "signal_bars_with_next_open": max(0, len(df) - 1),
+        "qualifying_signal_bars": 0, "blocked_open_position": 0,
+        "blocked_nonpositive_equity": 0, "entries_executed": 0,
+        "final_bar_signal_without_next_open": 0,
+        "rules": [{"side": side, "rule_number": i + 1, "rule": dict(rule),
+                   "passed_alone": 0, "passed_cumulatively": 0}
+                  for side, rules in (("long", long_conds), ("short", short_conds))
+                  for i, rule in enumerate(rules)],
+    }
+
+    def audit_signal(row, before):
+        outcomes = {}
+        offset = 0
+        for side, rules in (("long", long_conds), ("short", short_conds)):
+            cumulative = bool(rules)
+            for i, rule in enumerate(rules):
+                passed = _check_conditions(row, [rule], before)
+                cumulative = cumulative and passed
+                counter = diagnostics["rules"][offset + i]
+                counter["passed_alone"] += int(passed)
+                counter["passed_cumulatively"] += int(cumulative)
+            offset += len(rules)
+            outcomes[side] = cumulative
+        return "long" if outcomes["long"] else ("short" if outcomes["short"] else None)
+
     for row_index, (ts, row) in enumerate(df.iterrows()):
         previous_row = df.iloc[row_index - 1] if row_index > 0 else None
         # Evaluate the signal at the preceding close, never using this bar's
         # close/high/low/indicators to decide or size the entry at its open.
-        if position is None and previous_row is not None and current_equity > 0:
+        side = None
+        if previous_row is not None:
             before_signal = df.iloc[row_index - 2] if row_index > 1 else None
-            side = None
-            if _check_conditions(previous_row, long_conds, before_signal):
-                side = "long"
-            elif _check_conditions(previous_row, short_conds, before_signal):
-                side = "short"
+            side = audit_signal(previous_row, before_signal)
             if side:
+                diagnostics["qualifying_signal_bars"] += 1
+                if position is not None:
+                    diagnostics["blocked_open_position"] += 1
+                elif current_equity <= 0:
+                    diagnostics["blocked_nonpositive_equity"] += 1
+        if position is None and previous_row is not None and current_equity > 0:
+            if side:
+                diagnostics["entries_executed"] += 1
                 entry_inputs = previous_row.copy()
                 entry_inputs['close'] = float(row['open'])
                 position = _open_position(entry_inputs, cfg, side, ts, current_equity,
@@ -359,6 +392,11 @@ def run_backtest_v2(
                      - position.trading_cost_per_unit) * position.size
         marked_equity.append(mark)
 
+    if len(df):
+        before_final = df.iloc[-2] if len(df) > 1 else None
+        diagnostics["final_bar_signal_without_next_open"] = int(
+            _check_conditions(df.iloc[-1], long_conds, before_final)
+            or _check_conditions(df.iloc[-1], short_conds, before_final))
     trades_df = pd.DataFrame(trades)
     if trades_df.empty:
         metrics = {
@@ -367,6 +405,7 @@ def run_backtest_v2(
             "win_rate_pct": 0.0,
             "max_drawdown_pct": 0.0,
             "num_trades": 0,
+            "signal_diagnostics": diagnostics,
             "grade": "D",
             "execution_model": "next_open_signal_atr_stop_first_v1",
             "drawdown_basis": "bar_close_equity_including_estimated_exit_costs",
@@ -377,8 +416,8 @@ def run_backtest_v2(
             "total_trading_cost": 0.0,
             "oos_passed": False,
         }
-        weaknesses = ["Too few trades to evaluate.", "Strategy might be over-filtered."]
-        suggestions = ["Relax entry conditions or test on more data."]
+        weaknesses = ["No executed trades. Inspect signal diagnostics before changing the strategy."]
+        suggestions = ["Check data coverage, rule pass counts and execution blockers."]
         return metrics, weaknesses, suggestions, trades_df
 
     # equity & metrics
@@ -408,6 +447,7 @@ def run_backtest_v2(
         "win_rate_pct": win_rate_pct,
         "max_drawdown_pct": max_dd_pct,
         "num_trades": num_trades,
+        "signal_diagnostics": diagnostics,
         "grade": grade,
         "execution_model": "next_open_signal_atr_stop_first_v1",
         "drawdown_basis": "bar_close_equity_including_estimated_exit_costs",

@@ -23,7 +23,6 @@ from datetime import datetime, timedelta
 from typing import Dict, Tuple
 
 import pandas as pd
-import yfinance as yf
 
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
@@ -96,7 +95,7 @@ def _yf_interval_for_timeframe(timeframe: str) -> str:
     if timeframe == "1d":
         return "1d"
 
-    return "1h"
+    raise ValueError(f"Unsupported timeframe: {timeframe}. This data source supports 15m, 1h, 4h and 1d; no substitute will be used.")
 
 
 def _safe_period(timeframe: str, years: int) -> str:
@@ -105,6 +104,7 @@ def _safe_period(timeframe: str, years: int) -> str:
     We keep periods conservative so the MVP remains reliable.
     """
     timeframe = _normalize_timeframe(timeframe)
+    _yf_interval_for_timeframe(timeframe)
     years = max(1, int(years or 1))
 
     if timeframe == "15m":
@@ -233,6 +233,8 @@ def _write_cache(path: str, df: pd.DataFrame) -> None:
 # Main Yahoo fetcher
 # -----------------------------------------------------------
 def _fetch_yfinance(symbol: str, timeframe: str, years: int = 2) -> pd.DataFrame:
+    import yfinance as yf
+
     yf_symbol = get_symbol(symbol)
     timeframe = _normalize_timeframe(timeframe)
     interval = _yf_interval_for_timeframe(timeframe)
@@ -270,6 +272,7 @@ def load_ohlcv(symbol: str, timeframe: str, years: int = 2) -> pd.DataFrame:
     os.makedirs(DATA_DIR, exist_ok=True)
 
     timeframe = _normalize_timeframe(timeframe)
+    _yf_interval_for_timeframe(timeframe)  # Reject unsupported frames before reading old caches.
     path = _cache_path(symbol, timeframe)
 
     cached = _read_cache(path)

@@ -657,6 +657,27 @@ def run_mvp_dashboard():
             mime="application/json",
         )
 
+    diagnostics = metrics.get("signal_diagnostics")
+    if diagnostics:
+        with st.expander("Why this many trades?", expanded=True):
+            st.caption("Counts refer to completed bars, not unique setups. The engine gives long signals priority when both directions qualify. A position open at the next bar's start blocks a new entry, even if it closes later in that bar.")
+            counts = {"Price bars loaded": "bars_loaded",
+                      "Signal bars with a following open": "signal_bars_with_next_open",
+                      "Bars passing all entry rules": "qualifying_signal_bars",
+                      "Blocked by an existing position": "blocked_open_position",
+                      "Blocked by exhausted capital": "blocked_nonpositive_equity",
+                      "Entries executed": "entries_executed",
+                      "Final-bar signal with no following open": "final_bar_signal_without_next_open"}
+            st.dataframe(pd.DataFrame([{"Stage": label, "Count": diagnostics[key]}
+                                       for label, key in counts.items()]),
+                         hide_index=True, use_container_width=True)
+            rows = [{**rule, "rule": json.dumps(rule["rule"], sort_keys=True)}
+                    for rule in diagnostics["rules"]]
+            st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+            st.caption("Passed alone evaluates each rule independently; passed cumulatively also requires all preceding rules on that side. Missing indicator history can fail a rule. These counts explain filtering, not profitability or causation. Final-bar signals are separate because no next opening price exists.")
+    else:
+        st.info("Rerun this strategy to generate signal diagnostics; older evidence remains unchanged.")
+
     st.markdown('<div class="va-section-title">Trade inspection</div>', unsafe_allow_html=True)
     st.markdown('<div class="va-section-copy">Inspect the executed trades against the price series. Enable trade paths or R labels only when you need them.</div>', unsafe_allow_html=True)
 
