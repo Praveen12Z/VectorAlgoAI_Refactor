@@ -338,18 +338,7 @@ def _render_workspace_landing(view: str) -> None:
         if st.button("Open saved research in Experiments", key="open_experiments_from_library"):
             st.session_state["active_workspace_stage"] = "experiments"
             st.rerun()
-        try:
-            records = _load_research_records()
-            evidence_available = True
-        except AccessServiceError:
-            records = []
-            evidence_available = False
-
-        def load_record(record_hash):
-            client, session = _research_storage_client()
-            return client.research_record(session, record_hash)
-
-        render_strategy_catalog(records, load_record, evidence_available)
+        render_strategy_catalog()
     else:
         st.markdown('<div class="va-page-kicker">Settings</div><div class="va-title">Workspace settings</div><div class="va-subtitle">Account and research defaults will be configured here as the MVP grows.</div>', unsafe_allow_html=True)
         st.markdown('<div class="va-card"><div class="va-card-title">Current default</div><div class="va-card-value">NAS100 · 1h research timeframe</div></div>', unsafe_allow_html=True)
@@ -408,6 +397,7 @@ def _render_research_tools(stage: str) -> None:
         return
 
     if stage == "regimes":
+        st.caption(f"{record['market']} · {record['timeframe']} · {record.get('validation_status', 'Unknown')}")
         analysis = record.get("regime_analysis")
         if analysis:
             render_regime_panel(analysis)

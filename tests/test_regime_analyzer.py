@@ -65,6 +65,16 @@ class RegimeAnalyzerTests(unittest.TestCase):
         self.assertEqual(4, sum(row["trades"] for row in result["trade_regimes"]))
         self.assertTrue(any("not proof of cause" in item for item in result["observations"]))
 
+    def test_backtest_without_ema_indicators_uses_price_bars(self):
+        index = pd.date_range("2025-01-01", periods=100)
+        close = pd.Series(range(100, 200), index=index, dtype=float)
+        bars = pd.DataFrame({"close": close, "high": close + 2, "low": close - 2})
+        validation = {"development": {"period": (index[0], index[69], 70)}}
+        result = analyze_regime_shift(bars, SimpleNamespace(indicators=[]), validation)
+        self.assertIn("Wilder ATR14", result["methodology"])
+        self.assertIn("high_volatility_share_pct", result["holdout_context"])
+        self.assertEqual(list(bars.columns), ["close", "high", "low"])
+
 
 if __name__ == "__main__":
     unittest.main()

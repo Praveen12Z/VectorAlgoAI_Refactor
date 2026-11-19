@@ -74,14 +74,22 @@ def analyze_regime_shift(df: pd.DataFrame, cfg, validation: dict) -> dict:
         key=lambda item: int(item.period),
     )
     if not atr_columns or len(ema_items) < 2:
-        return {
-            "status": "UNAVAILABLE",
-            "reason": "ATR and at least two EMA series are required for this regime diagnostic.",
-        }
+        if not {"high", "low", "close"}.issubset(df.columns):
+            return {"status": "UNAVAILABLE", "reason": "Price bars are required for regime analysis."}
+        from core.indicators import ema, wilder_atr
 
-    atr_column = atr_columns[0]
-    fast_ema = ema_items[0].name
-    slow_ema = ema_items[1].name
+        df = df.copy()
+        atr_column, fast_ema, slow_ema = "_regime_atr14", "_regime_ema20", "_regime_ema50"
+        wilder_atr(df, atr_column, {"length": 14})
+        ema(df, fast_ema, {"length": 20})
+        ema(df, slow_ema, {"length": 50})
+        methodology = "Wilder ATR14 and EMA20/EMA50 computed from the backtest bars."
+    else:
+        atr_column = atr_columns[0]
+        fast_ema = ema_items[0].name
+        slow_ema = ema_items[1].name
+        methodology = f"Uses the backtest's {atr_column}, {fast_ema}, and {slow_ema} series."
+
     required = {"close", atr_column, fast_ema, slow_ema}
     if not required.issubset(df.columns):
         return {"status": "UNAVAILABLE", "reason": "Required regime features are missing."}
@@ -113,23 +121,27 @@ def analyze_regime_shift(df: pd.DataFrame, cfg, validation: dict) -> dict:
         dtype="string",
     )
 
+    features.loc[features[["volatility_pct", "trend_strength"]].isna().any(axis=1), "regime"] = pd.NA
     development_context = features.iloc[:development_bars]
     holdout_context = features.iloc[development_bars:]
 
     def context(values: pd.DataFrame) -> dict[str, float]:
+        if values[["volatility_pct", "trend_strength"]].dropna().empty:
+            return {}
         return {
             "high_volatility_share_pct": round(
-                float((values["volatility_pct"] > volatility_threshold).mean() * 100), 2
+                float((values["volatility_pct"].dropna() > volatility_threshold).mean() * 100), 2
             ),
             "strong_trend_share_pct": round(
-                float((values["trend_strength"] > trend_threshold).mean() * 100), 2
+                float((values["trend_strength"].dropna() > trend_threshold).mean() * 100), 2
             ),
         }
 
     development = validation.get("development", {})
     holdout = validation.get("holdout", {})
-    rows = _trade_rows(development.get("trades"), features[["regime"]], "Development")
-    rows.extend(_trade_rows(holdout.get("trades"), features[["regime"]], "Hold-out"))
+    entry_labels = features[["regime"]].shift()
+    rows = _trade_rows(development.get("trades"), entry_labels, "Development")
+    rows.extend(_trade_rows(holdout.get("trades"), entry_labels, "Hold-out"))
 
     development_metrics = development.get("metrics", {})
     holdout_metrics = holdout.get("metrics", {})
@@ -141,6 +153,8 @@ def analyze_regime_shift(df: pd.DataFrame, cfg, validation: dict) -> dict:
     ]
     dev_context = context(development_context)
     hold_context = context(holdout_context)
+    if not dev_context or not hold_context:
+        return {"status": "UNAVAILABLE", "reason": "Too few bars with fully formed regime indicators."}
     volatility_shift = hold_context["high_volatility_share_pct"] - dev_context["high_volatility_share_pct"]
     trend_shift = hold_context["strong_trend_share_pct"] - dev_context["strong_trend_share_pct"]
     if abs(volatility_shift) >= 10:
@@ -154,6 +168,7 @@ def analyze_regime_shift(df: pd.DataFrame, cfg, validation: dict) -> dict:
 
     return {
         "status": "DESCRIPTIVE — NOT CAUSAL",
+        "methodology": methodology,
         "thresholds": {
             "development_median_atr_pct": round(volatility_threshold, 4),
             "development_median_ema_gap_atr": round(trend_threshold, 4),
