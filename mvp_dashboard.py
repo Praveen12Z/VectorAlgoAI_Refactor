@@ -456,8 +456,12 @@ def run_mvp_dashboard():
         st.session_state["active_workspace_view"] = "home"
 
     inject_workspace_styles()
-    years, show_trade_lines, show_rr_labels, validation_settings = render_workspace_sidebar()
     active_stage = st.session_state.get("active_workspace_stage", "home")
+    timeframe = st.session_state.get("ai_timeframe", "1h")
+    approved_yaml = st.session_state.get("approved_strategy_yaml")
+    if active_stage == "evidence" and approved_yaml:
+        timeframe = (yaml.safe_load(approved_yaml) or {}).get("timeframe", timeframe)
+    years, show_trade_lines, show_rr_labels, validation_settings = render_workspace_sidebar(timeframe)
     render_workspace_header(active_stage)
 
     if active_stage in {"home", "library", "settings"}:
@@ -678,13 +682,15 @@ def run_mvp_dashboard():
         with st.expander("Why this many trades?", expanded=True):
             st.caption("Counts refer to completed bars, not unique setups. The engine gives long signals priority when both directions qualify. A position open at the next bar's start blocks a new entry, even if it closes later in that bar.")
             coverage = metrics.get("data_coverage")
+            if coverage and active_stage == "evidence" and coverage["requested_years"] != years:
+                st.info("History selection changed. Click Run Backtest to test the new window. The results shown are from the previous run.")
             if coverage:
                 st.caption(
                     f"{coverage['source']} · {coverage['symbol']} · {coverage['bar_interval']} · "
                     f"Timestamp timezone: {coverage['timezone']}"
                 )
                 st.caption(
-                    f"Requested history: {coverage['requested_years']} years. Configured download period: "
+                    "Configured download period: "
                     f"{coverage['configured_download_period']}. Loaded: {coverage['first_bar']} through "
                     f"{coverage['last_bar']}."
                 )

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from html import escape
 import streamlit as st
+from core.data_loader import history_year_limit
 
 
 STAGES = (
@@ -226,7 +227,7 @@ def render_workspace_header(active_stage: str = "thesis") -> None:
     st.markdown('</div>', unsafe_allow_html=True)
 
 
-def render_workspace_sidebar() -> tuple[int, bool, bool, dict]:
+def render_workspace_sidebar(timeframe: str = "1h") -> tuple[int, bool, bool, dict]:
     years, show_trade_lines, show_rr_labels = 2, False, False
     validation_settings = {
         "holdout_pct": 30,
@@ -254,7 +255,19 @@ def render_workspace_sidebar() -> tuple[int, bool, bool, dict]:
             st.rerun()
         if active == "evidence":
             st.markdown('<div class="va-side-label">Evidence settings</div>', unsafe_allow_html=True)
-            years = st.slider("History", 1, 15, 2, format="%d years")
+            try:
+                limit = history_year_limit(timeframe)
+            except ValueError:
+                st.caption("Historical data is unavailable for the approved timeframe.")
+            else:
+                if limit == 1:
+                    years = 1
+                    st.caption("History: up to 60 days for 15-minute Yahoo Finance bars.")
+                else:
+                    years = st.slider("History", 1, limit, 2, format="%d years",
+                                      key=f"evidence_history_{limit}")
+                    if limit == 2:
+                        st.caption("Yahoo Finance history is capped at 2 years for this timeframe.")
             with st.expander("Validation model", expanded=True):
                 st.caption("Explicit research assumptions—replace them with broker-specific values when available.")
                 validation_settings["holdout_pct"] = st.slider(

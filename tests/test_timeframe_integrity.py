@@ -21,3 +21,13 @@ class TimeframeIntegrityTests(unittest.TestCase):
     def test_supported_frames_and_aliases_unchanged(self):
         for frame, interval in [('15min','15m'), ('60m','1h'), ('4h','1h'), ('day','1d')]:
             self.assertEqual(_yf_interval_for_timeframe(frame), interval)
+
+    def test_cache_keys_follow_the_actual_download_period(self):
+        from core.data_loader import _cache_path
+
+        def key(frame, years):
+            return _cache_path("NAS100", frame, _safe_period(frame, years))
+
+        self.assertNotEqual(key("1h", 1), key("1h", 2))
+        self.assertEqual(key("1h", 2), key("1h", 15))
+        self.assertNotEqual(key("1d", 2), key("1d", 15))

@@ -98,6 +98,12 @@ def _yf_interval_for_timeframe(timeframe: str) -> str:
     raise ValueError(f"Unsupported timeframe: {timeframe}. This data source supports 15m, 1h, 4h and 1d; no substitute will be used.")
 
 
+def history_year_limit(timeframe: str) -> int:
+    timeframe = _normalize_timeframe(timeframe)
+    _yf_interval_for_timeframe(timeframe)
+    return {"15m": 1, "1h": 2, "4h": 2, "1d": 15}[timeframe]
+
+
 def _safe_period(timeframe: str, years: int) -> str:
     """
     Yahoo Finance has stricter limits for intraday data.
@@ -201,10 +207,10 @@ def _resample_4h(df_1h: pd.DataFrame) -> pd.DataFrame:
 # -----------------------------------------------------------
 # Cache helpers
 # -----------------------------------------------------------
-def _cache_path(symbol: str, timeframe: str) -> str:
+def _cache_path(symbol: str, timeframe: str, period: str) -> str:
     safe_symbol = (symbol or "UNKNOWN").upper().replace("/", "_").replace("=", "")
     safe_tf = _normalize_timeframe(timeframe)
-    return os.path.join(DATA_DIR, f"{safe_symbol}_{safe_tf}_yf.csv")
+    return os.path.join(DATA_DIR, f"{safe_symbol}_{safe_tf}_{period}_yf.csv")
 
 
 def _read_cache(path: str) -> pd.DataFrame:
@@ -272,8 +278,8 @@ def load_ohlcv(symbol: str, timeframe: str, years: int = 2) -> pd.DataFrame:
     os.makedirs(DATA_DIR, exist_ok=True)
 
     timeframe = _normalize_timeframe(timeframe)
-    _yf_interval_for_timeframe(timeframe)  # Reject unsupported frames before reading old caches.
-    path = _cache_path(symbol, timeframe)
+    period = _safe_period(timeframe, years)
+    path = _cache_path(symbol, timeframe, period)
 
     cached = _read_cache(path)
     if cached is not None and not cached.empty:
