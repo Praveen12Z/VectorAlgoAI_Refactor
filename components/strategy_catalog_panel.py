@@ -8,6 +8,30 @@ from core.orb_research import screen_opening_range, selection_record
 from core.strategy_catalog import CATALOG, COMMON_PROTOCOL, catalog_export, load_template
 
 
+PAPER_REFERENCES = {
+    "PR-001": {
+        "title": "Time Series Momentum",
+        "citation": "Tobias J. Moskowitz, Yao Hua Ooi, and Lasse Heje Pedersen · Journal of Financial Economics 104(2), 228–250 · 2012",
+        "link": "https://doi.org/10.1016/j.jfineco.2011.11.003",
+        "finding": (
+            "The authors examined 58 futures and forward instruments across several asset classes. "
+            "They found that past returns could persist for up to a year and that the effect "
+            "partly reversed over longer horizons."
+        ),
+    },
+    "PR-002": {
+        "title": "A Profitable Day Trading Strategy for the U.S. Equity Market",
+        "citation": "Carlo Zarattini, Andrea Barbon, and Andrew Aziz · Swiss Finance Institute Research Paper 24-98 · 2024",
+        "link": "https://www.sfi.ch/en/publications/n-24-98-a-profitable-day-trading-strategy-for-the-u.s.-equity-market",
+        "finding": (
+            "The authors studied five-minute opening-range breakouts across US stocks from 2016 to 2023. "
+            "They reported better historical results when they focused on stocks with unusually "
+            "high opening activity."
+        ),
+    },
+}
+
+
 def render_strategy_catalog():
     starters = {item["id"]: item for item in CATALOG}
     mode = st.radio("Show", ("All strategies", "Ready to backtest", "Research only"),
@@ -38,13 +62,30 @@ def render_strategy_catalog():
             load_template(st.session_state, item)
             st.rerun()
         st.caption("Opening a strategy replaces the current unsaved draft and session result.")
-    with st.expander("Exact rules, limitations, and source"):
-        st.markdown(f"[Read original concept]({item['source_url']}) · Reviewed {item['reviewed_on']}")
+    with st.expander("Research notes and references"):
+        paper = PAPER_REFERENCES.get(item["id"])
+        if paper:
+            st.subheader(paper["title"])
+            st.caption(paper["citation"])
+            st.markdown("**What the authors found**")
+            st.write(paper["finding"])
+            st.markdown("**VectorAlgoAI research status**")
+            st.write(item["source_concept"])
+        else:
+            st.markdown("**Research basis**")
+            st.write(item["source_concept"])
+            st.caption("This catalog entry is a VectorAlgoAI adaptation. Its reference explains the underlying concept.")
+        st.markdown("**How VectorAlgoAI defines the setup**")
+        st.write(item["refinements"])
+        url = paper["link"] if paper else item["source_url"]
+        text = "Publication record" if paper else "Concept reference"
+        st.caption(f"Reviewed {item['reviewed_on']}")
+        st.markdown(f"[{text}]({url})")
+
+    with st.expander("Exact rules and limitations"):
         st.markdown("**Proposed rules**")
         for rule in item['rules']:
             st.write(f"• {rule}")
-        st.markdown("**What we refined**")
-        st.write(item['refinements'])
         st.markdown("**Where it can fail**")
         st.write(item['failure_modes'])
         if item['implementation_gaps']:
