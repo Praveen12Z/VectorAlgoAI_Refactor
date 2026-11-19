@@ -15,15 +15,15 @@ STAGES = (
 )
 
 WORKSPACE_ITEMS = (
-    ("home", "⌂", "Dashboard"),
-    ("thesis", "✦", "New strategy"),
-    ("library", "▦", "Strategy Library"),
-    ("journal", "▤", "Trade Journal"),
+    ("home", ":material/dashboard:", "Dashboard"),
+    ("thesis", ":material/add_circle:", "New strategy"),
+    ("library", ":material/auto_stories:", "Strategy Library"),
+    ("journal", ":material/receipt_long:", "Trade Journal"),
 )
 
 INTELLIGENCE_ITEMS = (
-    ("regimes", "◎", "Market Regimes"),
-    ("experiments", "⌬", "Experiments"),
+    ("regimes", ":material/monitoring:", "Market Regimes"),
+    ("experiments", ":material/science:", "Experiments"),
 )
 
 
@@ -62,22 +62,15 @@ def inject_workspace_styles() -> None:
       [class*="st-key-nav_"] button { border:0 !important; background:transparent !important; text-align:left; box-shadow:none !important; color:#42546b !important; min-height:2.7rem; padding:.36rem .6rem; font-size:.86rem; font-weight:600; border-radius:9px; }
       [class*="st-key-nav_"] button:hover { background:#edf4fb !important; color:var(--text) !important; }
       [class*="st-key-nav_"] button[kind="primary"] { background:linear-gradient(90deg,var(--blue-bg),#edf8fa) !important; color:#1e4fae !important; box-shadow:inset 3px 0 0 var(--blue) !important; outline:0; }
-      /* A consistent icon tile makes the permanent navigation scannable,
-         without turning it into a colourful trading dashboard. */
-      [class*="st-key-nav_"] button::before { display:inline-grid !important; place-items:center; flex:0 0 1.5rem; width:1.5rem !important; height:1.5rem !important; margin-right:.42rem; border:0; border-radius:6px; color:#667085; background:transparent; font-size:.9rem !important; font-weight:650; line-height:1; vertical-align:-.18rem; }
-      .st-key-nav_workspace_home button::before { content:"⌂"; }
-      .st-key-nav_workspace_thesis button::before { content:"+"; }
-      .st-key-nav_workspace_library button::before { content:"▦"; }
-      .st-key-nav_workspace_journal button::before { content:"▤"; }
-      .st-key-nav_intelligence_regimes button::before { content:"◎"; }
-      .st-key-nav_intelligence_experiments button::before { content:"⌬"; }
-      .st-key-nav_stage_thesis button::before { content:"✦"; }
-      .st-key-nav_stage_blueprint button::before { content:"◇"; }
-      .st-key-nav_stage_evidence button::before { content:"◫"; }
-      .st-key-nav_stage_diagnosis button::before { content:"⌁"; }
-      .st-key-nav_stage_readiness button::before { content:"↗"; }
-      .st-key-nav_settings button::before { content:"⚙"; }
-      [class*="st-key-nav_"] button[kind="primary"]::before { background:linear-gradient(135deg,#dce8ff,#d9f3f1); color:var(--teal-strong); }
+      [class*="st-key-nav_"] button { justify-content:flex-start; gap:.65rem; }
+      [class*="st-key-nav_"] button [data-testid="stIconMaterial"] {
+        display:inline-grid; place-items:center; flex:0 0 1.8rem;
+        width:1.8rem; height:1.8rem; border-radius:7px;
+        background:#eaf0f8; color:#405b81; font-size:1.14rem;
+      }
+      [class*="st-key-nav_"] button[kind="primary"] [data-testid="stIconMaterial"] {
+        background:#dbe8ff; color:#1d4ed8;
+      }
       .va-topbar { display:flex; align-items:center; justify-content:space-between; gap:1rem; min-height:72px; padding:0; border-bottom:1px solid var(--line); }
       .va-topbar-left{display:flex;align-items:center;gap:1rem;min-width:0}.va-main-brand{display:flex;align-items:center;gap:.55rem;flex:0 0 auto}.va-main-brand-mark{display:grid;place-items:center;width:31px;height:31px;color:#788df0}.va-main-brand-mark svg{width:31px;height:31px;display:block}.va-main-brand-copy{color:var(--text);font-size:.88rem;font-weight:780;letter-spacing:-.025em;white-space:nowrap}.va-main-brand-copy b{color:var(--blue)}.va-top-divider{width:1px;height:24px;background:var(--line)}
       .va-crumb { color:var(--muted); font-size:.86rem; overflow:hidden;text-overflow:ellipsis;white-space:nowrap; } .va-crumb b { color:var(--text); font-weight:700; }
@@ -242,17 +235,17 @@ def render_workspace_sidebar(timeframe: str = "1h") -> tuple[int, bool, bool, di
         st.markdown('<div class="va-side-label">Research</div>', unsafe_allow_html=True)
         for destination, icon, label in WORKSPACE_ITEMS:
             target = destination
-            if st.button(label, key=f"nav_workspace_{destination}", use_container_width=True, type="primary" if active == target else "secondary"):
+            if st.button(label, icon=icon, key=f"nav_workspace_{destination}", use_container_width=True, type="primary" if active == target else "secondary"):
                 _set_stage(target)
                 st.rerun()
         st.markdown('<div class="va-side-label">Intelligence</div>', unsafe_allow_html=True)
         for destination, icon, label in INTELLIGENCE_ITEMS:
-            if st.button(label, key=f"nav_intelligence_{destination}", use_container_width=True,
+            if st.button(label, icon=icon, key=f"nav_intelligence_{destination}", use_container_width=True,
                          type="primary" if active == destination else "secondary"):
                 _set_stage(destination)
                 st.rerun()
         st.markdown('<div class="va-side-separator"></div>', unsafe_allow_html=True)
-        if st.button("Settings", key="nav_settings", use_container_width=True, type="primary" if active == "settings" else "secondary"):
+        if st.button("Settings", icon=":material/settings:", key="nav_settings", use_container_width=True, type="primary" if active == "settings" else "secondary"):
             _set_stage("settings")
             st.rerun()
         if active == "evidence":

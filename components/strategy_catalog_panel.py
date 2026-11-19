@@ -3,6 +3,7 @@ import json
 import streamlit as st
 import pandas as pd
 from io import BytesIO
+from components.strategy_explainers import GUIDES, render_strategy_example
 from core.orb_research import screen_opening_range, selection_record
 from core.strategy_catalog import CATALOG, COMMON_PROTOCOL, catalog_export, load_template
 
@@ -26,28 +27,31 @@ def render_strategy_catalog():
     with st.container(border=True):
         st.subheader(item["name"])
         st.caption(f"{item['id']} · v{item['version']} · {item['family']} · {item['market']} · {item['timeframe']}")
+        description, steps, example = GUIDES[item["id"]]
+        st.write(description)
+        render_strategy_example(item["id"], example, steps)
         if item["implementation_gaps"]:
             st.info(item["status"])
         else:
             st.success("Ready to backtest")
-        st.write(item["source_concept"])
         if st.button("Open as new research draft", key=f"load_{item['id']}", type="primary"):
             load_template(st.session_state, item)
             st.rerun()
         st.caption("Opening a strategy replaces the current unsaved draft and session result.")
-    st.markdown(f"[Read original concept]({item['source_url']}) · Reviewed {item['reviewed_on']}")
-    st.markdown("**Proposed rules**")
-    for rule in item['rules']:
-        st.write(f"• {rule}")
-    st.markdown("**What we refined**")
-    st.write(item['refinements'])
-    st.markdown("**Where it can fail**")
-    st.write(item['failure_modes'])
-    if item['implementation_gaps']:
-        st.warning("Automated testing blocked: " + "; ".join(item['implementation_gaps']) + ".")
-    with st.expander("Shared research and execution protocol"):
-        st.write(item.get('research_protocol', COMMON_PROTOCOL))
-        st.caption("Execution readiness is specific to each research track. A working selector does not imply a working backtest.")
+    with st.expander("Exact rules, limitations, and source"):
+        st.markdown(f"[Read original concept]({item['source_url']}) · Reviewed {item['reviewed_on']}")
+        st.markdown("**Proposed rules**")
+        for rule in item['rules']:
+            st.write(f"• {rule}")
+        st.markdown("**What we refined**")
+        st.write(item['refinements'])
+        st.markdown("**Where it can fail**")
+        st.write(item['failure_modes'])
+        if item['implementation_gaps']:
+            st.warning("Automated testing blocked: " + "; ".join(item['implementation_gaps']) + ".")
+        st.markdown("**Research and execution protocol**")
+        st.write(item.get("research_protocol", COMMON_PROTOCOL))
+
     st.download_button("Download research specification", json.dumps(catalog_export(item), indent=2),
         file_name=f"{item['id']}-v{item['version']}.json", mime="application/json")
 
