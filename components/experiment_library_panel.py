@@ -62,9 +62,34 @@ def render_saved_evidence(record, key):
     )
 
 
+def render_uploaded_evidence():
+    st.caption("Open downloaded evidence JSON files to review or compare them without database access.")
+    files = st.file_uploader("Evidence JSON files", type=["json"], accept_multiple_files=True)
+    records = {}
+    required = {"record_hash", "strategy_name", "market", "timeframe", "validation_status"}
+    for file in files:
+        try:
+            record = json.loads(file.getvalue())
+            if not isinstance(record, dict) or any(
+                not isinstance(record.get(field), str) or not record[field] for field in required
+            ):
+                raise ValueError("Missing required evidence fields")
+            for field in ("execution_assumptions", "full_metrics", "development_metrics", "holdout_metrics"):
+                if not isinstance(record.get(field), dict):
+                    raise ValueError(f"Invalid {field}")
+            if not isinstance(record.get("trade_records"), list):
+                raise ValueError("Invalid trade ledger")
+            records[record["record_hash"]] = record
+        except (ValueError, UnicodeError):
+            st.warning(f"Could not open {file.name} as a VectorAlgoAI evidence record.")
+    if records:
+        render_experiment_library(list(records.values()), records.__getitem__, persist=None)
+
+
 def render_experiment_library(records, load_record, persist):
     by_hash = {r['record_hash']: r for r in records}
-    st.caption("Latest 25 records, including review revisions. Reviews preserve the original evidence and do not change validation status.")
+    if persist is not None:
+        st.caption("Latest 25 records, including review revisions.")
     st.dataframe(pd.DataFrame([{
         "Name": r['strategy_name'], "Version": metadata(r).get('version', ''),
         "Kind": metadata(r).get('kind', 'run'), "Decision": metadata(r).get('decision', 'Not reviewed'),
@@ -81,7 +106,7 @@ def render_experiment_library(records, load_record, persist):
         hypothesis = st.text_area("Hypothesis / reason for change", value=meta.get('hypothesis', ''))
         decision = st.selectbox("Research decision", DECISIONS, index=DECISIONS.index(meta.get('decision')) if meta.get('decision') in DECISIONS else 0)
         notes = st.text_area("Review notes", value=meta.get('notes', ''))
-        submitted = st.form_submit_button("Save review revision")
+        submitted = st.form_submit_button("Save review revision" if persist else "Prepare review download")
     if submitted:
         if not name.strip() or not version.strip():
             st.error("Enter a research name and version label.")
@@ -90,11 +115,17 @@ def render_experiment_library(records, load_record, persist):
             original['strategy_name'] = name.strip()
             revision = annotate(original, version=version, hypothesis=hypothesis,
                 parent_record_hash=meta.get('parent_record_hash'), decision=decision, notes=notes, review=True)
-            result = persist(revision)
-            if result.get('saved'):
-                st.success("Review saved. Original evidence preserved.")
+            if persist is None:
+                st.session_state[f"uploaded_review_{selected}"] = revision
             else:
-                st.error(result.get('message', 'Could not save review.'))
+                result = persist(revision)
+                if result.get("saved"):
+                    st.success("Review saved. Original evidence preserved.")
+                else:
+                    st.error(result.get("message", "Could not save review."))
+    if persist is None and (revision := st.session_state.get(f"uploaded_review_{selected}")):
+        st.download_button("Download review JSON", json.dumps(revision, indent=2),
+                           f"{revision['record_hash'][:12]}_review.json", "application/json")
     if len(records) < 2:
         return
     st.subheader("Compare saved records")

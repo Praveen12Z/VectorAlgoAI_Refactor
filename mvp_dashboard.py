@@ -30,7 +30,7 @@ from core.research_record import build_research_record
 from components.strategy_catalog_panel import render_strategy_catalog
 from components.monthly_activity_panel import render_monthly_activity
 from core.experiment_tracking import annotate
-from components.experiment_library_panel import render_experiment_library, label as experiment_label
+from components.experiment_library_panel import render_experiment_library, render_uploaded_evidence, label as experiment_label
 from core.auth import (
     AccessConfigurationError,
     AccessServiceError,
@@ -351,9 +351,11 @@ def _render_workspace_landing(view: str) -> None:
             return
         if not evidence_available:
             st.warning("Saved research storage is unavailable.")
+            render_uploaded_evidence()
             return
         if not records:
             st.info("No saved research yet. Run an approved backtest to save its results and trades.")
+            render_uploaded_evidence()
             return
         try:
             render_experiment_library(records, load_record, _persist_research_record)
