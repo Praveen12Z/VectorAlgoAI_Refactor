@@ -60,11 +60,13 @@ def build_trade_chart(bars, trade, context_bars=12):
     tick_indices = sorted(set(range(0, len(window), max(1, len(window) // 6))) |
                           {positions[entry], positions[exit_]})
     fig.update_layout(
-        height=440, dragmode="pan", hovermode="closest",
+        height=460, dragmode="pan", hovermode="closest",
+        plot_bgcolor="#fbfdff", paper_bgcolor="rgba(0,0,0,0)",
+        font={"color": "#334155"},
         margin={"l": 8, "r": 10, "t": 25, "b": 15},
-        xaxis={"rangeslider_visible": False, "tickvals": tick_indices,
+        xaxis={"rangeslider_visible": False, "tickvals": tick_indices, "gridcolor": "#e8eef6",
                "ticktext": [window.index[i].strftime("%d %b %H:%M") for i in tick_indices]},
-        yaxis={"side": "right", "title": "Price"},
+        yaxis={"side": "right", "title": "Price", "gridcolor": "#e8eef6"},
         legend={"orientation": "h", "y": 1.10},
     )
     return fig
@@ -92,6 +94,8 @@ def render_trade_chart(bars, trades, key):
         st.warning(str(exc))
         return
 
+    outcome = trade["pnl"]
+    st.caption(f"{str(trade['direction']).title()} trade · Net P&L {outcome:+,.2f}")
     for column, title, field, timestamp_field in zip(
         st.columns(3),
         ("Signal candle", "Entry fill", "Exit fill"),

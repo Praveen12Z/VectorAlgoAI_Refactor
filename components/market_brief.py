@@ -5,6 +5,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import pandas as pd
+import plotly.graph_objects as go
 import requests
 import streamlit as st
 import yfinance as yf
@@ -40,6 +41,22 @@ def _completed_bars(symbol, timeframe):
     return bars
 
 
+CATALYSTS = (
+    ("Rates & inflation", r"\b(fed|fomc|rate decision|rate cut[s]?|cpi|ppi|inflation|treasury yields?)\b"),
+    ("Jobs & growth", r"\b(payrolls|jobs report|unemployment|jolts|gdp|recession)\b"),
+    ("Earnings", r"\b(earnings|profit warning|revenue guidance)\b"),
+    ("Index changes", r"\b(rebalance|rebalancing|reconstitution|index inclusion|join the nasdaq|added to the index)\b"),
+    ("Policy & risk", r"\b(tariff[s]?|sanction[s]?|ban[s]?|regulation|ceasefire|shutdown)\b"),
+)
+BACKGROUND_NEWS = re.compile(r"\b(buy[- ]write|covered call[s]?|fund flows?|etf holdings|dividend yield)\b", re.I)
+
+
+def _catalyst_topic(title):
+    if BACKGROUND_NEWS.search(title):
+        return None
+    return next((topic for topic, pattern in CATALYSTS if re.search(pattern, title, re.I)), None)
+
+
 def _recent_headlines(items, now):
     cutoff = now - pd.Timedelta(days=7)
     recent = []
@@ -52,12 +69,13 @@ def _recent_headlines(items, now):
                 "publisher": item.get("source") or "Publisher unavailable",
                 "published": published,
                 "preview": (item.get("description") or "").strip(),
+                "topic": _catalyst_topic(title),
             })
     recent.sort(key=lambda item: item["published"], reverse=True)
     by_title = {}
     for item in recent:
         by_title.setdefault(item["title"].casefold(), item)
-    return list(by_title.values())[:3]
+    return list(by_title.values())
 
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -153,7 +171,14 @@ def render_market_brief(key):
             column.metric(label, value)
         recent = bars.iloc[-21:-1]
         st.caption(f"Prior 20-bar range · Low {recent['low'].min():,.4f} · High {recent['high'].max():,.4f}")
-        st.line_chart(close.tail(48), y_label="Close", height=200)
+        prices = close.tail(48)
+        chart = go.Figure(go.Scatter(x=prices.index, y=prices, name="Close",
+                                     line={"color": "#2563eb", "width": 2}))
+        chart.update_layout(height=210, margin={"l": 0, "r": 12, "t": 8, "b": 4},
+                            yaxis={"side": "right", "rangemode": "normal"},
+                            hovermode="closest")
+        st.plotly_chart(chart, use_container_width=True, key=f"{key}_price_chart",
+                        config={"displayModeBar": False})
         st.caption("Trend compares the close with its 20- and 50-bar averages. Volatility compares ATR as a share of price with its recent median.")
         if instrument == "NAS100" and timeframe == "1h":
             high = bars["high"].iloc[-21:-1].max()
@@ -161,30 +186,7 @@ def render_market_brief(key):
             st.write(f"**VA-002 entry condition:** {'Triggered on the latest close' if triggered else 'Waiting'} · prior 20-bar high {high:,.2f}.")
             st.caption("Checks the entry rule only. An existing position or execution constraints can block an entry.")
 
-    try:
-        config = st.secrets.get("market_brief", {})
-    except FileNotFoundError:
-        config = {}
-    st.markdown("**Related headlines**")
-    if news_key := config.get("marketaux_token"):
-        try:
-            news = _headlines(query, news_key)
-            st.caption(f"Matched to {query} · past 7 days · newest first")
-            for item in news:
-                with st.container(border=True):
-                    st.text(item["title"])
-                    published = item["published"].strftime("%d %b %Y, %H:%M UTC")
-                    st.caption(f"{item['publisher']} · {published}")
-                    if item["preview"]:
-                        st.text(item["preview"])
-            if not news:
-                st.info(f"No headlines matching {query} were found in the past 7 days.")
-        except (requests.RequestException, ValueError, TypeError, KeyError):
-            st.info("The headline feed is temporarily unavailable.")
-    else:
-        st.caption("News feed is not configured.")
-
-    st.markdown("**Upcoming US jobs and inflation releases**")
+    st.markdown("**Next scheduled US releases**")
     try:
         events = _calendar()
         for date, name in events:
@@ -195,3 +197,33 @@ def render_market_brief(key):
     except (requests.RequestException, ValueError):
         st.info("The BLS release calendar is temporarily unavailable.")
     st.caption("Source: US Bureau of Labor Statistics. Covers selected BLS releases.")
+
+    try:
+        config = st.secrets.get("market_brief", {})
+    except FileNotFoundError:
+        config = {}
+    st.markdown("**Catalyst watch**")
+    if news_key := config.get("marketaux_token"):
+        try:
+            news = _headlines(query, news_key)
+            catalysts = [item for item in news if item["topic"]]
+            background = [item for item in news if not item["topic"]]
+            if not catalysts:
+                st.info(f"No catalyst-tagged headlines for {query} in the latest feed results.")
+            for item in catalysts:
+                with st.container(border=True):
+                    st.caption(item["topic"])
+                    st.text(item["title"])
+                    if item["preview"]:
+                        st.text(item["preview"])
+                    published = item["published"].strftime("%d %b, %H:%M UTC")
+                    st.caption(f"{item['publisher']} · {published}")
+            if background:
+                with st.expander(f"Other matched headlines ({len(background)})"):
+                    for item in background:
+                        st.text(item["title"])
+                        st.caption(f"{item['publisher']} · {item['published']:%d %b, %H:%M UTC}")
+        except (requests.RequestException, ValueError, TypeError, KeyError):
+            st.info("The headline feed is temporarily unavailable.")
+    else:
+        st.caption("News feed is not configured.")

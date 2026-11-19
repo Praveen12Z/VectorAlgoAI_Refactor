@@ -750,6 +750,8 @@ def run_mvp_dashboard():
             mime="application/json",
         )
 
+    render_trade_chart(df_feat, trades_df, key="evidence")
+
     diagnostics = metrics.get("signal_diagnostics")
     if diagnostics:
         with st.expander("Why this many trades?", expanded=True):
@@ -807,7 +809,6 @@ def run_mvp_dashboard():
     else:
         st.info("Rerun this strategy to generate signal diagnostics; older evidence remains unchanged.")
 
-    render_trade_chart(df_feat, trades_df, key="evidence")
 
     with st.expander("Full backtest chart"):
         fig = go.Figure()
@@ -919,7 +920,7 @@ def run_mvp_dashboard():
 
         fig.update_layout(
             dragmode="pan",
-            hovermode="x unified",
+            hovermode="closest",
             xaxis_rangeslider_visible=False,
             margin=dict(l=0, r=0, t=30, b=0),
             height=520,
@@ -927,10 +928,12 @@ def run_mvp_dashboard():
             plot_bgcolor="#fbfdff",
             font=dict(color="#5c6f86"),
             colorway=["#2563eb", "#0f9f9a", "#7c8ba1"],
-            xaxis=dict(gridcolor="#e9eff5", zerolinecolor="#dbe4ee"),
-            yaxis=dict(gridcolor="#e9eff5", zerolinecolor="#dbe4ee"),
+            xaxis=dict(gridcolor="#e9eff5", zerolinecolor="#dbe4ee",
+                       range=[df_feat.index[0], df_feat.index[-1]]),
+            yaxis=dict(side="right", gridcolor="#e9eff5", zerolinecolor="#dbe4ee"),
         )
 
+        fig.update_traces(hoverinfo="skip", selector={"type": "scatter", "mode": "text"})
         st.plotly_chart(fig, use_container_width=True, config={"scrollZoom": True, "displaylogo": False})
 
     st.markdown('<div class="va-section-title">Closed-trade cumulative P&L</div>', unsafe_allow_html=True)
