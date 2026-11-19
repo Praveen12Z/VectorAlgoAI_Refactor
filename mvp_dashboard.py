@@ -369,8 +369,7 @@ def _render_research_tools(stage: str) -> None:
     else:
         st.title(titles[stage])
     if stage == "regimes":
-        render_market_brief("regimes_brief")
-        st.subheader("Historical backtest regimes")
+        st.caption("Compare historical market conditions and trade outcomes for a backtest.")
     current = (st.session_state.get("bt_result") or {}).get("research_record")
     try:
         records = {record["record_hash"]: record for record in _load_research_records()}
