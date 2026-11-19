@@ -366,6 +366,66 @@ def _render_workspace_landing(view: str) -> None:
         st.markdown('<div class="va-card"><div class="va-card-title">Current default</div><div class="va-card-value">NAS100 · 1h research timeframe</div></div>', unsafe_allow_html=True)
 
 
+def _render_research_tools(stage: str) -> None:
+    titles = {"journal": "Trade Journal", "regimes": "Market Regimes", "experiments": "Experiments"}
+    st.title(titles[stage])
+    current = (st.session_state.get("bt_result") or {}).get("research_record")
+    try:
+        records = {record["record_hash"]: record for record in _load_research_records()}
+        storage_available = True
+    except AccessServiceError:
+        records = {}
+        storage_available = False
+        st.warning("Saved research storage is unavailable.")
+
+    current_hash = current["record_hash"] if current else None
+    if current_hash:
+        records.setdefault(current_hash, current)
+
+    def load_record(record_hash):
+        if record_hash == current_hash:
+            return current
+        client, session = _research_storage_client()
+        return client.research_record(session, record_hash)
+
+    if not records:
+        st.info("Run a backtest to see research here.")
+        if stage == "experiments":
+            render_uploaded_evidence()
+        return
+    try:
+        if stage == "experiments":
+            render_experiment_library(
+                list(records.values()), load_record,
+                _persist_research_record if storage_available else None,
+            )
+            return
+        selected = st.selectbox("Backtest record", list(records),
+                                format_func=lambda h: experiment_label(records[h]),
+                                key=f"{stage}_record")
+        record = load_record(selected)
+    except AccessServiceError:
+        st.warning("This saved backtest could not be opened. Please retry.")
+        return
+
+    if stage == "regimes":
+        analysis = record.get("regime_analysis")
+        if analysis:
+            render_regime_panel(analysis)
+        else:
+            st.info("This backtest has no market regime analysis.")
+        return
+
+    ledger = pd.DataFrame(record.get("trade_records") or [])
+    if ledger.empty:
+        st.info("This backtest has no recorded trades.")
+        return
+    st.caption(f"{record['market']} · {record['timeframe']} · {len(ledger)} recorded trades")
+    st.dataframe(ledger, hide_index=True, use_container_width=True)
+    st.download_button("Download trades CSV", ledger.to_csv(index=False),
+                       f"{selected[:12]}_trades.csv", "text/csv")
+
+
 def build_ruthless_ai_commentary(metrics: Dict[str, Any], trades_df: pd.DataFrame) -> str:
     grade = metrics.get("grade", "-")
     total_ret = float(metrics.get("total_return_pct", 0.0))
@@ -468,6 +528,10 @@ def run_mvp_dashboard():
 
     if active_stage in {"home", "library", "settings"}:
         _render_workspace_landing(active_stage)
+        return
+
+    if active_stage in {"journal", "regimes", "experiments"}:
+        _render_research_tools(active_stage)
         return
 
     if active_stage in {"thesis", "blueprint"}:

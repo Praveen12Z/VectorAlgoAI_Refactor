@@ -203,7 +203,8 @@ def render_workspace_header(active_stage: str = "thesis") -> None:
     state = "Evidence available" if st.session_state.get("bt_result") else ("Blueprint ready" if st.session_state.get("blueprint_schema") else "Draft")
     compact_brand = '<div class="va-main-brand"><div class="va-main-brand-mark"><svg viewBox="0 0 72 72" fill="none" aria-hidden="true"><circle cx="14" cy="15" r="7" fill="currentColor"/><circle cx="28" cy="59" r="5" fill="currentColor"/><circle cx="46" cy="14" r="4" fill="currentColor"/><circle cx="9" cy="39" r="4" fill="currentColor"/><path d="M22 33 38 11" stroke="currentColor" stroke-width="9" stroke-linecap="round"/><path d="M35 42 48 24" stroke="currentColor" stroke-width="9" stroke-linecap="round"/><path d="M40 58 56 36" stroke="currentColor" stroke-width="9" stroke-linecap="round"/><path d="M55 29 66 14" stroke="currentColor" stroke-width="9" stroke-linecap="round"/></svg></div><div class="va-main-brand-copy">Vector Algo<b>AI</b></div></div>'
     if active_stage not in {key for key, _, _, _ in STAGES}:
-        section = {"home": "Research dashboard", "library": "Strategy library", "settings": "Settings"}.get(active_stage, "Workspace")
+        section = {"home": "Research dashboard", "library": "Strategy library", "settings": "Settings",
+                   "journal": "Trade Journal", "regimes": "Market Regimes", "experiments": "Experiments"}.get(active_stage, "Workspace")
         st.markdown(
             f'<div class="va-topbar"><div class="va-topbar-left">{compact_brand}<div class="va-top-divider"></div><div class="va-crumb"><b>{section}</b></div></div>'
             f'<div class="va-top-actions"><div class="va-top-status"><i></i>Workspace active</div></div></div>',
@@ -246,8 +247,9 @@ def render_workspace_sidebar(timeframe: str = "1h") -> tuple[int, bool, bool, di
                 st.rerun()
         st.markdown('<div class="va-side-label">Intelligence</div>', unsafe_allow_html=True)
         for destination, icon, label in INTELLIGENCE_ITEMS:
-            if st.button(label, key=f"nav_intelligence_{destination}", use_container_width=True):
-                st.session_state["active_workspace_view"] = destination
+            if st.button(label, key=f"nav_intelligence_{destination}", use_container_width=True,
+                         type="primary" if active == destination else "secondary"):
+                _set_stage(destination)
                 st.rerun()
         st.markdown('<div style="height:2.5rem"></div><div class="va-side-separator"></div>', unsafe_allow_html=True)
         if st.button("Settings", key="nav_settings", use_container_width=True, type="primary" if active == "settings" else "secondary"):
