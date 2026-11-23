@@ -8,7 +8,7 @@ import pandas as pd
 import streamlit as st
 
 from core.intraday_tester import (
-    EMA_RECLAIM_HOLD_PRESETS, STARTERS, STARTER_MARKETS, run_intraday_tester, starter_label,
+    EMA_RECLAIM_PRESETS, STARTERS, STARTER_MARKETS, run_intraday_tester, starter_label,
 )
 
 
@@ -26,15 +26,15 @@ def render_intraday_tester():
         format_func=starter_label,
     )
     if starter.id == "FUT-01":
-        hold = st.radio(
-            "EMA Reclaim version", tuple(EMA_RECLAIM_HOLD_PRESETS), index=1,
-            format_func=EMA_RECLAIM_HOLD_PRESETS.__getitem__, horizontal=True,
-            key="intraday_ema_reclaim_hold",
+        hold, reward_multiple = st.radio(
+            "EMA Reclaim version", tuple(EMA_RECLAIM_PRESETS), index=1,
+            format_func=EMA_RECLAIM_PRESETS.__getitem__, horizontal=True,
+            key="intraday_ema_reclaim_preset",
         )
-        starter = replace(starter, hold=hold)
+        starter = replace(starter, hold=hold, reward_multiple=reward_multiple)
         st.caption(
-            "The tuned version changes the time exit only. Its 40-minute hold was selected on the "
-            "existing MNQ sample. Use a different period to validate it."
+            "The 40-minute hold and 1R target were selected on the existing MNQ sample. "
+            "Use a different period to validate them."
         )
     floor, ceiling = starter.target
     st.caption(
@@ -49,7 +49,7 @@ def render_intraday_tester():
         )
         st.write(
             f"{trigger} Indicators reset each session. Use the next minute open and one position at a time. "
-            f"The stop is the mean true range of the last 8 signal bars, and the target is 1.5 times "
+            f"The stop is the mean true range of the last 8 signal bars, and the target is {starter.reward_multiple:g} times "
             f"the stop distance before any tick rounding. Exit after {starter.hold} minutes or at 16:00 New York "
             "if neither level has filled. Protective fills use minute bars, with the stop taking priority "
             "when both levels are touched."
@@ -106,6 +106,17 @@ def render_intraday_tester():
     within = f" · {band:.0f}% of periods within {floor}–{ceiling}" if band is not None else ""
     st.write(f"**Cadence: {result['cadence_status']}** · {result['periods']} measured periods · "
              f"{len(result['trades'])} completed trades{within}")
+    if starter.id == "FUT-01":
+        goal = result["daily_profit_target_usd"]
+        average = result["average_daily_base_net"]
+        gap = average - goal
+        daily_base, daily_stress, target_days = st.columns(3)
+        daily_base.metric("Average net per session", f"${average:,.2f}",
+                          delta=f"{gap:+,.2f} USD vs goal of ${goal:g}")
+        daily_stress.metric("Average net per session at double costs",
+                            f"${result['average_daily_double_cost_net']:,.2f}")
+        target_days.metric(f"Sessions earning ${goal:g} or more",
+                           f"{result['sessions_at_daily_target']} / {result['periods']}")
     st.caption(
         "Cadence is measured on complete sessions or weeks with five complete sessions, including zero-trade periods. "
         "The screening status requires 20 sessions or four weeks. P&L covers all included sessions."
@@ -124,6 +135,9 @@ def render_intraday_tester():
             st.dataframe(pd.DataFrame(result["trades"]), hide_index=True)
         else:
             st.info("No trades on the supplied sample.")
-    file_stem = f"{starter.id}-{starter.hold}m-hold" if starter.id == "FUT-01" else starter.id
+    file_stem = (
+        f"{starter.id}-{starter.hold}m-hold-{starter.reward_multiple:g}R"
+        if starter.id == "FUT-01" else starter.id
+    )
     st.download_button("Download test results", json.dumps(result, indent=2),
                        file_name=f"{file_stem}-intraday-test.json", mime="application/json")

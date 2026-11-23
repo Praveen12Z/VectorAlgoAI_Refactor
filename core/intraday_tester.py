@@ -23,6 +23,7 @@ class Starter:
     target: tuple[int, int]
     point_value: float | None = None
     tick: float | None = None
+    reward_multiple: float = 1.5
 
 
 STARTERS = (
@@ -35,7 +36,12 @@ STARTERS = (
     Starter("CMD-03", "Commodities", "XAUUSD CFD", "EMA reclaim", 15, 16, 75, "week", (5, 6)),
 )
 STARTER_MARKETS = ("CFDs", "Index Futures", "Commodities")
-EMA_RECLAIM_HOLD_PRESETS = {25: "Baseline · 25-minute hold", 40: "Tuned · 40-minute hold"}
+EMA_RECLAIM_PRESETS = {
+    (25, 1.5): "Baseline · 25-minute hold · 1.5R target",
+    (40, 1.5): "Tuned · 40-minute hold · 1.5R target",
+    (40, 1.0): "Target test · 40-minute hold · 1R target",
+}
+EMA_RECLAIM_DAILY_GOAL = 100
 
 
 def starter_label(starter):
@@ -105,7 +111,7 @@ def run_intraday_tester(raw, starter, *, round_turn_cost, cfd_point_value=None, 
                     distance = int(np.ceil(distance / starter.tick)) * starter.tick
                 entry = float(row.open)
                 direction = 1 if side == "long" else -1
-                target = 1.5 * distance
+                target = starter.reward_multiple * distance
                 if starter.tick:
                     target = int(np.ceil(target / starter.tick)) * starter.tick
                 position = Position(
@@ -160,6 +166,16 @@ def run_intraday_tester(raw, starter, *, round_turn_cost, cfd_point_value=None, 
     outcome = "Insufficient sample"
     if len(observed) >= (20 if starter.cadence == "day" else 4):
         outcome = "Below target" if median < low else "Above target band" if median > high else "Within target band"
+    base_net = sum(trade["base_net"] for trade in ledger)
+    double_cost_net = sum(trade["double_cost_net"] for trade in ledger)
+    daily_goal = {}
+    if starter.id == "FUT-01":
+        daily_goal = {
+            "daily_profit_target_usd": EMA_RECLAIM_DAILY_GOAL,
+            "average_daily_base_net": base_net / len(days),
+            "average_daily_double_cost_net": double_cost_net / len(days),
+            "sessions_at_daily_target": sum(day["base_net"] >= EMA_RECLAIM_DAILY_GOAL for day in days),
+        }
     return {
         "version": "intraday-starters-v1", "model": starter.id, "rules": asdict(starter),
         "parameter_selection": (
@@ -172,8 +188,8 @@ def run_intraday_tester(raw, starter, *, round_turn_cost, cfd_point_value=None, 
         "periods": len(observed), "median_trades": median,
         "at_least_floor_pct": 100 * sum(count >= low for count in observed) / len(observed) if observed else None,
         "in_band_pct": 100 * sum(low <= count <= high for count in observed) / len(observed) if observed else None,
-        "base_net": sum(trade["base_net"] for trade in ledger),
-        "double_cost_net": sum(trade["double_cost_net"] for trade in ledger),
+        "base_net": base_net, "double_cost_net": double_cost_net,
+        **daily_goal,
         "days": days, "weeks": week_rows, "trades": ledger,
         "incomplete_sessions": [str(session.date.date()) for session in dataset.sessions if not session.complete],
         "weekdays_without_bars": list(dataset.weekdays_without_session_rows),
