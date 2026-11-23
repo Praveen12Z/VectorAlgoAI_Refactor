@@ -1,15 +1,28 @@
 """Market and cadence entry point for the intraday strategy tester."""
 
 from dataclasses import replace
+from datetime import timedelta
 from hashlib import sha256
 import json
+import os
 
 import pandas as pd
 import streamlit as st
+from streamlit.errors import StreamlitSecretNotFoundError
 
+from core.databento_history import fetch_futures_minutes
 from core.intraday_tester import (
     EMA_RECLAIM_ID, STARTERS, STARTER_MARKETS, run_intraday_tester, starter_label,
 )
+
+
+def _databento_key():
+    if key := os.getenv("DATABENTO_API_KEY"):
+        return key
+    try:
+        return st.secrets.get("DATABENTO_API_KEY")
+    except StreamlitSecretNotFoundError:
+        return None
 
 
 def render_dashboard_ema_reclaim():
@@ -63,40 +76,73 @@ def _render_intraday_run(starter, *, key_prefix, default_cost=0.0):
         )
     symbol = None
     point_value = starter.point_value
+    request_dates = None
+    api_key = None
     if point_value is None:
         st.caption("Broker CSV · Minute starts with timezone · timestamp, open, high, low, close")
+        st.caption("These execution tests use the broker's instrument prices. Yahoo data is available in the standard research workflow.")
         point_value = st.number_input("USD per price point for one broker unit", min_value=0.0,
                                       value=0.0, format="%.6f", key=f"{key_prefix}_point_{starter.id}")
     else:
-        source = st.selectbox("Data format", ("UTC minute-end text", "Databento OHLCV CSV"),
+        api_key = _databento_key()
+        sources = ["UTC minute-end text", "Databento OHLCV CSV"]
+        if api_key:
+            sources.insert(0, "Load historical bars from Databento")
+        else:
+            st.caption("Automatic futures history becomes available when Databento is configured.")
+        source = st.selectbox("Market data", sources,
                               key=f"{key_prefix}_data_{starter.id}")
         st.caption(f"One contract · USD {point_value:g} per point · Tick {starter.tick:g}")
-        if source == "Databento OHLCV CSV":
+        if source != "UTC minute-end text":
             symbol = st.text_input("Dated raw contract symbol", key=f"{key_prefix}_symbol_{starter.id}").strip().upper()
+            if source == "Load historical bars from Databento":
+                yesterday = pd.Timestamp.now(tz="America/New_York").date() - timedelta(days=1)
+                request_dates = st.date_input(
+                    "Backtest dates (New York)", value=(yesterday - timedelta(days=29), yesterday),
+                    max_value=yesterday, key=f"{key_prefix}_dates_{starter.id}",
+                )
+                st.caption("One contract and up to 31 days per request. Databento usage charges may apply.")
         else:
             st.caption("Text format · YYYYMMDD HHMMSS;open;high;low;close;volume")
-    raw_file = st.file_uploader(f"{starter.symbol} minute bars", type=["csv", "txt"],
-                                key=f"{key_prefix}_upload_{starter.id}")
+    raw = None
+    if request_dates is None:
+        raw_file = st.file_uploader(f"{starter.symbol} minute bars", type=["csv", "txt"],
+                                    key=f"{key_prefix}_upload_{starter.id}")
+        raw = raw_file.getvalue() if raw_file else None
     cost = st.number_input("All-in cost per round trip (USD)", min_value=0.0, value=default_cost,
                            step=0.1, key=f"{key_prefix}_cost_{starter.id}")
-    raw = raw_file.getvalue() if raw_file else None
-    signature = (starter, sha256(raw).hexdigest(), cost, point_value, symbol) if raw else None
+    data_selection = request_dates if request_dates is not None else sha256(raw).hexdigest() if raw else None
+    ready = len(request_dates) == 2 if request_dates is not None else bool(raw)
+    ready = ready and symbol != ""
+    signature = (starter, data_selection, cost, point_value, symbol)
     result_key = f"{key_prefix}_tester_result"
     if st.button("Run EMA Reclaim" if starter.id == EMA_RECLAIM_ID else "Run strategy test", type="primary",
-                 disabled=not (raw and cost > 0 and point_value > 0 and symbol != "")):
+                 disabled=not (ready and cost > 0 and point_value > 0)):
         st.session_state.pop(result_key, None)
         try:
+            if request_dates is not None:
+                with st.spinner("Loading historical futures bars…"):
+                    raw = fetch_futures_minutes(api_key, starter.symbol, symbol, *request_dates)
             result = run_intraday_tester(raw, starter, round_turn_cost=cost,
                                          cfd_point_value=point_value, raw_symbol=symbol)
         except (ValueError, TypeError, OverflowError) as exc:
             st.error(str(exc))
         else:
+            if request_dates is not None:
+                result["data_source"] = {
+                    "provider": "Databento", "dataset": "GLBX.MDP3", "schema": "ohlcv-1m",
+                    "start_date_ny": request_dates[0].isoformat(), "end_date_ny": request_dates[1].isoformat(),
+                }
             st.session_state[result_key] = (signature, result)
     saved = st.session_state.get(result_key)
-    if not saved or saved[0] != signature:
+    if not saved:
         return
 
     result = saved[1]
+    if saved[0] != signature:
+        if key_prefix != "dashboard_ema_reclaim" or ready or saved[0][0] != starter:
+            return
+        st.caption(f"Last completed run · ${result['round_turn_cost']:.2f} per modeled round trip")
     st.caption(result["parameter_selection"])
     median, target_metric, base, stress = st.columns(4)
     observed = result["median_trades"]
@@ -105,6 +151,13 @@ def _render_intraday_run(starter, *, key_prefix, default_cost=0.0):
     target_metric.metric(f"Reached {floor}+ trades", f"{rate:.0f}%" if rate is not None else "—")
     base.metric("Net at base costs", f"${result['base_net']:,.2f}")
     stress.metric("Net at double costs", f"${result['double_cost_net']:,.2f}")
+    profit_factor, win_rate, drawdown = st.columns(3)
+    pf = result.get("profit_factor")
+    wins = result.get("win_rate_pct")
+    dd = result.get("max_closed_trade_drawdown_usd")
+    profit_factor.metric("Profit factor", f"{pf:.2f}" if pf is not None else "—")
+    win_rate.metric("Win rate", f"{wins:.1f}%" if wins is not None else "—")
+    drawdown.metric("Closed-trade drawdown", f"${dd:,.2f}" if dd is not None else "—")
     band = result["in_band_pct"]
     within = f" · {band:.0f}% of periods within {floor}–{ceiling}" if band is not None else ""
     st.write(f"**Cadence: {result['cadence_status']}** · {result['periods']} measured periods · "
