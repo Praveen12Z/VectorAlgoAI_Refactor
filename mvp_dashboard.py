@@ -29,6 +29,7 @@ from core.regime_analyzer import analyze_regime_shift
 from core.research_record import build_research_record
 from components.strategy_catalog_panel import render_strategy_catalog
 from components.butler_research_panel import render_butler_research
+from components.intraday_tester_panel import render_intraday_tester
 from components.monthly_activity_panel import render_monthly_activity
 from core.experiment_tracking import annotate
 from components.experiment_library_panel import render_experiment_library, render_uploaded_evidence, label as experiment_label
@@ -368,6 +369,8 @@ def _render_research_tools(stage: str) -> None:
         if st.button("Browse strategy starters", key="open_library_from_experiments"):
             st.session_state["active_workspace_stage"] = "library"
             st.rerun()
+        render_intraday_tester()
+        st.markdown("#### Earlier research experiments")
         render_butler_research()
     else:
         st.title(titles[stage])
