@@ -7,6 +7,7 @@ from urllib.parse import urlsplit
 from components.butler_research_panel import MODEL_LABELS
 from components.strategy_explainers import GUIDES, render_strategy_example
 from core.butler_research import PAUSE_RULES, RULES
+from core.intraday_tester import STARTERS, STARTER_MARKETS, starter_label
 from core.orb_research import screen_opening_range, selection_record
 from core.strategy_catalog import CATALOG, COMMON_PROTOCOL, catalog_export, load_template
 
@@ -38,6 +39,7 @@ PAPER_REFERENCES = {
 
 BUTLER_CATALOG_KEY = "butler_mnq_reversal"
 BUTLER_CATALOG_LABEL = "MNQ five-minute reversal · Butler adaptation"
+CATALOG_MARKETS = (*STARTER_MARKETS, "Index Proxies", "Equities", "Multi-Asset")
 
 
 def _render_butler_catalog_entry():
@@ -65,25 +67,48 @@ def _render_butler_catalog_entry():
 
 
 def render_strategy_catalog():
-    starters = {item["id"]: item for item in CATALOG}
+    market = st.radio("Market", CATALOG_MARKETS, horizontal=True, key="library_market")
+    market_by_symbol = {
+        "NAS100": "Index Proxies",
+        "NQ futures": "Index Futures",
+        "XAUUSD": "Commodities",
+    }
+    starters = {
+        item["id"]: item for item in CATALOG
+        if market_by_symbol.get(item["market"], "Equities" if item["id"] == "PR-002" else "Multi-Asset") == market
+    }
+    intraday = {starter.id: starter for starter in STARTERS if starter.market == market}
     mode = st.radio("Show", ("All strategies", "Ready to backtest", "Research only"),
                     horizontal=True)
+    labels = {key: f"{key} · {item['name']}" for key, item in starters.items()}
+    labels.update({key: starter_label(starter) for key, starter in intraday.items()})
+    labels[BUTLER_CATALOG_KEY] = BUTLER_CATALOG_LABEL
     choices = [
         key for key, item in starters.items()
         if mode == "All strategies"
         or (mode == "Ready to backtest" and not item["implementation_gaps"])
         or (mode == "Research only" and item["implementation_gaps"])
     ]
-    if mode != "Research only":
+    if mode != "Research only" and market == "Index Futures":
         choices.append(BUTLER_CATALOG_KEY)
+    if mode != "Research only":
+        choices = [*intraday, *choices]
     if not choices:
         st.info("No strategies in this view.")
         return
-    selected = st.selectbox(
-        "Choose a strategy", choices,
-        format_func=lambda key: (BUTLER_CATALOG_LABEL if key == BUTLER_CATALOG_KEY
-                                 else f"{key} · {starters[key]['name']}"),
-    )
+    selected = st.selectbox("Choose a strategy", choices, format_func=labels.__getitem__)
+    if selected in intraday:
+        starter = intraday[selected]
+        with st.container(border=True):
+            st.subheader(f"{starter.symbol} · {starter.rule}")
+            low, high = starter.target
+            st.caption(f"{starter.timeframe}m signals · Target {low}–{high} trades/{starter.cadence}")
+            st.write("Backtest with one-minute market data and compare observed trade frequency against the target.")
+            if st.button("Open in Strategy Tester", key=f"library_open_{starter.id}", type="primary"):
+                st.session_state["open_intraday_starter"] = starter
+                st.session_state["active_workspace_stage"] = "experiments"
+                st.rerun()
+        return
     if selected == BUTLER_CATALOG_KEY:
         _render_butler_catalog_entry()
         return
