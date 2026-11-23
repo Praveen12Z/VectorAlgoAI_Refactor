@@ -35,6 +35,7 @@ STARTERS = (
     Starter("CMD-03", "Commodities", "XAUUSD CFD", "EMA reclaim", 15, 16, 75, "week", (5, 6)),
 )
 STARTER_MARKETS = ("CFDs", "Index Futures", "Commodities")
+EMA_RECLAIM_HOLD_PRESETS = {25: "Baseline · 25-minute hold", 40: "Tuned · 40-minute hold"}
 
 
 def starter_label(starter):
@@ -93,6 +94,8 @@ def run_intraday_tester(raw, starter, *, round_turn_cost, cfd_point_value=None, 
                 raise ValueError("Futures prices are off the selected contract's tick grid.")
         position = None
         count = 0
+        session_base_net = 0.0
+        session_double_cost_net = 0.0
         for offset, (stamp, row) in enumerate(minutes.iterrows()):
             opened_at = stamp - pd.Timedelta(minutes=1)
             side = sides.get(opened_at)
@@ -126,16 +129,23 @@ def run_intraday_tester(raw, starter, *, round_turn_cost, cfd_point_value=None, 
                 continue
             sign = 1 if position.direction == "long" else -1
             gross = sign * (exit_price - position.entry_price) * point_value
+            base_net = gross - round_turn_cost
+            double_cost_net = gross - 2 * round_turn_cost
             ledger.append({
                 "session": str(session.date.date()),
                 "entry_time": position.entry_time.isoformat(),
                 "exit_bar_time": exit_time.isoformat(),
                 "side": position.direction, "entry": position.entry_price, "exit": exit_price,
-                "reason": reason, "base_net": gross - round_turn_cost,
-                "double_cost_net": gross - 2 * round_turn_cost,
+                "reason": reason, "base_net": base_net,
+                "double_cost_net": double_cost_net,
             })
+            session_base_net += base_net
+            session_double_cost_net += double_cost_net
             position = None
-        days.append({"session": str(session.date.date()), "trades": count})
+        days.append({
+            "session": str(session.date.date()), "trades": count,
+            "base_net": session_base_net, "double_cost_net": session_double_cost_net,
+        })
 
     dates = pd.DataFrame(days)
     weeks = dates.groupby(pd.to_datetime(dates.session).dt.to_period("W-SUN"))["trades"].agg(["sum", "size"])

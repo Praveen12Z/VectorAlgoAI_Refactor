@@ -1,12 +1,15 @@
 """Market and cadence entry point for the intraday strategy tester."""
 
 from hashlib import sha256
+from dataclasses import replace
 import json
 
 import pandas as pd
 import streamlit as st
 
-from core.intraday_tester import STARTERS, STARTER_MARKETS, run_intraday_tester, starter_label
+from core.intraday_tester import (
+    EMA_RECLAIM_HOLD_PRESETS, STARTERS, STARTER_MARKETS, run_intraday_tester, starter_label,
+)
 
 
 def render_intraday_tester():
@@ -22,6 +25,17 @@ def render_intraday_tester():
         "Strategy", choices, key=f"intraday_strategy_{market}",
         format_func=starter_label,
     )
+    if starter.id == "FUT-01":
+        hold = st.radio(
+            "EMA Reclaim version", tuple(EMA_RECLAIM_HOLD_PRESETS), index=1,
+            format_func=EMA_RECLAIM_HOLD_PRESETS.__getitem__, horizontal=True,
+            key="intraday_ema_reclaim_hold",
+        )
+        starter = replace(starter, hold=hold)
+        st.caption(
+            "The tuned version changes the time exit only. Its 40-minute hold was selected on the "
+            "existing MNQ sample. Use a different period to validate it."
+        )
     floor, ceiling = starter.target
     st.caption(
         f"Research starter · {starter.timeframe}m signals · Long and short · "
@@ -64,7 +78,7 @@ def render_intraday_tester():
     cost = st.number_input("All-in cost per round trip (USD)", min_value=0.0, value=0.0,
                            step=0.1, key=f"intraday_cost_{starter.id}")
     raw = raw_file.getvalue() if raw_file else None
-    signature = (starter.id, sha256(raw).hexdigest(), cost, point_value, symbol) if raw else None
+    signature = (starter, sha256(raw).hexdigest(), cost, point_value, symbol) if raw else None
     if st.button("Run strategy test", type="primary",
                  disabled=not (raw and cost > 0 and point_value > 0 and symbol != "")):
         st.session_state.pop("intraday_tester_result", None)
@@ -98,7 +112,10 @@ def render_intraday_tester():
     )
     activity, trades = st.tabs(["Trade frequency", "Trade ledger"])
     with activity:
-        st.dataframe(pd.DataFrame(result["days" if starter.cadence == "day" else "weeks"]), hide_index=True)
+        activity_frame = pd.DataFrame(result["days" if starter.cadence == "day" else "weeks"])
+        st.dataframe(activity_frame.rename(columns={
+            "base_net": "Net at base costs (USD)", "double_cost_net": "Net at double costs (USD)",
+        }), hide_index=True)
         for key, label in (("incomplete_sessions", "Incomplete sessions"), ("weekdays_without_bars", "Weekdays without bars")):
             if result[key]:
                 st.caption(f"{label} · {', '.join(result[key])}")
@@ -107,5 +124,6 @@ def render_intraday_tester():
             st.dataframe(pd.DataFrame(result["trades"]), hide_index=True)
         else:
             st.info("No trades on the supplied sample.")
+    file_stem = f"{starter.id}-{starter.hold}m-hold" if starter.id == "FUT-01" else starter.id
     st.download_button("Download test results", json.dumps(result, indent=2),
-                       file_name=f"{starter.id}-intraday-test.json", mime="application/json")
+                       file_name=f"{file_stem}-intraday-test.json", mime="application/json")
