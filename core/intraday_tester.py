@@ -36,11 +36,7 @@ STARTERS = (
     Starter("CMD-03", "Commodities", "XAUUSD CFD", "EMA reclaim", 15, 16, 75, "week", (5, 6)),
 )
 STARTER_MARKETS = ("CFDs", "Index Futures", "Commodities")
-EMA_RECLAIM_PRESETS = {
-    (25, 1.5): "Baseline · 25-minute hold · 1.5R target",
-    (40, 1.5): "Tuned · 40-minute hold · 1.5R target",
-    (40, 1.0): "Target test · 40-minute hold · 1R target",
-}
+EMA_RECLAIM_ID = "FUT-01"
 EMA_RECLAIM_DAILY_GOAL = 100
 
 
@@ -169,7 +165,7 @@ def run_intraday_tester(raw, starter, *, round_turn_cost, cfd_point_value=None, 
     base_net = sum(trade["base_net"] for trade in ledger)
     double_cost_net = sum(trade["double_cost_net"] for trade in ledger)
     daily_goal = {}
-    if starter.id == "FUT-01":
+    if starter.id == EMA_RECLAIM_ID:
         daily_goal = {
             "daily_profit_target_usd": EMA_RECLAIM_DAILY_GOAL,
             "average_daily_base_net": base_net / len(days),

@@ -7,7 +7,7 @@ from urllib.parse import urlsplit
 from components.butler_research_panel import MODEL_LABELS
 from components.strategy_explainers import GUIDES, render_strategy_example
 from core.butler_research import PAUSE_RULES, RULES
-from core.intraday_tester import STARTERS, STARTER_MARKETS, starter_label
+from core.intraday_tester import EMA_RECLAIM_ID, STARTERS, STARTER_MARKETS, starter_label
 from core.orb_research import screen_opening_range, selection_record
 from core.strategy_catalog import CATALOG, COMMON_PROTOCOL, catalog_export, load_template
 
@@ -104,9 +104,12 @@ def render_strategy_catalog():
             low, high = starter.target
             st.caption(f"{starter.timeframe}m signals · Target {low}–{high} trades/{starter.cadence}")
             st.write("Backtest with one-minute market data and compare observed trade frequency against the target.")
-            if st.button("Open in Strategy Tester", key=f"library_open_{starter.id}", type="primary"):
-                st.session_state["open_intraday_starter"] = starter
-                st.session_state["active_workspace_stage"] = "experiments"
+            on_dashboard = starter.id == EMA_RECLAIM_ID
+            action = "Open on Dashboard" if on_dashboard else "Open in Strategy Tester"
+            if st.button(action, key=f"library_open_{starter.id}", type="primary"):
+                if not on_dashboard:
+                    st.session_state["open_intraday_starter"] = starter
+                st.session_state["active_workspace_stage"] = "home" if on_dashboard else "experiments"
                 st.rerun()
         return
     if selected == BUTLER_CATALOG_KEY:

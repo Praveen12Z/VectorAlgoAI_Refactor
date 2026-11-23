@@ -29,7 +29,7 @@ from core.regime_analyzer import analyze_regime_shift
 from core.research_record import build_research_record
 from components.strategy_catalog_panel import render_strategy_catalog
 from components.butler_research_panel import render_butler_research
-from components.intraday_tester_panel import render_intraday_tester
+from components.intraday_tester_panel import render_dashboard_ema_reclaim, render_intraday_tester
 from components.monthly_activity_panel import render_monthly_activity
 from core.experiment_tracking import annotate
 from components.experiment_library_panel import render_experiment_library, render_uploaded_evidence, label as experiment_label
@@ -301,6 +301,8 @@ def _render_workspace_landing(view: str) -> None:
             f'</div>',
             unsafe_allow_html=True,
         )
+
+        render_dashboard_ema_reclaim()
 
         active_index = 2 if has_evidence else (1 if has_blueprint else 0)
         track = [
