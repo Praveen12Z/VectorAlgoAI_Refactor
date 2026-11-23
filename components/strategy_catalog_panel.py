@@ -107,7 +107,9 @@ def render_strategy_catalog():
             on_dashboard = starter.id == EMA_RECLAIM_ID
             action = "Open on Dashboard" if on_dashboard else "Open in Strategy Tester"
             if st.button(action, key=f"library_open_{starter.id}", type="primary"):
-                if not on_dashboard:
+                if on_dashboard:
+                    st.session_state["open_dashboard_ema_reclaim"] = True
+                else:
                     st.session_state["open_intraday_starter"] = starter
                 st.session_state["active_workspace_stage"] = "home" if on_dashboard else "experiments"
                 st.rerun()

@@ -254,6 +254,21 @@ def _render_evidence_intro(bt: Dict[str, Any] | None) -> None:
 def _render_workspace_landing(view: str) -> None:
     """Focused product pages for the permanent workspace navigation."""
     if view == "home":
+        st.markdown(
+            '<div class="va-dashboard-head"><div>'
+            '<h1>Research workspace</h1>'
+            '<p>Build, test and challenge strategy ideas before they reach capital.</p>'
+            '</div><div class="va-dashboard-status">System ready</div></div>',
+            unsafe_allow_html=True,
+        )
+        if st.session_state.pop("open_dashboard_ema_reclaim", False):
+            st.session_state["dashboard_view"] = "MNQ EMA Reclaim"
+        dashboard_view = st.radio("Dashboard view", ("Overview", "MNQ EMA Reclaim"),
+                                  horizontal=True, key="dashboard_view", label_visibility="collapsed")
+        if dashboard_view == "MNQ EMA Reclaim":
+            render_dashboard_ema_reclaim()
+            return
+
         has_blueprint = bool(st.session_state.get("blueprint_schema"))
         has_evidence = bool(st.session_state.get("bt_result"))
         has_research = has_blueprint or has_evidence or bool(st.session_state.get("strategy_description"))
@@ -265,14 +280,6 @@ def _render_workspace_landing(view: str) -> None:
             saved = None
             evidence_count = "Unavailable"
         capital_state = "Review required" if has_evidence else "Not assessed"
-
-        st.markdown(
-            '<div class="va-dashboard-head"><div>'
-            '<h1>Research workspace</h1>'
-            '<p>Build, test and challenge strategy ideas before they reach capital.</p>'
-            '</div><div class="va-dashboard-status">System ready</div></div>',
-            unsafe_allow_html=True,
-        )
 
         action, continuation, spacer = st.columns([1.15, 1.45, 2.4])
         with action:
@@ -301,8 +308,6 @@ def _render_workspace_landing(view: str) -> None:
             f'</div>',
             unsafe_allow_html=True,
         )
-
-        render_dashboard_ema_reclaim()
 
         active_index = 2 if has_evidence else (1 if has_blueprint else 0)
         track = [

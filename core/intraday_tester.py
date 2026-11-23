@@ -164,6 +164,10 @@ def run_intraday_tester(raw, starter, *, round_turn_cost, cfd_point_value=None, 
         outcome = "Below target" if median < low else "Above target band" if median > high else "Within target band"
     base_net = sum(trade["base_net"] for trade in ledger)
     double_cost_net = sum(trade["double_cost_net"] for trade in ledger)
+    closed_pnl = np.array([trade["base_net"] for trade in ledger], dtype=float)
+    gains = float(closed_pnl[closed_pnl > 0].sum())
+    losses = -float(closed_pnl[closed_pnl < 0].sum())
+    realized_curve = np.concatenate(([0.0], np.cumsum(closed_pnl)))
     daily_goal = {}
     if starter.id == EMA_RECLAIM_ID:
         daily_goal = {
@@ -185,6 +189,9 @@ def run_intraday_tester(raw, starter, *, round_turn_cost, cfd_point_value=None, 
         "at_least_floor_pct": 100 * sum(count >= low for count in observed) / len(observed) if observed else None,
         "in_band_pct": 100 * sum(low <= count <= high for count in observed) / len(observed) if observed else None,
         "base_net": base_net, "double_cost_net": double_cost_net,
+        "profit_factor": gains / losses if losses else None,
+        "win_rate_pct": float(100 * (closed_pnl > 0).mean()) if ledger else None,
+        "max_closed_trade_drawdown_usd": float((np.maximum.accumulate(realized_curve) - realized_curve).max()),
         **daily_goal,
         "days": days, "weeks": week_rows, "trades": ledger,
         "incomplete_sessions": [str(session.date.date()) for session in dataset.sessions if not session.complete],

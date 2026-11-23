@@ -7,3 +7,5 @@ pyyaml
 requests
 scikit-learn
 yfinance
+
+databento
