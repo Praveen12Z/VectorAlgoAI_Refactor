@@ -19,6 +19,22 @@ VALID_STATUSES = {"executable", "manual", "ambiguous", "unsupported"}
 
 
 CAPABILITIES: dict[str, dict[str, str]] = {
+    "prior_session_high_rejection": {
+        "status": "executable", "executor": "prior_session_rejection",
+        "reason": "Shorts the next 15-minute open before noon after a wick above and close below the previous session high. Limits entries to one per day.",
+    },
+    "signal_high_stop": {
+        "status": "executable", "executor": "signal_price_sl",
+        "reason": "Freezes the signal high plus the reviewed price-point buffer.",
+    },
+    "session_close_exit": {
+        "status": "executable", "executor": "session_close",
+        "reason": "Closes any remaining position at the 16:00 New York bar close.",
+    },
+    "unresolved_short_entry": {
+        "status": "unsupported", "executor": "none",
+        "reason": "The short entry does not match an executable rule form. Its direction is preserved in this draft.",
+    },
     "rsi_pullback": {"status": "executable", "executor": "rsi_pullback",
                      "reason": "Compares the completed close to its SMA and Wilder RSI to a threshold."},
     "next_open_exit": {"status": "executable", "executor": "next_open_exit",
@@ -197,7 +213,9 @@ def _classify(component: dict[str, Any], component_names: set[str]) -> dict[str,
         capability.update(status="ambiguous", executor="none", reason="ATR period and stop multiple are required.")
     elif name == "atr_target" and (not {"period", "multiple"}.issubset(params) or float(params.get("multiple", 0)) <= 0):
         capability.update(status="ambiguous", executor="none", reason="ATR profit target requires a positive multiple and period.")
-    elif name == "rr_target" and "atr_stop" not in component_names:
+    elif name == "signal_high_stop" and not (params.get("buffer_points") or 0) > 0:
+        capability.update(status="ambiguous", executor="none", reason="State the positive stop buffer in price points.")
+    elif name == "rr_target" and not component_names.intersection({"atr_stop", "signal_high_stop"}):
         capability.update(status="ambiguous", executor="none", reason="A target in R requires an executable protective stop.")
     return capability
 
@@ -243,7 +261,7 @@ def build_strategy_contract(schema: dict[str, Any], market: str, timeframe: str)
             "name": "AI Generated Universal Strategy",
             "market": market,
             "timeframe": timeframe,
-            "direction": "long",
+            "direction": schema.get("direction", "long"),
         },
         "source": {
             "original_text": schema.get("source_text", ""),
@@ -312,7 +330,7 @@ def contract_gate_issues(strategy: dict[str, Any], require_approval: bool = Fals
 
     if not any(rule.get("domain") == "entry" and rule.get("status") == "executable" for rule in rules):
         issues.append("At least one executable entry trigger is required.")
-    if not any(rule.get("component") in {"atr_stop", "structural_stop"} and rule.get("status") == "executable" for rule in rules):
+    if not any(rule.get("component") in {"atr_stop", "structural_stop", "signal_high_stop"} and rule.get("status") == "executable" for rule in rules):
         issues.append("An executable protective stop is required for risk-sized testing.")
 
     approval = contract.get("approval", {}) or {}

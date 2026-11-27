@@ -10,6 +10,8 @@ def _component(components: list[dict], name: str) -> dict | None:
 
 
 def compile_schema_to_yaml(schema: dict, market="XAUUSD", timeframe="1h") -> str:
+    market = schema.get("market", market)
+    timeframe = schema.get("timeframe", timeframe)
     components = schema.get("components", [])
     contract = build_strategy_contract(schema, market, timeframe)
     executable_components = {
@@ -156,5 +158,19 @@ def compile_schema_to_yaml(schema: dict, market="XAUUSD", timeframe="1h") -> str
             "source_text": schema.get("source_text", ""),
         },
     }
+    if schema.get("direction") == "short":
+        strategy["indicators"] = []
+        strategy["entry"]["long"] = []
+        strategy["exit"]["long"] = []
+        if {"prior_session_high_rejection", "signal_high_stop", "rr_target", "session_close_exit"} <= executable_components:
+            buffer_points = _component(components, "signal_high_stop")["params"]["buffer_points"]
+            rr = _component(components, "rr_target")["params"]["rr"]
+            strategy["session_rejection"] = {"buffer_points": buffer_points}
+            strategy["entry"]["short"] = [{"left": "prior_session_rejection", "op": "==", "right": 1}]
+            strategy["exit"]["short"] = [
+                {"type": "signal_price_sl", "column": "rejection_stop"},
+                {"type": "fill_rr_tp", "multiple": rr},
+                {"type": "session_close"},
+            ]
     strategy = attach_strategy_contract(strategy, schema, market, timeframe)
     return yaml.safe_dump(strategy, sort_keys=False)

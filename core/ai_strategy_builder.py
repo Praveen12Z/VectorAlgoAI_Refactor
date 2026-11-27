@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import re
 
+from core.session_rejection import build_rejection_schema
 from core.universal_schema import UniversalStrategy
 
 
@@ -85,12 +86,20 @@ def build_strategy_from_text(text: str) -> dict:
                 {"category": "risk", "component": "rr_target", "params": {"rr": target}},
             ],
         }
+    rejection = build_rejection_schema(text)
+    if rejection is not None:
+        return rejection
+
     schema = UniversalStrategy()
     txt = text.lower().replace("stop-loss", "stop loss").replace("take-profit", "target")
     assumptions: list[dict] = []
 
+    short_requested = bool(re.search(r"\b(?:enter|go|trade)\s+short\b|\bshort[- ]only\b", txt))
+    if short_requested:
+        schema.add_component("entry", "unresolved_short_entry")
+
     ema_periods = sorted({int(v) for v in re.findall(r"\bema\s*[-:]?\s*(\d{1,3})\b", txt)})
-    if "ema" in txt or "moving average" in txt or "trend" in txt:
+    if not short_requested and ("ema" in txt or "moving average" in txt or "trend" in txt):
         if len(ema_periods) < 2:
             ema_periods = [50, 200]
             _assume(assumptions, "EMA periods", "50 and 200", "Two EMA periods were not supplied.")
@@ -207,7 +216,7 @@ def build_strategy_from_text(text: str) -> dict:
         schema.add_component("risk", "atr_stop", {
             "multiple": float(stop_match.group(1)), "period": atr_period
         })
-    elif stop_mentioned or "atr" in txt:
+    elif not short_requested and (stop_mentioned or "atr" in txt):
         schema.add_component("risk", "atr_stop", {"multiple": 2.0, "period": atr_period})
         _assume(assumptions, "Stop distance", "2 ATR", "No executable stop distance was supplied.")
 
@@ -245,4 +254,6 @@ def build_strategy_from_text(text: str) -> dict:
     result["risk"] = {"capital": capital, "risk_per_trade_pct": risk_pct}
     result["assumptions"] = assumptions
     result["source_text"] = text.strip()
+    if short_requested:
+        result["direction"] = "short"
     return result

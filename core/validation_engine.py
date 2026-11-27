@@ -9,6 +9,7 @@ import pandas as pd
 from core.backtester_adapter import ExecutionCostModel, run_backtest_v2
 from core.evidence_policy import MIN_SCORABLE_TRADES, baseline_edge_is_demonstrated
 from core.monthly_activity import monthly_activity
+from core.session_rejection import session_index
 
 
 MIN_ADVERSE_HOLDOUT_TRADES = 10
@@ -103,6 +104,9 @@ def run_chronological_validation(
         raise ValueError("Hold-out percentage must be between 20 and 40.")
 
     split_index = int(len(df) * (1 - int(holdout_pct) / 100.0))
+    if 0 < split_index < len(df) and getattr(cfg, "raw", {}).get("session_rejection"):
+        dates = session_index(df.index).normalize()
+        split_index = int(dates.searchsorted(dates[split_index], side="left"))
     if split_index <= 0 or split_index >= len(df):
         raise ValueError("The selected historical window cannot be split into validation segments.")
 
