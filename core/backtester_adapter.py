@@ -8,6 +8,7 @@ from typing import Dict, List, Tuple
 import numpy as np
 import pandas as pd
 
+from .session_rejection import BAR, rejection_features, session_index
 from .strategy_config import StrategyConfig
 
 
@@ -302,6 +303,14 @@ def run_backtest_v2(
             (df['low'] > df[['open', 'close', 'high']].min(axis=1))).any():
         raise ValueError("Invalid OHLC bar range.")
 
+    session_setup = raw.get("session_rejection")
+    if session_setup:
+        if cfg.timeframe != "15m":
+            raise ValueError("The prior-session rejection setup requires 15-minute bars.")
+        df = rejection_features(df, float(session_setup["buffer_points"]))
+        session_dates = session_index(df.index).date
+        last_entry_date = None
+
     # Count completed signal bars, not unique setups. Repeated qualifying bars
     # are reported explicitly; rule order is contract order, not causal importance.
     diagnostics = {
@@ -314,6 +323,9 @@ def run_backtest_v2(
                   for side, rules in (("long", long_conds), ("short", short_conds))
                   for i, rule in enumerate(rules)],
     }
+
+    if session_setup:
+        diagnostics["blocked_daily_trade_limit"] = 0
 
     next_open_exits = {
         side: rule for side in ("long", "short")
@@ -356,6 +368,9 @@ def run_backtest_v2(
                     diagnostics["blocked_open_position"] += 1
                 elif current_equity <= 0:
                     diagnostics["blocked_nonpositive_equity"] += 1
+                elif session_setup and session_dates[row_index] == last_entry_date:
+                    diagnostics["blocked_daily_trade_limit"] += 1
+                    side = None
         if position is None and previous_row is not None and current_equity > 0:
             if side:
                 entry_inputs = previous_row.copy()
@@ -369,6 +384,8 @@ def run_backtest_v2(
                     position = _open_position(entry_inputs, cfg, side, ts, current_equity,
                                               cost_model, signal_time=df.index[row_index - 1])
                     entry_index = row_index
+                    if session_setup:
+                        last_entry_date = session_dates[row_index]
                     diagnostics["entries_executed"] += 1
                 else:
                     diagnostics["blocked_invalid_entry_stop"] += 1
@@ -388,6 +405,11 @@ def run_backtest_v2(
                         exit_price = open_price
             if exit_reason is None:
                 exit_reason, exit_price = _resolve_bar_exit(position, row)
+
+            exit_time = ts
+            if session_setup and exit_reason is None and row["session_close"]:
+                exit_reason, exit_price = "session_close", float(row["close"])
+                exit_time = ts + BAR
 
             # simple time-based fail-safe: close at last bar
             is_last_bar = ts == df.index[-1]
@@ -410,7 +432,7 @@ def run_backtest_v2(
                     {
                         "signal_time": position.signal_time,
                         "entry_time": position.entry_time,
-                        "exit_time": ts,
+                        "exit_time": exit_time,
                         "direction": position.direction,
                         "entry_price": position.entry_price,
                         "exit_price": exit_price,

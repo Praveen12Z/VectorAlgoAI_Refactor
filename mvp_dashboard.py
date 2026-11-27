@@ -632,7 +632,7 @@ def run_mvp_dashboard():
                 metrics = full_result["metrics"]
                 metrics["data_coverage"] = describe_coverage(df_price, cfg.market, cfg.timeframe, years)
                 metrics["session_filter"] = {
-                    "applied": False,
+                    "applied": bool(cfg.raw.get("session_rejection")),
                     "bars_before": len(df_price),
                     "bars_after": len(df_price),
                 }
@@ -792,7 +792,10 @@ def run_mvp_dashboard():
                     hide_index=True, use_container_width=True,
                 )
             session_filter = metrics.get("session_filter")
-            if session_filter:
+            if session_filter and session_filter["applied"]:
+                st.caption("New York session rules applied. Entries use complete 09:30–16:00 sessions, "
+                           "with one trade per day. Each split needs its own prior-session reference.")
+            elif session_filter:
                 st.caption(
                     f"No session filter applied · {session_filter['bars_before']} input bars → "
                     f"{session_filter['bars_after']} bars after the session stage."
@@ -805,6 +808,8 @@ def run_mvp_dashboard():
                       "Blocked by invalid stop at entry": "blocked_invalid_entry_stop",
                       "Entries executed": "entries_executed",
                       "Final-bar signal with no following open": "final_bar_signal_without_next_open"}
+            if "blocked_daily_trade_limit" in diagnostics:
+                counts["Blocked by daily trade limit"] = "blocked_daily_trade_limit"
             stage_counts = [{"Stage": label, "Count": diagnostics.get(key, 0)}
                             for label, key in counts.items()]
             stage_counts.insert(2, {

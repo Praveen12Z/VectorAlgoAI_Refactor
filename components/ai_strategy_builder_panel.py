@@ -69,6 +69,7 @@ def _render_thesis_editor():
         st.session_state.pop("evidence_yaml_editor", None)
         st.session_state.pop("approved_strategy_yaml", None)
         st.session_state["blueprint_schema"] = schema
+        st.session_state.pop("blueprint_assumptions_accepted", None)
         st.session_state["blueprint_approved"] = False
         st.session_state["active_workspace_stage"] = "blueprint"
         st.rerun()
@@ -127,9 +128,11 @@ def _render_blueprint():
         grouped.setdefault(component.get("category", "other").replace("_", " ").title(), []).append(component.get("component", "rule").replace("_", " ").title())
 
     base = [
-        ("Market", st.session_state.get("ai_market", "NAS100")),
-        ("Timeframe", st.session_state.get("ai_timeframe", "1h")),
+        ("Market", schema.get("market", st.session_state.get("ai_market", "NAS100"))),
+        ("Timeframe", schema.get("timeframe", st.session_state.get("ai_timeframe", "1h"))),
     ]
+    if schema.get("direction"):
+        base.append(("Direction", schema["direction"].title()))
     items = base + [(name, ", ".join(values)) for name, values in grouped.items()]
     cols = st.columns(3)
     for index, (label, value) in enumerate(items):
